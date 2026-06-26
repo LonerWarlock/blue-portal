@@ -15,7 +15,7 @@ export default function CtaSection() {
               Try Blue now.
             </h2>
             <p className="mt-4 text-gray-400 max-w-xl mx-auto">
-              Join thousands of developers who ship faster with Blue. Get started for free — no credit card required.
+              Get started free — every new sign-up receives $1.00 of free starter credits. No credit card required.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
@@ -33,7 +33,7 @@ export default function CtaSection() {
               </Link>
             </div>
             <p className="mt-6 text-xs text-gray-600">
-              Free tier includes 6 models with 100K tokens/day. No credit card needed.
+              Free tier models (DeepSeek V4 Flash, MiMo V2.5, Nemotron) cost $0.00 — they never drain your wallet.
             </p>
           </div>
         </div>

@@ -2,22 +2,21 @@ import Link from "next/link";
 
 const footerLinks = {
   Product: [
-    { label: "Agents", href: "#" },
-    { label: "Enterprise", href: "#" },
-    { label: "Pricing", href: "#" },
-    { label: "CLI", href: "#" },
+    { label: "Agents", href: "/product/agents" },
+    { label: "Enterprise", href: "/enterprise" },
+    { label: "Pricing", href: "/pricing" },
   ],
   Resources: [
     { label: "Documentation", href: "/docs" },
-    { label: "Changelog", href: "#" },
-    { label: "Community", href: "#" },
-    { label: "Status", href: "#" },
+    { label: "Changelog", href: "/changelog" },
+    { label: "Community", href: "/community" },
+    { label: "Status", href: "/status" },
   ],
   Company: [
-    { label: "Careers", href: "#" },
-    { label: "Blog", href: "#" },
-    { label: "Security", href: "#" },
-    { label: "Privacy", href: "#" },
+    { label: "Careers", href: "/careers" },
+    { label: "Blog", href: "/blog" },
+    { label: "Security", href: "/security" },
+    { label: "Privacy", href: "/privacy" },
   ],
 };
 
