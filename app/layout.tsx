@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Blue AI — Your AI Coding Agent",
-  description: "Blue is an AI coding agent that helps you build ambitious software. Accelerate development by handing off tasks to Blue while you focus on architecture and decisions.",
+  title: "Blue AI — Let AI code for you while you think",
+  description: "Blue's Autonomous Agents build entire features, run tests, and fix bugs by themselves. Accelerate development by handing off tasks to Blue while you focus on architecture.",
 };
 
 export default function RootLayout({

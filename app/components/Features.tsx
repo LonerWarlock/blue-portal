@@ -8,8 +8,14 @@ const features = [
   {
     icon: "fa-code-branch",
     title: "Agentic Coding",
-    description: "Blue works autonomously — planning, building, testing, and demoing features end to end. Hand off tasks while you focus on architecture decisions.",
+    description: "Blue Agents operate in a continuous loop — planning, writing code, running terminals, and self-correcting until every test passes. Hand off complex tasks while you focus on architecture.",
     gradient: "from-indigo-500 to-purple-500",
+  },
+  {
+    icon: "fa-terminal",
+    title: "Terminal Integration",
+    description: "Safe sandboxed terminal execution that runs locally on your machine. Blue runs lint checks, compiles, and tests your code, then inspects the diff for syntax errors before finishing.",
+    gradient: "from-green-500 to-teal-500",
   },
   {
     icon: "fa-sitemap",
@@ -18,21 +24,15 @@ const features = [
     gradient: "from-purple-500 to-pink-500",
   },
   {
-    icon: "fa-terminal",
-    title: "Terminal & IDE Native",
-    description: "Blue runs in your terminal, your IDE, and your CI/CD pipeline. No context switching — meet developers where they already work.",
-    gradient: "from-green-500 to-teal-500",
-  },
-  {
-    icon: "fa-slack",
-    title: "Team Collaboration",
-    description: "Integrates with Slack and GitHub. Review PRs, discuss features, and ship code together — all with AI-powered assistance across your entire workflow.",
+    icon: "fa-rotate",
+    title: "Self-Correcting Agents",
+    description: "If a test fails, the agent reads the terminal output error, rewrites the code, and tests it again until it passes. No manual intervention needed.",
     gradient: "from-orange-500 to-red-500",
   },
   {
     icon: "fa-shield-halved",
     title: "Enterprise Security",
-    description: "SOC 2 compliant, with secure codebase indexing and fine-grained access controls. Trusted by over half of the Fortune 500.",
+    description: "Your proprietary source code is protected by end-to-end encryption. Zero data retention, no model training, and local execution keep your code completely in your control.",
     gradient: "from-blue-600 to-indigo-600",
   },
 ];
@@ -43,11 +43,11 @@ export default function Features() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-            The new way to build software.
+            AI agents that build, test, and fix code.
           </h2>
           <p className="mt-4 text-gray-400 max-w-2xl mx-auto">
-            Blue gives every developer a powerful AI agent that understands your entire codebase,
-            works autonomously, and integrates at every step of your workflow.
+            Blue&apos;s Autonomous Agents operate in a continuous loop to solve complex tasks.
+            Give an Agent a goal and watch it plan, code, test, and self-correct until done.
           </p>
         </div>
 

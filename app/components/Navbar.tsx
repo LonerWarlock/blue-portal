@@ -18,20 +18,20 @@ export default function Navbar() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-8">
-          <Link href="/#features" className="text-sm text-gray-400 hover:text-gray-200 transition">
-            Features
-          </Link>
-          <Link href="/#models" className="text-sm text-gray-400 hover:text-gray-200 transition">
-            Models
-          </Link>
-          <Link href="/#testimonials" className="text-sm text-gray-400 hover:text-gray-200 transition">
-            Testimonials
+          <Link href="/product/agents" className="text-sm text-gray-400 hover:text-gray-200 transition">
+            Agents
           </Link>
           <Link href="/pricing" className="text-sm text-gray-400 hover:text-gray-200 transition">
             Pricing
           </Link>
           <Link href="/docs" className="text-sm text-gray-400 hover:text-gray-200 transition">
             Docs
+          </Link>
+          <Link href="/enterprise" className="text-sm text-gray-400 hover:text-gray-200 transition">
+            Enterprise
+          </Link>
+          <Link href="/blog" className="text-sm text-gray-400 hover:text-gray-200 transition">
+            Blog
           </Link>
         </nav>
 
