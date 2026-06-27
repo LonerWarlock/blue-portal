@@ -1,3 +1,5 @@
+"use client";
+
 export default function DemoVideo() {
   return (
     <section id="demo" className="py-24 relative">
@@ -28,10 +30,15 @@ export default function DemoVideo() {
               <video
                 className="w-full h-full object-contain"
                 controls
+                controlsList="nodownload"
+                onContextMenu={(e) => e.preventDefault()}
+                autoPlay
+                muted
+                loop
                 playsInline
                 preload="metadata"
               >
-                <source src="/videos/blue-portfolio-demo.mp4" type="video/mp4" />
+                <source src="/videos/portfolio_demo.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             </div>

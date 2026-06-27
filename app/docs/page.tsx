@@ -12,7 +12,7 @@ const steps = [
   {
     number: "2",
     title: "Set Gateway",
-    description: 'Open settings <span class="text-gray-300">(Ctrl + ,)</span> and set <span class="text-green-400 font-mono text-xs">blueCodingAssistant.gatewayUrl</span> to: <div class="mt-2 p-2 rounded-lg bg-gray-950 border border-gray-800 text-green-400 font-mono text-xs">http://localhost:3005/api</div>',
+    description: 'Open settings <span class="text-gray-300">(Ctrl + ,)</span> and set <span class="text-green-400 font-mono text-xs">blueCodingAssistant.gatewayUrl</span> to: <div class="mt-2 p-2 rounded-lg bg-gray-950 border border-gray-800 text-green-400 font-mono text-xs">https://blue-by-imergene.vercel.app/api</div>',
     icon: "fa-gear",
     gradient: "from-indigo-500 to-purple-500",
   },
@@ -79,7 +79,7 @@ export default function DocsPage() {
                       </span>
                       <h3 className="text-lg font-bold text-gray-100">{step.title}</h3>
                     </div>
-                    <p className="text-sm text-gray-400 leading-relaxed" dangerouslySetInnerHTML={{ __html: step.description }} />
+                    <div className="text-sm text-gray-400 leading-relaxed" dangerouslySetInnerHTML={{ __html: step.description }} />
                   </div>
                 </div>
               ))}

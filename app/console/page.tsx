@@ -9,10 +9,6 @@ export default function ConsolePage() {
   const [loading, setLoading] = useState(true);
   
   // Auth Form State
-  const [email, setEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [authError, setAuthError] = useState("");
   const [authStatusMessage, setAuthStatusMessage] = useState("");
 
@@ -28,13 +24,6 @@ export default function ConsolePage() {
   const [modelsList, setModelsList] = useState<any[]>(Object.values(MODELS));
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = window.localStorage.getItem('blue_remember_me');
-      if (saved !== null) {
-        setRememberMe(saved === 'true');
-      }
-    }
-
     supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -89,117 +78,34 @@ export default function ConsolePage() {
     }
   };
 
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleLogin = async () => {
     setAuthError("");
     setAuthStatusMessage("");
-
-    if (!email) {
-      setAuthError("Please enter your email address.");
-      return;
-    }
-
     try {
       if (supabase.isMock) {
-        setAuthStatusMessage("Demo Mode: Sending login code to your email...");
+        setAuthStatusMessage("Demo Mode: Logging in with Google...");
         setTimeout(() => {
-          setOtpSent(true);
-          setAuthStatusMessage("Demo Mode: Login code sent! Use code 123456 to sign in.");
+          const demoUser = { id: "demo_google_user", email: "team.imergene@gmail.com" };
+          setUser(demoUser);
+          setCurrentApiKey("blue_demo_key_google_123");
+          setBalance(1.00);
+          setAuthStatusMessage("");
         }, 800);
         return;
       }
 
-      setAuthStatusMessage("Sending login code...");
-      const response = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-
-      const data = await response.json();
-      if (!response.ok || data.error) {
-        throw new Error(data.error || 'Failed to send verification code.');
-      }
-
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('blue_remember_me', rememberMe ? 'true' : 'false');
-      }
-
-      setOtpSent(true);
-      setAuthStatusMessage("Login code sent to your email! Please check your inbox.");
-    } catch (err: any) {
-      setAuthError(err.message || "Failed to send verification code. Please check your credentials or network.");
-      setAuthStatusMessage("");
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    setAuthStatusMessage("");
-
-    if (!otpCode || otpCode.length !== 6) {
-      setAuthError("Please enter a valid 6-digit verification code.");
-      return;
-    }
-
-    try {
-      if (supabase.isMock) {
-        if (otpCode !== "123456") {
-          setAuthError("Invalid code. Please enter 123456 in Demo Mode.");
-          return;
+      setAuthStatusMessage("Redirecting to Google...");
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/console`
         }
-        
-        setAuthStatusMessage("Logging in...");
-        setTimeout(() => {
-          const demoUser = { id: "demo_user_123456", email: email };
-          setUser(demoUser);
-          setCurrentApiKey("blue_demo_key_abcdef123456");
-          setBalance(1.00);
-          setAuthStatusMessage("");
-        }, 500);
-        return;
-      }
-
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('blue_remember_me', rememberMe ? 'true' : 'false');
-      }
-
-      setAuthStatusMessage("Verifying code...");
-      const response = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), code: otpCode }),
       });
-
-      const data = await response.json();
-      if (!response.ok || data.error) {
-        throw new Error(data.error || 'Invalid or expired code.');
-      }
-
-      const { session } = data;
-      
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token
-      });
-
-      if (sessionError) throw sessionError;
-
-      setUser(session.user);
-      await loadUserData(session.user.id);
-      setAuthStatusMessage("");
+      if (error) throw error;
     } catch (err: any) {
-      setAuthError(err.message || "Incorrect verification code. Please check your email and try again.");
+      setAuthError(err.message || "Failed to sign in with Google.");
       setAuthStatusMessage("");
     }
-  };
-
-  const handleResetAuthForm = () => {
-    setOtpSent(false);
-    setOtpCode("");
-    setAuthError("");
-    setAuthStatusMessage("");
   };
 
   const handleLogout = async () => {
@@ -291,91 +197,33 @@ export default function ConsolePage() {
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
             
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold tracking-tight">
-                {otpSent ? "Verify login code" : "Welcome back"}
-              </h2>
+              <h2 className="text-2xl font-bold tracking-tight text-white">Welcome back</h2>
               <p className="text-sm text-gray-400 mt-2">
-                {otpSent ? `We sent a 6-digit verification code to ${email}` : "Sign in securely with email OTP"}
+                Sign in with your Google account to access your developer console.
               </p>
             </div>
 
-            {!otpSent ? (
-              <form onSubmit={handleAuthSubmit} className="space-y-5">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Email Address</label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500"><i className="fa-solid fa-envelope"></i></span>
-                    <input 
-                      type="email" 
-                      required 
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-gray-900/50 border border-gray-800 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition" 
-                      placeholder="you@example.com"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    id="remember_me"
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-4 w-4 rounded bg-gray-900/50 border-gray-800 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-950 transition cursor-pointer"
-                  />
-                  <label htmlFor="remember_me" className="ml-2 block text-sm text-gray-400 select-none cursor-pointer hover:text-gray-300">
-                    Remember me on this device
-                  </label>
-                </div>
-
-                <button type="submit" className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition duration-200">
-                  Send Login Code
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOtp} className="space-y-5">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">6-Digit Verification Code</label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500"><i className="fa-solid fa-key"></i></span>
-                    <input 
-                      type="text" 
-                      required 
-                      maxLength={6}
-                      pattern="\d{6}"
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                      className="w-full bg-gray-900/50 border border-gray-800 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition tracking-[0.25em] font-mono text-center text-lg" 
-                      placeholder="000000"
-                    />
-                  </div>
-                </div>
-
-                <button type="submit" className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition duration-200">
-                  Verify & Sign In
-                </button>
-
-                <div className="text-center mt-4">
-                  <button 
-                    type="button"
-                    onClick={handleResetAuthForm}
-                    className="text-xs text-blue-400 hover:text-blue-300 font-semibold focus:outline-none"
-                  >
-                    <i className="fa-solid fa-arrow-left mr-1"></i> Change email address
-                  </button>
-                </div>
-              </form>
-            )}
+            <button 
+              onClick={handleGoogleLogin} 
+              className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-xl bg-white text-gray-900 font-semibold shadow-lg hover:bg-gray-100 active:scale-[0.98] transition duration-200"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#EA4335" d="M12 5.04c1.62 0 3.08.56 4.22 1.65l3.15-3.15C17.45 1.72 14.92 1 12 1 7.35 1 3.37 3.68 1.34 7.6l3.86 3C6.12 7.6 8.84 5.04 12 5.04z" />
+                <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.51h6.46c-.29 1.48-1.14 2.73-2.42 3.58v2.98h3.91c2.28-2.1 3.54-5.19 3.54-8.71z" />
+                <path fill="#FBBC05" d="M5.2 14.4c-.23-.69-.36-1.43-.36-2.2s.13-1.51.36-2.2L1.34 7.01C.48 8.71 0 10.3 0 12s.48 3.29 1.34 4.99l3.86-2.59z" />
+                <path fill="#34A853" d="M12 23c3.24 0 5.95-1.08 7.93-2.91l-3.91-2.98c-1.08.72-2.45 1.16-4.02 1.16-3.16 0-5.88-2.56-6.8-5.56L1.34 16.3C3.37 20.32 7.35 23 12 23z" />
+              </svg>
+              <span>Sign in with Google</span>
+            </button>
 
             {authStatusMessage && (
-              <div className="mt-4 p-3 bg-blue-950/40 border border-blue-800/80 rounded-xl text-blue-400 text-xs text-center font-medium">
+              <div className="mt-6 p-3 bg-blue-950/40 border border-blue-800/80 rounded-xl text-blue-400 text-xs text-center font-medium">
                 {authStatusMessage}
               </div>
             )}
 
             {authError && (
-              <div className="mt-4 p-3 bg-red-950/40 border border-red-800/80 rounded-xl text-red-400 text-xs text-center font-medium">
+              <div className="mt-6 p-3 bg-red-950/40 border border-red-800/80 rounded-xl text-red-400 text-xs text-center font-medium">
                 {authError}
               </div>
             )}
