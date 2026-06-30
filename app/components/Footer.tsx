@@ -17,6 +17,7 @@ const footerLinks = {
     { label: "Blog", href: "/blog" },
     { label: "Security", href: "/security" },
     { label: "Privacy", href: "/privacy" },
+    { label: "Terms", href: "/terms" },
   ],
 };
 
