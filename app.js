@@ -10,7 +10,6 @@ if (SUPABASE_URL !== "YOUR_SUPABASE_URL" && SUPABASE_ANON_KEY !== "YOUR_SUPABASE
   supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
-// Elements Selection
 const authSection = document.getElementById('auth-section');
 const consoleSection = document.getElementById('console-section');
 const authForm = document.getElementById('auth-form');
