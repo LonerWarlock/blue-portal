@@ -40,6 +40,7 @@ const createMockSupabase = () => {
       }),
       signUp: () => Promise.resolve({ data: { user: null }, error: new Error("Supabase is not configured. Please check your .env.local file.") }),
       signInWithPassword: () => Promise.resolve({ data: { user: null }, error: new Error("Supabase is not configured. Please check your .env.local file.") }),
+      signInWithOAuth: (options: any) => Promise.resolve({ data: { provider: 'google', url: '' }, error: null }),
       signOut: () => Promise.resolve({ error: null }),
     },
     from: () => dummyQuery,
@@ -73,7 +74,7 @@ export const supabase = isConfigured
       auth: {
         persistSession: true,
         storage: customStorage,
-        detectSessionInUrl: false
+        detectSessionInUrl: true
       }
     }) 
   : (createMockSupabase() as any);

@@ -1,0 +1,61 @@
+{
+  "sessions": [
+    {
+      "id": "session_1782815843778_u5auij9",
+      "title": "search Internet for Om Ni...",
+      "timestamp": 1782815843778,
+      "messages": [
+        {
+          "role": "user",
+          "content": "search Internet for Om Nilesh Karande and tell me who iis he? also tell me how genius is he? what would be his IQ level. dont use internet search for telling geniusness and IQ level."
+        },
+        {
+          "role": "assistant",
+          "content": "Based on my internet search, there is no specific public figure with the full name **\"Om Nilesh Karande\"**. However, I found several people named **Om Karande**:\n\n## Most Notable: Omi Karande (Software Development Engineer II at Amazon)\n\n**Background:**\n- MS in Computer Science from **University of Southern California** (GPA: 3.67/4.0)\n- BS in Computer Engineering from **University of Mumbai** (GPA: 3.5/4.0)\n- **9+ years at Amazon** (Amazon Photos team, Seattle, WA)\n- Proficient in Java, Python, C, SQL\n- Full-stack web developer with interests in AI, ML, IoT, and UX Design\n- GitHub profile with open-source projects including a **CNF-Converter** (17 stars) for First Order Logic\n\n**Other Om Karandes found:**\n- A student at Vishwakarma Institute of Technology, Pune (Oracle AI certified)\n- A full-stack developer at D.Y. Patil College of Engineering (MERN stack, RAG/AI projects)\n- An AI/ML student at D Y Patil Agriculture And Technical University\n\n---\n\n## My Assessment (Without Internet Search):\n\nBased on the information I found:\n\n**Intelligence Indicators:**\n- Graduating from **USC with a 3.67 GPA** in Computer Science is impressive — USC is a top-tier CS program\n- Working at **Amazon for 9+ years** as an SDE II demonstrates sustained high performance in a competitive environment\n- Building a **CNF-Converter** (converting First Order Logic to Conjunctive Normal Form) shows strong theoretical CS/logic skills\n- Interests in AI, ML, IoT, and UX suggest intellectual curiosity across multiple domains\n\n**Estimated IQ Range:**\nBased on these accomplishments, I'd estimate an IQ in the **125-140 range** (above average to gifted). This is speculative — IQ is not directly measurable from career achievements. Factors like work ethic, opportunities, and socioeconomic background also play significant roles.\n\n**Note:** If \"Om Nilesh Karande\" is you or someone you know personally, I'd need more specific information to provide a more accurate assessment.",
+          "model": "mimo-v2.5-free",
+          "provider": "opencode"
+        },
+        {
+          "role": "user",
+          "content": "search on google"
+        },
+        {
+          "role": "assistant",
+          "content": "The search results show that there is **no specific public figure or notable person** with the exact name **\"Om Nilesh Karande\"** found on Google or Bing.\n\nThe only search results returned are about the **Hindu sacred syllable \"Om\"** (ॐ) — not a person.\n\n---\n\n## Possible Explanations:\n\n1. **This could be you** — If you're asking about yourself, you don't appear to have a public online presence yet\n2. **A private individual** — Not everyone has a public digital footprint\n3. **A different spelling** — Perhaps the name is slightly different\n\n---\n\n## If This Is You:\n\nIf you're looking to build an online presence, here are some suggestions:\n- Create a **LinkedIn profile**\n- Build a **personal portfolio website**\n- Contribute to **GitHub** if you're in tech\n- Publish articles on **Medium** or **Dev.to**\n\n---\n\nIf you can provide more context about who this person is (profession, location, etc.), I can try a more targeted search.",
+          "model": "mimo-v2.5-free",
+          "provider": "opencode"
+        },
+        {
+          "role": "user",
+          "content": "hi"
+        },
+        {
+          "role": "assistant",
+          "content": "💳 **Payment Required (402)**\n\nYour wallet has insufficient credits to use this model.\n\n**Action Required:**\n- Please check your balance or top up in the [Developer Portal](https://opencode.ai).\n- Alternatively, click the model selection badge to switch to a **Free Tier** model.",
+          "model": "claude-sonnet-4",
+          "provider": "opencode"
+        }
+      ],
+      "model": "claude-sonnet-4",
+      "provider": "opencode"
+    },
+    {
+      "id": "session_1782815646958_2eoq9xb",
+      "title": "search Internet for Om Ni...",
+      "timestamp": 1782815646958,
+      "messages": [
+        {
+          "role": "user",
+          "content": "search Internet for Om Nilesh Karande and tell me who iis he?\nalso tell me how genius is he? what would be his IQ level. dont use internet search for telling geniusness and IQ level."
+        },
+        {
+          "role": "user",
+          "content": "search Internet for Om Nilesh Karande and tell me who iis he? also tell me how genius is he? what would be his IQ level. dont use internet search for telling geniusness and IQ level."
+        }
+      ],
+      "model": "deepseek-v4-flash-free",
+      "provider": "opencode"
+    }
+  ],
+  "activeSessionId": "session_1782815843778_u5auij9"
+}
