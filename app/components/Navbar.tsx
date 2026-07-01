@@ -6,7 +6,7 @@ export default function Navbar() {
   return (
     <header className="w-full glass py-4 px-6 border-b border-gray-800/80 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
-        <Link href="/" className="flex items-center space-x-3">
+        <Link prefetch={false} href="/" className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
             <i className="fa-solid fa-robot text-lg text-white"></i>
           </div>
@@ -18,31 +18,31 @@ export default function Navbar() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-8">
-          <Link href="/product/agents" className="text-sm text-gray-400 hover:text-gray-200 transition">
+          <Link prefetch={false} href="/product/agents" className="text-sm text-gray-400 hover:text-gray-200 transition">
             Agents
           </Link>
-          <Link href="/pricing" className="text-sm text-gray-400 hover:text-gray-200 transition">
+          <Link prefetch={false} href="/pricing" className="text-sm text-gray-400 hover:text-gray-200 transition">
             Pricing
           </Link>
-          <Link href="/docs" className="text-sm text-gray-400 hover:text-gray-200 transition">
+          <Link prefetch={false} href="/docs" className="text-sm text-gray-400 hover:text-gray-200 transition">
             Docs
           </Link>
-          <Link href="/enterprise" className="text-sm text-gray-400 hover:text-gray-200 transition">
+          <Link prefetch={false} href="/enterprise" className="text-sm text-gray-400 hover:text-gray-200 transition">
             Enterprise
           </Link>
-          <Link href="/blog" className="text-sm text-gray-400 hover:text-gray-200 transition">
+          <Link prefetch={false} href="/blog" className="text-sm text-gray-400 hover:text-gray-200 transition">
             Blog
           </Link>
         </nav>
 
         <div className="flex items-center space-x-3">
-          <Link
+          <Link prefetch={false}
             href="/console"
             className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition duration-200"
           >
             Sign In
           </Link>
-          <Link
+          <Link prefetch={false}
             href="/console"
             className="px-5 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition duration-200"
           >
