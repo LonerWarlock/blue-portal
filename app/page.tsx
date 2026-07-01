@@ -7,6 +7,7 @@ import DemoVideo from "./components/DemoVideo";
 import CtaSection from "./components/CtaSection";
 import Footer from "./components/Footer";
 
+
 export default function LandingPage() {
   return (
     <>
