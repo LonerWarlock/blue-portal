@@ -108,11 +108,11 @@ export default function RefundPage() {
                   </div>
                   <div className="col-span-1 md:col-span-2">
                     <span className="block font-semibold text-gray-300">Company Name &amp; Address:</span>
-                    <span>Blue By Imergene, Samrudhi Nagar, Punyashri Nagri, Kupwad Road, Sangli, Maharashtra, India</span>
+                    <span>IMERGENE, Samruddhi Nagar, Punyashri Nagri, Kupwad Road, Miraj, Sangli, Maharashtra – 416416, India</span>
                   </div>
                   <div>
                     <span className="block font-semibold text-gray-300">Email:</span>
-                    <a href="mailto:support@imergene.com" className="text-blue-400 hover:underline">support@imergene.com</a>
+                    <a href="mailto:team.imergene@gmail.com" className="text-blue-400 hover:underline">team.imergene@gmail.com</a>
                   </div>
                   <div>
                     <span className="block font-semibold text-gray-300">Availability:</span>

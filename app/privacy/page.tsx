@@ -37,7 +37,7 @@ export default function PrivacyPage() {
               <div>
                 <h2 className="text-xl font-bold text-gray-100 mb-4">Introduction</h2>
                 <p className="text-sm text-gray-400 leading-relaxed">
-                  This Privacy Policy describes how Blue By Imergene and its affiliates (collectively &quot;Blue By Imergene&quot;, &quot;we&quot;, &quot;our&quot;, &quot;us&quot;) collect, use, share, protect, or otherwise process your information/personal data through our website <a href="https://blue-by-imergene.vercel.app" className="text-blue-400 hover:underline">https://blue-by-imergene.vercel.app</a> (hereinafter referred to as the &quot;Platform&quot;). Please note that you may be able to browse certain sections of the Platform without registering with us. We do not offer any product/service under this Platform outside India and your personal data will primarily be stored and processed in India. By visiting this Platform, providing your information, or availing any product/service offered on the Platform, you expressly agree to be bound by the terms and conditions of this Privacy Policy, the Terms of Use, and the applicable service/product terms and conditions, and agree to be governed by the laws of India including but not limited to the laws applicable to data protection and privacy. If you do not agree, please do not use or access our Platform.
+                  This Privacy Policy describes how IMERGENE (doing business as &quot;Blue By Imergene&quot;) and its affiliates (collectively &quot;IMERGENE&quot;, &quot;we&quot;, &quot;our&quot;, &quot;us&quot;) collect, use, share, protect, or otherwise process your information/personal data through our website <a href="https://blue-by-imergene.vercel.app" className="text-blue-400 hover:underline">https://blue-by-imergene.vercel.app</a> (hereinafter referred to as the &quot;Platform&quot;). Please note that you may be able to browse certain sections of the Platform without registering with us. We do not offer any product/service under this Platform outside India and your personal data will primarily be stored and processed in India. By visiting this Platform, providing your information, or availing any product/service offered on the Platform, you expressly agree to be bound by the terms and conditions of this Privacy Policy, the Terms of Use, and the applicable service/product terms and conditions, and agree to be governed by the laws of India including but not limited to the laws applicable to data protection and privacy. If you do not agree, please do not use or access our Platform.
                 </p>
               </div>
 
@@ -112,11 +112,11 @@ export default function PrivacyPage() {
                   </div>
                   <div className="col-span-1 md:col-span-2">
                     <span className="block font-semibold text-gray-300">Company Name & Address:</span>
-                    <span>Blue By Imergene, Samrudhi Nagar, Punyashri Nagri, Kupwad Road, Sangli, Maharashtra, India</span>
+                    <span>IMERGENE, Samruddhi Nagar, Punyashri Nagri, Kupwad Road, Miraj, Sangli, Maharashtra – 416416, India</span>
                   </div>
                   <div>
                     <span className="block font-semibold text-gray-300">Email:</span>
-                    <a href="mailto:support@imergene.com" className="text-blue-400 hover:underline">support@imergene.com</a>
+                    <a href="mailto:team.imergene@gmail.com" className="text-blue-400 hover:underline">team.imergene@gmail.com</a>
                   </div>
                   <div>
                     <span className="block font-semibold text-gray-300">Availability:</span>
