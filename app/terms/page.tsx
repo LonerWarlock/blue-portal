@@ -1,4 +1,5 @@
 import PageLayout from "@/app/components/PageLayout";
+import PageBackground3D from "@/app/components/PageBackground3D";
 
 export default function TermsPage() {
   return (
@@ -8,6 +9,7 @@ export default function TermsPage() {
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[128px]"></div>
           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[128px]"></div>
         </div>
+        <PageBackground3D theme="terms" />
 
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="text-center max-w-4xl mx-auto">
@@ -40,7 +42,7 @@ export default function TermsPage() {
                   This document is published in accordance with the provisions of Rule 3(1) of the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 that require publishing the rules and regulations, privacy policy, and Terms of Use for access or usage of the domain name <a href="https://blue-by-imergene.vercel.app" className="text-blue-400 hover:underline">https://blue-by-imergene.vercel.app</a> (&quot;Website&quot;), including the related mobile site and mobile application (hereinafter referred to as &quot;Platform&quot;).
                 </p>
                 <p className="text-sm text-gray-400 leading-relaxed">
-                  The Platform is owned by Blue By Imergene, a company incorporated under the Companies Act, 1956 or Companies Act, 2013 (as applicable), with its registered office at Samrudhi Nagar, Punyashri Nagri, Kupwad Road, Sangli (hereinafter referred to as &quot;Platform Owner&quot;, &quot;we&quot;, &quot;us&quot;, &quot;our&quot;).
+                  The Platform is owned and operated by IMERGENE (doing business as &quot;Blue By Imergene&quot;), a company incorporated under the Companies Act, 1956 or Companies Act, 2013 (as applicable), with its registered office at Samruddhi Nagar, Punyashri Nagri, Kupwad Road, Miraj, Sangli, Maharashtra – 416416 (hereinafter referred to as &quot;Platform Owner&quot;, &quot;we&quot;, &quot;us&quot;, &quot;our&quot;).
                 </p>
                 <p className="text-sm text-gray-400 leading-relaxed">
                   Your use of the Platform, services, and tools is governed by the following terms and conditions (&quot;Terms of Use&quot;) as applicable to the Platform, including the applicable policies which are incorporated herein by way of reference. If you transact on the Platform, you shall be subject to the policies that are applicable to the Platform for such transactions. By mere use of the Platform, you shall be contracting with the Platform Owner, and these terms and conditions including the policies constitute your binding obligations with the Platform Owner. These Terms of Use relate to your use of our Website, goods (as applicable), or services (as applicable) (collectively, &quot;Services&quot;). Any terms and conditions proposed by you which are in addition to or which conflict with these Terms of Use are expressly rejected by the Platform Owner and shall be of no force or effect. These Terms of Use can be modified at any time without assigning any reason. It is your responsibility to periodically review these Terms of Use to stay informed of updates.

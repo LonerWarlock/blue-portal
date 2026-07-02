@@ -18,6 +18,7 @@ const footerLinks = {
     { label: "Security", href: "/security" },
     { label: "Privacy", href: "/privacy" },
     { label: "Terms", href: "/terms" },
+    { label: "Contact Us", href: "/contact" },
     { label: "Refund Policy", href: "/refund" },
   ],
 };
@@ -46,7 +47,7 @@ export default function Footer() {
               <ul className="space-y-3">
                 {links.map((link) => (
                   <li key={link.label}>
-                    <Link
+                    <Link prefetch={false}
                       href={link.href}
                       className="text-xs text-gray-500 hover:text-gray-300 transition"
                     >
@@ -60,9 +61,10 @@ export default function Footer() {
         </div>
 
         <div className="pt-8 border-t border-gray-800/50 flex flex-col md:flex-row justify-between items-center space-y-3 md:space-y-0">
-          <span className="text-xs text-gray-600">
-            &copy; 2026 Blue AI. All rights reserved.
-          </span>
+          <div className="text-xs text-gray-600 space-y-1 text-center md:text-left">
+            <div>&copy; 2026 Blue AI. All rights reserved.</div>
+            <div className="text-gray-500 font-medium">Owned and operated by IMERGENE.</div>
+          </div>
           <div className="flex items-center space-x-4">
             <a href="#" className="text-gray-600 hover:text-gray-400 transition">
               <i className="fa-brands fa-x-twitter"></i>
