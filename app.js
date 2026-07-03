@@ -180,10 +180,10 @@ async function loadUserData(userId) {
         .select()
         .single();
       if (!createError && newWallet) {
-        walletBalance.textContent = `$${newWallet.balance.toFixed(2)}`;
+        walletBalance.textContent = `${newWallet.balance.toFixed(0)} IMR`;
       }
     } else if (!walletError && walletData) {
-      walletBalance.textContent = `$${walletData.balance.toFixed(2)}`;
+      walletBalance.textContent = `${walletData.balance.toFixed(0)} IMR`;
     }
 
     // 2. Fetch API Key

@@ -236,15 +236,15 @@ export default function ConsolePage() {
               
               <div className="lg:col-span-1 p-6 rounded-2xl glass relative overflow-hidden flex flex-col justify-between min-h-[220px]">
                 <div>
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Wallet Balance</span>
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">IMR Balance</span>
                   <span className="text-4xl font-extrabold tracking-tight mt-2 block bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-                    ${balance.toFixed(2)}
+                    {balance.toFixed(0)} IMR
                   </span>
-                  <span className="text-xs text-gray-500 mt-1 block">Free Credits Tier</span>
+                  <span className="text-xs text-gray-500 mt-1 block">Refilled from Imergene Promo</span>
                 </div>
                 <div className="mt-6 flex space-x-3">
                   <button className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white shadow-md hover:from-blue-500 hover:to-indigo-500 transition duration-200">
-                    Add Credits
+                    Use IMR
                   </button>
                   <button className="py-2.5 px-4 rounded-xl border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition">
                     History
