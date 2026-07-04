@@ -1,5 +1,19 @@
 import Link from "next/link";
 
+const allFeatures = [
+  "AI Chat",
+  "Code Autocomplete",
+  "Codebase Search",
+  "Syntax Checking",
+  "Cloud Models",
+  "Local Models",
+  "Multi-Agent Teams",
+  "Figma-to-Code",
+  "GitHub Integration",
+  "Web Search",
+  "Premium Models",
+];
+
 const plans = [
   {
     name: "Blue Lite",
@@ -11,18 +25,13 @@ const plans = [
     badgeStyle: "bg-gradient-to-r from-green-600 to-teal-600",
     href: "/console",
     cta: "Get Started Free",
-    description: "Perfect for getting started with Blue AI.",
-    features: [
-      "Access to free tier models",
-      "Community support",
-      "100 requests per day",
-      "Basic chat interface",
-    ],
+    description: "Baseline features common in any modern SOTA coding agent.",
+    features: [true, true, true, true, true, true, false, false, false, false, false],
     featured: false,
   },
   {
     name: "Blue",
-    subtitle: "Unlock full potential",
+    subtitle: "₹149 / month",
     price: "₹149",
     period: "/month",
     gradient: "from-blue-500 to-indigo-500",
@@ -30,15 +39,8 @@ const plans = [
     badgeStyle: "bg-gradient-to-r from-blue-600 to-indigo-600",
     href: "https://core2cover.in/checkout/blue",
     cta: "Subscribe Now",
-    description: "Full access to all Blue AI features.",
-    features: [
-      "All Blue Lite features",
-      "Access to all models (Claude, GPT, Gemini)",
-      "1,000 requests per day",
-      "API key access",
-      "Priority email support",
-      "No usage limits on free models",
-    ],
+    description: "Advanced integrations and orchestration with Free/BYOK models.",
+    features: [true, true, true, true, true, true, true, true, true, true, false],
     featured: true,
   },
   {
@@ -51,15 +53,8 @@ const plans = [
     badgeStyle: "bg-gradient-to-r from-purple-600 to-pink-600",
     href: "#",
     cta: "Notify Me",
-    description: "For power users and teams.",
-    features: [
-      "All Blue features",
-      "Unlimited requests",
-      "Dedicated support",
-      "Early access to new models",
-      "Custom integrations",
-      "Team management",
-    ],
+    description: "Infinite extensibility with premium reasoning models.",
+    features: [true, true, true, true, true, true, true, true, true, true, true],
     featured: false,
     disabled: true,
   },
@@ -95,13 +90,13 @@ export default function SubscribePage() {
             </p>
           </div>
 
-          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-start">
+          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
             {plans.map((plan) => (
               <div
                 key={plan.name}
-                className={`relative p-8 rounded-2xl border transition-all duration-300 ${
+                className={`relative p-8 rounded-2xl border transition-all duration-300 flex flex-col ${
                   plan.featured
-                    ? "glass border-blue-500/40 shadow-xl shadow-blue-500/10 scale-105 md:scale-110"
+                    ? "glass border-blue-500/40 shadow-xl shadow-blue-500/10"
                     : "glass border-gray-800/80 hover:border-gray-700/80"
                 } ${plan.disabled ? "opacity-70" : ""}`}
               >
@@ -138,10 +133,27 @@ export default function SubscribePage() {
                   <span className="text-gray-500 text-lg">{plan.period}</span>
                 </div>
 
+                <ul className="mt-8 space-y-3 flex-1">
+                  {allFeatures.map((feature, i) => (
+                    <li key={feature} className="flex items-center gap-3 text-sm text-gray-400">
+                      {plan.features[i] ? (
+                        <span className="w-4 h-4 rounded-full bg-green-950/60 border border-green-900/60 text-green-400 flex items-center justify-center shrink-0 text-[8px]">
+                          <i className="fa-solid fa-check"></i>
+                        </span>
+                      ) : (
+                        <span className="w-4 h-4 rounded-full bg-gray-800/60 border border-gray-700/60 text-gray-600 flex items-center justify-center shrink-0 text-[8px]">
+                          <i className="fa-solid fa-xmark"></i>
+                        </span>
+                      )}
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
                 {plan.disabled ? (
                   <button
                     disabled
-                    className="w-full px-6 py-3 rounded-xl bg-gray-800/50 text-gray-500 font-semibold cursor-not-allowed border border-gray-800/50 text-base"
+                    className="w-full px-6 py-3 rounded-xl bg-gray-800/50 text-gray-500 font-semibold cursor-not-allowed border border-gray-800/50 text-base mt-6"
                   >
                     <i className="fa-solid fa-clock mr-2"></i>
                     {plan.cta}
@@ -165,17 +177,6 @@ export default function SubscribePage() {
                     {plan.cta}
                   </a>
                 )}
-
-                <ul className="mt-8 space-y-3.5">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-3 text-sm text-gray-400">
-                      <span className="w-5 h-5 rounded-full bg-blue-950/60 border border-blue-900/60 text-blue-400 flex items-center justify-center shrink-0 mt-0.5 text-[10px]">
-                        <i className="fa-solid fa-check"></i>
-                      </span>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
               </div>
             ))}
           </div>

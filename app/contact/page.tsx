@@ -77,7 +77,7 @@ export default function ContactPage() {
 
           <div className="mt-20 max-w-4xl mx-auto">
             <div className="rounded-2xl glass border border-gray-800/80 p-8 md:p-12 shadow-2xl space-y-10 bg-gray-950/40 backdrop-blur-xl">
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div className="space-y-6">
                   <h2 className="text-2xl font-bold text-gray-100">Get in Touch</h2>
@@ -93,6 +93,36 @@ export default function ContactPage() {
                       <div>
                         <span className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Corporate Entity</span>
                         <span className="text-sm text-gray-200 font-semibold">IMERGENE</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-blue-950/50 border border-blue-800/30 flex items-center justify-center text-blue-400 mt-1">
+                        <i className="fa-solid fa-user text-sm"></i>
+                      </div>
+
+                      <div>
+                        <span className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          Co-Founders
+                        </span>
+
+                        <a
+                          href="https://www.linkedin.com/in/om-karande-087b20287"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-sm font-semibold text-gray-200 no-underline hover:text-blue-400 transition-colors"
+                        >
+                          Om Nilesh Karande
+                        </a>
+
+                        <a
+                          href="https://www.linkedin.com/in/soham-phatak"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-sm font-semibold text-gray-200 no-underline hover:text-blue-400 transition-colors"
+                        >
+                          Soham Sachin Phatak
+                        </a>
                       </div>
                     </div>
 
@@ -126,7 +156,7 @@ export default function ContactPage() {
 
                 <div className="bg-gray-900/40 p-6 rounded-xl border border-gray-800/60">
                   <h3 className="text-lg font-bold text-gray-200 mb-4">Send a Message</h3>
-                  
+
                   {status === "success" && (
                     <div className="mb-4 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
                       ✓ Thank you! Your message has been sent successfully.
@@ -142,39 +172,39 @@ export default function ContactPage() {
                   <form className="space-y-4" onSubmit={handleSubmit}>
                     <div>
                       <label className="block text-xs font-semibold text-gray-400 mb-1.5">Name</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="John Doe" 
+                        placeholder="John Doe"
                         className="w-full bg-gray-950/60 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500 transition"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-400 mb-1.5">Email</label>
-                      <input 
-                        type="email" 
+                      <input
+                        type="email"
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="john@example.com" 
+                        placeholder="john@example.com"
                         className="w-full bg-gray-950/60 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500 transition"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-400 mb-1.5">Message</label>
-                      <textarea 
+                      <textarea
                         rows={4}
                         required
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
-                        placeholder="How can we help you?" 
+                        placeholder="How can we help you?"
                         className="w-full bg-gray-950/60 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500 transition resize-none"
                       />
                     </div>
-                    <button 
-                      type="submit" 
+                    <button
+                      type="submit"
                       disabled={status === "submitting"}
                       className="w-full py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-semibold transition shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
