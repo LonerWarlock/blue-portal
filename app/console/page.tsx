@@ -241,6 +241,7 @@ export default function ConsolePage() {
                     {balance.toFixed(0)} IMR
                   </span>
                   <span className="text-xs text-gray-500 mt-1 block">Refilled from Imergene Promo</span>
+                  <span className="text-[20px] text-gray-500 mt-2 block font-mono">1 IMR = ₹0.50 (INR)</span>
                 </div>
                 <div className="mt-6 flex space-x-3">
                   <a

@@ -1,3 +1,4 @@
+import PageLayout from "@/app/components/PageLayout";
 import Link from "next/link";
 
 const allFeatures = [
@@ -37,7 +38,7 @@ const plans = [
     gradient: "from-blue-500 to-indigo-500",
     badge: "Most Popular",
     badgeStyle: "bg-gradient-to-r from-blue-600 to-indigo-600",
-    href: "https://core2cover.in/checkout/blue",
+    href: "",
     cta: "Subscribe Now",
     description: "Advanced integrations and orchestration with Free/BYOK models.",
     features: [true, true, true, true, true, true, true, true, true, true, false],
@@ -62,14 +63,14 @@ const plans = [
 
 export default function SubscribePage() {
   return (
-    <>
+    <PageLayout>
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[128px]"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[128px]"></div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[160px]"></div>
       </div>
 
-      <section className="relative min-h-screen flex items-center py-20">
+      <section className="relative overflow-hidden pt-20 pb-32">
         <div className="max-w-7xl mx-auto px-6 relative z-10 w-full">
           <div className="text-center max-w-4xl mx-auto">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-950/40 border border-blue-800/50 text-blue-400 text-xs font-semibold mb-8">
@@ -181,18 +182,7 @@ export default function SubscribePage() {
             ))}
           </div>
 
-          <div className="mt-16 text-center max-w-2xl mx-auto p-6 rounded-2xl glass border border-gray-800/80">
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <i className="fa-solid fa-shield-halved text-blue-400 text-lg"></i>
-              <span className="text-sm text-gray-400">
-                Secured by <span className="text-blue-400 font-semibold">Razorpay</span>
-              </span>
-            </div>
-            <p className="text-xs text-gray-600">
-              Your payment information is processed securely by Razorpay. We never store your card details.
-              After successful payment, you will be redirected back to Blue AI with your new plan activated.
-            </p>
-          </div>
+          
 
           <div className="mt-8 text-center">
             <p className="text-xs text-gray-600">
@@ -211,6 +201,6 @@ export default function SubscribePage() {
           </div>
         </div>
       </section>
-    </>
+    </PageLayout>
   );
 }
