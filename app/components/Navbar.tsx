@@ -24,6 +24,9 @@ export default function Navbar() {
           <Link prefetch={false} href="/pricing" className="text-sm text-gray-400 hover:text-gray-200 transition">
             Pricing
           </Link>
+          <Link prefetch={false} href="/subscribe" className="text-sm text-gray-400 hover:text-gray-200 transition">
+            Subscribe
+          </Link>
           <Link prefetch={false} href="/docs" className="text-sm text-gray-400 hover:text-gray-200 transition">
             Docs
           </Link>
@@ -36,6 +39,13 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center space-x-3">
+          <Link prefetch={false}
+            href="/subscribe"
+            className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
+          >
+            <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
+            Upgrade
+          </Link>
           <Link prefetch={false}
             href="/console"
             className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition duration-200"

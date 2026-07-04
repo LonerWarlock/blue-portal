@@ -243,6 +243,13 @@ export default function ConsolePage() {
                   <span className="text-xs text-gray-500 mt-1 block">Free Credits Tier</span>
                 </div>
                 <div className="mt-6 flex space-x-3">
+                  <a
+                    href="/subscribe"
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-semibold text-white shadow-md hover:from-purple-500 hover:to-pink-500 transition duration-200 inline-flex items-center justify-center gap-2"
+                  >
+                    <i className="fa-solid fa-crown text-xs"></i>
+                    Upgrade
+                  </a>
                   <button className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white shadow-md hover:from-blue-500 hover:to-indigo-500 transition duration-200">
                     Add Credits
                   </button>

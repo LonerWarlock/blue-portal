@@ -126,7 +126,14 @@ export default function PricingPage() {
             ))}
           </div>
 
-          <div className="mt-12 text-center">
+          <div className="mt-12 text-center flex items-center justify-center gap-4">
+            <Link
+              href="/subscribe"
+              className="inline-flex px-8 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-semibold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition duration-200 text-base"
+            >
+              <i className="fa-solid fa-crown mr-2"></i>
+              Subscribe
+            </Link>
             <Link
               href="/console"
               className="inline-flex px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition duration-200 text-base"

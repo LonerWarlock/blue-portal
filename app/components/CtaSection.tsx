@@ -26,6 +26,13 @@ export default function CtaSection() {
                 <i className="fa-solid fa-arrow-right ml-2"></i>
               </Link>
               <Link
+                href="/subscribe"
+                className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-semibold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition duration-200 text-base"
+              >
+                <i className="fa-solid fa-crown mr-2"></i>
+                See Plans
+              </Link>
+              <Link
                 href="/docs"
                 className="px-8 py-3.5 rounded-xl border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition duration-200 text-base"
               >

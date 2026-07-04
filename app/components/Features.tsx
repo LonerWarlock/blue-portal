@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const features = [
   {
     icon: "fa-microchip",
@@ -68,6 +70,17 @@ export default function Features() {
               </p>
             </div>
           ))}
+        </div>
+
+        <div className="text-center mt-12">
+          <Link
+            href="/subscribe"
+            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-semibold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition duration-200 text-base"
+          >
+            <i className="fa-solid fa-crown"></i>
+            See All Plans
+            <i className="fa-solid fa-arrow-right text-xs"></i>
+          </Link>
         </div>
       </div>
     </section>

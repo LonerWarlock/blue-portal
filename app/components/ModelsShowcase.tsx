@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { MODELS } from "@/lib/models";
 
 const featuredModels = Object.values(MODELS).filter(m =>
@@ -75,7 +76,14 @@ export default function ModelsShowcase() {
           ))}
         </div>
 
-        <div className="text-center mt-10">
+        <div className="text-center mt-10 flex items-center justify-center gap-6">
+          <Link
+            href="/subscribe"
+            className="inline-flex items-center gap-2 text-sm text-purple-400 hover:text-purple-300 font-semibold transition"
+          >
+            <i className="fa-solid fa-crown text-xs"></i> See Plans
+          </Link>
+          <span className="text-gray-700">|</span>
           <a
             href="/console"
             className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-semibold transition"
