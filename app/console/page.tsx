@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { MODELS } from "@/lib/models";
 
 export default function ConsolePage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
   
   // Auth Form State
   const [authError, setAuthError] = useState("");
@@ -45,6 +47,16 @@ export default function ConsolePage() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      const redirect = sessionStorage.getItem("redirectAfterLogin");
+      if (redirect) {
+        sessionStorage.removeItem("redirectAfterLogin");
+        router.push(redirect);
+      }
+    }
+  }, [user]);
 
   const loadUserData = async (userId: string) => {
     try {
@@ -168,9 +180,25 @@ export default function ConsolePage() {
               <span className="text-xs block text-gray-500 font-medium">Developer Console</span>
             </div>
           </a>
+
+          <nav className="hidden md:flex items-center space-x-6">
+            <a href="/" className="text-sm text-gray-400 hover:text-gray-200 transition">Home</a>
+            <a href="/subscribe" className="text-sm text-gray-400 hover:text-gray-200 transition">Subscribe</a>
+            <a href="/pricing" className="text-sm text-gray-400 hover:text-gray-200 transition">Pricing</a>
+            <a href="/docs" className="text-sm text-gray-400 hover:text-gray-200 transition">Docs</a>
+            <a href="/blog" className="text-sm text-gray-400 hover:text-gray-200 transition">Blog</a>
+          </nav>
+
           {user && (
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-400 font-medium hidden sm:inline">{user.email}</span>
+              <a
+                href="/subscribe"
+                className="hidden sm:inline-flex px-3 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
+              >
+                <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
+                Upgrade
+              </a>
               <button onClick={handleLogout} className="px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold hover:bg-gray-800/50 hover:text-white transition duration-200">
                 Sign Out
               </button>

@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Navbar() {
+  const { user } = useAuth();
+
   return (
     <header className="w-full glass py-4 px-6 border-b border-gray-800/80 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -39,25 +42,46 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center space-x-3">
-          <Link prefetch={false}
-            href="/subscribe"
-            className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
-          >
-            <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
-            Upgrade
-          </Link>
-          <Link prefetch={false}
-            href="/console"
-            className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition duration-200"
-          >
-            Sign In
-          </Link>
-          <Link prefetch={false}
-            href="/console"
-            className="px-5 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition duration-200"
-          >
-            Get Started
-          </Link>
+          {user ? (
+            <>
+              <Link prefetch={false}
+                href="/subscribe"
+                className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
+              >
+                <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
+                Upgrade
+              </Link>
+              <Link prefetch={false}
+                href="/console"
+                className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition duration-200"
+              >
+                <i className="fa-solid fa-terminal mr-1.5 text-[10px]"></i>
+                Console
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link prefetch={false}
+                href="/subscribe"
+                className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
+              >
+                <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
+                Upgrade
+              </Link>
+              <Link prefetch={false}
+                href="/console"
+                className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition duration-200"
+              >
+                Sign In
+              </Link>
+              <Link prefetch={false}
+                href="/console"
+                className="px-5 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition duration-200"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

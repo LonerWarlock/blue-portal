@@ -1,3 +1,8 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../contexts/AuthContext";
 import PageLayout from "@/app/components/PageLayout";
 import Link from "next/link";
 
@@ -62,6 +67,46 @@ const plans = [
 ];
 
 export default function SubscribePage() {
+  const { user, session } = useAuth();
+  const router = useRouter();
+  const [subscribing, setSubscribing] = useState(false);
+
+  const handleSubscribe = async () => {
+    if (!user) {
+      sessionStorage.setItem("redirectAfterLogin", "/subscribe");
+      router.push("/console");
+      return;
+    }
+
+    setSubscribing(true);
+    try {
+      const token = session?.access_token;
+      if (!token) throw new Error("No session token");
+
+      const res = await fetch("/api/checkout/create-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ plan: "blue", billing_cycle: "monthly" }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.session_id) {
+        throw new Error(data.error || "Failed to create checkout session");
+      }
+
+      const checkoutUrl = process.env.NEXT_PUBLIC_CHECKOUT_URL || "http://localhost:3000";
+      const returnUrl = `${window.location.origin}/console`;
+      window.location.href = `${checkoutUrl}/checkout/blue?session_id=${data.session_id}&return_url=${encodeURIComponent(returnUrl)}`;
+    } catch (err: any) {
+      console.error("Subscribe error:", err);
+      alert("Something went wrong. Please try again.");
+      setSubscribing(false);
+    }
+  };
+
   return (
     <PageLayout>
       <div className="fixed inset-0 pointer-events-none">
@@ -168,21 +213,27 @@ export default function SubscribePage() {
                     {plan.cta}
                   </Link>
                 ) : (
-                  <a
-                    href={plan.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex w-full items-center justify-center px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition duration-200 text-base"
+                  <button
+                    onClick={handleSubscribe}
+                    disabled={subscribing}
+                    className="inline-flex w-full items-center justify-center px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition duration-200 text-base disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <i className="fa-solid fa-arrow-right mr-2"></i>
-                    {plan.cta}
-                  </a>
+                    {subscribing ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+                        Redirecting...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-arrow-right mr-2"></i>
+                        {plan.cta}
+                      </>
+                    )}
+                  </button>
                 )}
               </div>
             ))}
           </div>
-
-          
 
           <div className="mt-8 text-center">
             <p className="text-xs text-gray-600">
