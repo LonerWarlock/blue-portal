@@ -128,11 +128,7 @@ export default function SubscribePage() {
       if (!res.ok || !data.session_id) {
         throw new Error(data.error || "Failed to create checkout session");
       }
-<<<<<<< HEAD
-      const checkoutUrl = process.env.NEXT_PUBLIC_CHECKOUT_URL || "https://core2cover.in";
-=======
 
->>>>>>> f356561db97222828146b59c57e0380c9458312b
       const returnUrl = `${window.location.origin}/console`;
       window.location.href = `/checkout/blue?session_id=${data.session_id}&return_url=${encodeURIComponent(returnUrl)}`;
     } catch (err: any) {

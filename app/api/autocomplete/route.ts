@@ -1,2 +1,3 @@
-export { POST, runtime } from '../chat/completions/route';
+export { POST } from '../chat/completions/route';
+export const runtime = 'edge';
 

@@ -1,2 +1,3 @@
-export { POST, runtime } from './completions/route';
+export { POST } from './completions/route';
+export const runtime = 'edge';
 
