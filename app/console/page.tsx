@@ -19,6 +19,8 @@ export default function ConsolePage() {
   const [apiKeyVisible, setApiKeyVisible] = useState(false);
   const [balance, setBalance] = useState(0);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [plan, setPlan] = useState<string>("lite");
+  const [discount, setDiscount] = useState<number>(0);
 
   // Model catalog search and category filtering
   const [searchQuery, setSearchQuery] = useState("");
@@ -41,6 +43,8 @@ export default function ConsolePage() {
       } else {
         setCurrentApiKey("");
         setBalance(0);
+        setPlan("lite");
+        setDiscount(0);
       }
       setLoading(false);
     });
@@ -57,6 +61,27 @@ export default function ConsolePage() {
       }
     }
   }, [user]);
+
+  useEffect(() => {
+    if (loading) return;
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get('payment');
+    if (paymentStatus) {
+      if (paymentStatus === 'success') {
+        showSuccess(
+          "Subscription Active!", 
+          "Your Blue plan subscription has been successfully activated. You now have full access to premium orchestration models!"
+        );
+      } else if (paymentStatus === 'failed') {
+        showError(
+          "Payment Cancelled", 
+          "The checkout payment process was cancelled or failed. Your wallet balance has not been debited."
+        );
+      }
+      // Smoothly remove payment query parameters from browser address bar
+      window.history.replaceState(null, '', '/console');
+    }
+  }, [loading]);
 
   const loadUserData = async (userId: string) => {
     try {
@@ -84,6 +109,18 @@ export default function ConsolePage() {
       const modelsData = await modelsRes.json();
       if (modelsRes.ok && modelsData.models) {
         setModelsList(modelsData.models);
+      }
+
+      // Fetch subscription plan by user email
+      const subRes = await fetch(`/api/user/subscription?email=${encodeURIComponent(session.user.email || '')}`);
+      if (subRes.ok) {
+        const subData = await subRes.json();
+        if (subData.plan) {
+          setPlan(subData.plan);
+        }
+        if (subData.discount !== undefined) {
+          setDiscount(subData.discount);
+        }
       }
     } catch (err) {
       console.error("Error loading user data:", err);
@@ -132,31 +169,130 @@ export default function ConsolePage() {
     });
   };
 
-  const handleRotateKey = async () => {
-    if (!confirm("Are you sure you want to rotate your API Key? The old key will stop working immediately inside your VS Code extension.")) {
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "info" | "success" | "error" | "confirm";
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info"
+  });
+
+  const showInfo = (title: string, message: string) => {
+    setModalConfig({ isOpen: true, title, message, type: "info" });
+  };
+
+  const showSuccess = (title: string, message: string) => {
+    setModalConfig({ isOpen: true, title, message, type: "success" });
+  };
+
+  const showError = (title: string, message: string) => {
+    setModalConfig({ isOpen: true, title, message, type: "error" });
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setModalConfig({
+      isOpen: true,
+      title,
+      message,
+      type: "confirm",
+      onConfirm: () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+        onConfirm();
+      },
+      onCancel: () => {
+        setModalConfig(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
+  const handleRotateKey = () => {
+    showConfirm(
+      "Rotate API Key",
+      "Are you sure you want to rotate your API Key? The old key will stop working immediately inside your VS Code extension.",
+      async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
+          const token = session.access_token;
+
+          setAuthStatusMessage("Rotating key...");
+          const keyRes = await fetch('/api/user/key', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const keyData = await keyRes.json();
+          if (!keyRes.ok || keyData.error) throw new Error(keyData.error || 'Failed to rotate key');
+          setCurrentApiKey(keyData.key);
+          setAuthStatusMessage("");
+          showSuccess("Key Rotated", "API key successfully rotated!");
+        } catch (err: any) {
+          setAuthStatusMessage("");
+          showError("Rotation Failed", err.message);
+        }
+      }
+    );
+  };
+
+  const [redeeming, setRedeeming] = useState(false);
+
+  const handleUseIMR = () => {
+    if (plan === 'blue') {
+      showInfo("Plan Active", "You already have an active Blue plan subscription.");
       return;
     }
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const token = session.access_token;
-
-      setAuthStatusMessage("Rotating key...");
-      const keyRes = await fetch('/api/user/key', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const keyData = await keyRes.json();
-      if (!keyRes.ok || keyData.error) throw new Error(keyData.error || 'Failed to rotate key');
-      
-      setCurrentApiKey(keyData.key);
-      setAuthStatusMessage("");
-      alert("API key successfully rotated!");
-    } catch (err: any) {
-      setAuthStatusMessage("");
-      alert("Error rotating API key: " + err.message);
+    if (discount > 0) {
+      showInfo("Discount Active", "You have already redeemed IMR for your next subscription discount.");
+      return;
     }
+
+    if (balance < 100) {
+      showError("Insufficient Balance", "Insufficient IMR balance. You need at least 100 IMR to redeem.");
+      return;
+    }
+
+    showConfirm(
+      "Redeem IMR",
+      "Are you sure you want to redeem 100 IMR to apply a ₹50 discount on your next Blue subscription?",
+      async () => {
+        setRedeeming(true);
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            showError("Authentication Error", "Session expired. Please log in again.");
+            setRedeeming(false);
+            return;
+          }
+          const token = session.access_token;
+
+          const res = await fetch('/api/user/use-imr', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) {
+            throw new Error(data.error || 'Failed to redeem IMR');
+          }
+
+          setBalance(data.newBalance);
+          setDiscount(data.discount || 50);
+          showSuccess("Discount Applied", "Successfully redeemed 100 IMR! A ₹50 discount has been applied to your next Blue subscription checkout.");
+        } catch (err: any) {
+          showError("Redemption Failed", err.message);
+        } finally {
+          setRedeeming(false);
+        }
+      }
+    );
   };
 
   if (loading) {
@@ -192,13 +328,25 @@ export default function ConsolePage() {
           {user && (
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-400 font-medium hidden sm:inline">{user.email}</span>
-              <a
-                href="/subscribe"
-                className="hidden sm:inline-flex px-3 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
-              >
-                <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
-                Upgrade
-              </a>
+              {plan === "blue" ? (
+                <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg bg-blue-950/60 border border-blue-500/30 text-xs font-bold text-blue-400">
+                  <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
+                  Blue Active
+                </span>
+              ) : (
+                <>
+                  <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-lg bg-green-950/60 border border-green-500/30 text-[10px] font-bold text-green-400">
+                    Blue Lite
+                  </span>
+                  <a
+                    href="/subscribe"
+                    className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
+                  >
+                    <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
+                    Upgrade
+                  </a>
+                </>
+              )}
               <button onClick={handleLogout} className="px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold hover:bg-gray-800/50 hover:text-white transition duration-200">
                 Sign Out
               </button>
@@ -264,7 +412,16 @@ export default function ConsolePage() {
               
               <div className="lg:col-span-1 p-6 rounded-2xl glass relative overflow-hidden flex flex-col justify-between min-h-[220px]">
                 <div>
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">IMR Balance</span>
+                  <div className="flex justify-between items-start">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">IMR Balance</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
+                      plan === 'blue'
+                        ? 'bg-blue-950/60 border border-blue-900/60 text-blue-400'
+                        : 'bg-green-950/60 border border-green-900/60 text-green-400'
+                    }`}>
+                      {plan === 'blue' ? 'Blue' : 'Blue Lite'}
+                    </span>
+                  </div>
                   <span className="text-4xl font-extrabold tracking-tight mt-2 block bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
                     {balance.toFixed(0)} IMR
                   </span>
@@ -272,16 +429,23 @@ export default function ConsolePage() {
                   <span className="text-[20px] text-gray-500 mt-2 block font-mono">1 IMR = ₹0.50 (INR)</span>
                 </div>
                 <div className="mt-6 flex space-x-3">
-                  <a
-                    href="/subscribe"
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-semibold text-white shadow-md hover:from-purple-500 hover:to-pink-500 transition duration-200 inline-flex items-center justify-center gap-2"
-                  >
-                    <i className="fa-solid fa-crown text-xs"></i>
-                    Upgrade
-                  </a>
-                  <button className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white shadow-md hover:from-blue-500 hover:to-indigo-500 transition duration-200">
-                    Use IMR
-                  </button>
+                  {plan === 'blue' ? (
+                    <a
+                      href="/subscribe"
+                      className="flex-1 py-2.5 px-4 rounded-xl border border-blue-500/30 text-blue-400 text-sm font-semibold hover:bg-blue-600/10 transition duration-200 inline-flex items-center justify-center gap-2"
+                    >
+                      <i className="fa-solid fa-check text-xs"></i>
+                      Active Plan
+                    </a>
+                  ) : (
+                    <a
+                      href="/subscribe"
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-semibold text-white shadow-md hover:from-purple-500 hover:to-pink-500 transition duration-200 inline-flex items-center justify-center gap-2"
+                    >
+                      <i className="fa-solid fa-crown text-xs"></i>
+                      Upgrade
+                    </a>
+                  )}
                   <button className="py-2.5 px-4 rounded-xl border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition">
                     History
                   </button>
@@ -289,36 +453,48 @@ export default function ConsolePage() {
               </div>
 
               <div className="lg:col-span-2 p-6 rounded-2xl glass relative overflow-hidden flex flex-col justify-between min-h-[220px]">
-                <div>
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Your Blue API Key</span>
-                  <p className="text-xs text-gray-500 mt-1">Copy this key and paste it into the VS Code Blue Extension auth screen to connect your workspace.</p>
-                  
-                  <div className="mt-4 flex items-center space-x-2">
-                    <div className="relative flex-1">
-                      <input 
-                        type={apiKeyVisible ? "text" : "password"} 
-                        readOnly 
-                        value={currentApiKey} 
-                        className="w-full bg-gray-950 border border-gray-800/80 rounded-xl py-3 px-4 text-xs font-mono text-indigo-300 focus:outline-none select-all"
-                      />
-                      <button 
-                        onClick={() => setApiKeyVisible(!apiKeyVisible)} 
-                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-gray-300"
-                      >
-                        <i className={`fa-solid ${apiKeyVisible ? "fa-eye-slash" : "fa-eye"}`}></i>
+                {/* Premium Glass Cover (car shroud) */}
+                <div className="absolute inset-0 bg-[#030712]/75 backdrop-blur-[3px] z-10 flex flex-col items-center justify-center p-6 text-center select-none">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-3 shadow-lg shadow-blue-500/5">
+                    <i className="fa-solid fa-lock text-blue-400 text-lg"></i>
+                  </div>
+                  <h4 className="text-sm font-bold text-gray-200 tracking-tight">Direct Key Billing Coming Soon</h4>
+                  <p className="text-xs text-gray-400 max-w-sm mt-1.5 leading-relaxed">
+                    We are preparing direct API key connection. For now, the extension functions natively using your OpenCode API key.
+                  </p>
+                </div>
+
+                {/* Shrouded content underneath */}
+                <div className="filter blur-[1.5px] opacity-35 select-none pointer-events-none flex flex-col justify-between h-full w-full">
+                  <div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Your Blue API Key</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      This key will be utilized for future direct payment/token usage updates.
+                    </p>
+                    
+                    <div className="mt-4 flex items-center space-x-2">
+                      <div className="relative flex-1">
+                        <input 
+                          type="password" 
+                          readOnly 
+                          value={currentApiKey} 
+                          className="w-full bg-gray-950 border border-gray-800/80 rounded-xl py-3 px-4 text-xs font-mono text-indigo-300 focus:outline-none"
+                        />
+                        <button className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500">
+                          <i className="fa-solid fa-eye"></i>
+                        </button>
+                      </div>
+                      <button className="p-3 bg-gray-800/80 border border-gray-700/50 text-gray-300 rounded-xl">
+                        <i className="fa-solid fa-copy"></i>
                       </button>
                     </div>
-                    <button 
-                      onClick={handleCopyKey}
-                      className="p-3 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/50 text-gray-300 hover:text-white rounded-xl transition duration-200"
-                    >
-                      <i className={`fa-solid ${copySuccess ? "fa-check text-green-400" : "fa-copy"}`}></i>
-                    </button>
                   </div>
-                </div>
-                <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs text-gray-500 space-y-2 sm:space-y-0 w-full">
-                  <span>Keep this key private. It controls your token usage and deployment billing.</span>
-                  <button onClick={handleRotateKey} className="text-blue-400 hover:text-blue-300 font-semibold transition">Rotate Key</button>
+                  <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs text-gray-500 space-y-2 sm:space-y-0 w-full">
+                    <span>Keep this key private. It controls your token usage and deployment billing.</span>
+                    <button className="text-blue-400 font-semibold">Rotate Key</button>
+                  </div>
                 </div>
               </div>
 
@@ -473,6 +649,75 @@ export default function ConsolePage() {
           </div>
         </div>
       </footer>
+      {modalConfig.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#030712]/80 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl glass border border-gray-800/80 p-6 shadow-2xl relative overflow-hidden transition-all duration-300 transform scale-100">
+            {/* Colorful top strip */}
+            <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${
+              modalConfig.type === 'success' 
+                ? 'from-green-500 to-emerald-500'
+                : modalConfig.type === 'error'
+                ? 'from-red-500 to-rose-500'
+                : 'from-blue-500 to-indigo-500'
+            }`}></div>
+
+            <div className="flex items-start gap-4">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-lg ${
+                modalConfig.type === 'success'
+                  ? 'bg-green-950/40 border border-green-800/50 text-green-400 shadow-green-500/5'
+                  : modalConfig.type === 'error'
+                  ? 'bg-red-950/40 border border-red-800/50 text-red-400 shadow-red-500/5'
+                  : 'bg-blue-950/40 border border-blue-800/50 text-blue-400 shadow-blue-500/5'
+              }`}>
+                <i className={`fa-solid ${
+                  modalConfig.type === 'success'
+                    ? 'fa-circle-check text-base'
+                    : modalConfig.type === 'error'
+                    ? 'fa-triangle-exclamation text-base'
+                    : modalConfig.type === 'confirm'
+                    ? 'fa-circle-question text-base'
+                    : 'fa-circle-info text-base'
+                }`}></i>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-white tracking-tight leading-snug">
+                  {modalConfig.title}
+                </h3>
+                <p className="mt-2 text-sm text-gray-400 leading-relaxed font-medium">
+                  {modalConfig.message}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3 border-t border-gray-800/50 pt-4">
+              {modalConfig.type === 'confirm' ? (
+                <>
+                  <button
+                    onClick={modalConfig.onCancel}
+                    className="px-4 py-2 rounded-xl border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={modalConfig.onConfirm}
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 active:scale-[0.98] transition duration-200"
+                  >
+                    Confirm
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+                  className="px-6 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 active:scale-[0.98] transition duration-200"
+                >
+                  OK
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
