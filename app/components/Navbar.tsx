@@ -33,9 +33,6 @@ export default function Navbar() {
           <Link prefetch={false} href="/docs" className="text-sm text-gray-400 hover:text-gray-200 transition">
             Docs
           </Link>
-          <Link prefetch={false} href="/enterprise" className="text-sm text-gray-400 hover:text-gray-200 transition">
-            Enterprise
-          </Link>
           <Link prefetch={false} href="/blog" className="text-sm text-gray-400 hover:text-gray-200 transition">
             Blog
           </Link>
@@ -46,14 +43,14 @@ export default function Navbar() {
             <>
               <Link prefetch={false}
                 href="/subscribe"
-                className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
+                className="hidden sm:inline-flex items-center px-4 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
               >
                 <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
                 Upgrade
               </Link>
               <Link prefetch={false}
                 href="/console"
-                className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition duration-200"
+                className="hidden sm:inline-flex items-center px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition duration-200"
               >
                 <i className="fa-solid fa-terminal mr-1.5 text-[10px]"></i>
                 Console
@@ -63,14 +60,14 @@ export default function Navbar() {
             <>
               <Link prefetch={false}
                 href="/subscribe"
-                className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
+                className="hidden sm:inline-flex items-center px-4 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
               >
                 <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
                 Upgrade
               </Link>
               <Link prefetch={false}
                 href="/console"
-                className="hidden sm:inline-flex px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition duration-200"
+                className="hidden sm:inline-flex items-center px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition duration-200"
               >
                 Sign In
               </Link>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 import PageLayout from "@/app/components/PageLayout";
@@ -70,6 +70,38 @@ export default function SubscribePage() {
   const { user, session } = useAuth();
   const router = useRouter();
   const [subscribing, setSubscribing] = useState(false);
+  const [activePlan, setActivePlan] = useState<string>("lite");
+  const [imrBalance, setImrBalance] = useState<number>(0);
+
+  useEffect(() => {
+    if (user?.email) {
+      fetch(`/api/user/subscription?email=${encodeURIComponent(user.email)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.plan) {
+            setActivePlan(data.plan);
+          }
+        })
+        .catch(err => console.error("Error loading subscription plan:", err));
+
+      const token = session?.access_token;
+      if (token) {
+        fetch('/api/user/wallet', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.balance !== undefined) {
+              setImrBalance(data.balance);
+            }
+          })
+          .catch(err => console.error("Error loading wallet balance:", err));
+      }
+    } else {
+      setActivePlan("lite");
+      setImrBalance(0);
+    }
+  }, [user, session]);
 
   const handleSubscribe = async () => {
     if (!user) {
@@ -96,9 +128,13 @@ export default function SubscribePage() {
       if (!res.ok || !data.session_id) {
         throw new Error(data.error || "Failed to create checkout session");
       }
+<<<<<<< HEAD
       const checkoutUrl = process.env.NEXT_PUBLIC_CHECKOUT_URL || "https://core2cover.in";
+=======
+
+>>>>>>> f356561db97222828146b59c57e0380c9458312b
       const returnUrl = `${window.location.origin}/console`;
-      window.location.href = `${checkoutUrl}/checkout/blue?session_id=${data.session_id}&return_url=${encodeURIComponent(returnUrl)}`;
+      window.location.href = `/checkout/blue?session_id=${data.session_id}&return_url=${encodeURIComponent(returnUrl)}`;
     } catch (err: any) {
       console.error("Subscribe error:", err);
       alert("Something went wrong. Please try again.");
@@ -133,105 +169,143 @@ export default function SubscribePage() {
             <p className="mt-6 text-lg text-gray-400 max-w-3xl mx-auto leading-relaxed">
               Start with Blue Lite for free. Upgrade to Blue for full access.
             </p>
+            {user && (
+              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-950/40 border border-purple-800/40 text-purple-400 text-sm font-semibold">
+                <i className="fa-solid fa-wallet"></i>
+                <span>Your Balance: {imrBalance.toFixed(0)} IMR</span>
+              </div>
+            )}
           </div>
 
           <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
-            {plans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`relative p-8 rounded-2xl border transition-all duration-300 flex flex-col ${
-                  plan.featured
-                    ? "glass border-blue-500/40 shadow-xl shadow-blue-500/10"
-                    : "glass border-gray-800/80 hover:border-gray-700/80"
-                } ${plan.disabled ? "opacity-70" : ""}`}
-              >
-                {plan.badge && (
-                  <span
-                    className={`absolute -top-2.5 right-4 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white shadow-lg ${plan.badgeStyle}`}
-                  >
-                    {plan.badge}
-                  </span>
-                )}
+            {plans.map((plan) => {
+              const isCurrentPlan = (plan.name === "Blue Lite" && activePlan === "lite") || 
+                                    (plan.name === "Blue" && activePlan === "blue");
+              
+              let planBadge = plan.badge;
+              let planBadgeStyle = plan.badgeStyle;
 
+              if (isCurrentPlan) {
+                planBadge = "Current Plan";
+                planBadgeStyle = plan.name === "Blue" 
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600" 
+                  : "bg-gradient-to-r from-green-600 to-teal-600";
+              } else if (plan.name === "Blue Lite" && activePlan === "blue") {
+                planBadge = "";
+              }
+
+              return (
                 <div
-                  className={`w-12 h-12 rounded-xl bg-gradient-to-br ${plan.gradient} flex items-center justify-center mb-5 shadow-lg`}
+                  key={plan.name}
+                  className={`relative p-8 rounded-2xl border transition-all duration-300 flex flex-col ${
+                    plan.featured
+                      ? "glass border-blue-500/40 shadow-xl shadow-blue-500/10"
+                      : "glass border-gray-800/80 hover:border-gray-700/80"
+                  } ${plan.disabled ? "opacity-70" : ""}`}
                 >
-                  <i
-                    className={`fa-solid ${
-                      plan.name === "Blue Lite"
-                        ? "fa-gem"
-                        : plan.name === "Blue"
-                          ? "fa-crown"
-                          : "fa-rocket"
-                    } text-lg text-white`}
-                  ></i>
-                </div>
+                  {planBadge && (
+                    <span
+                      className={`absolute -top-2.5 right-4 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white shadow-lg ${planBadgeStyle}`}
+                    >
+                      {planBadge}
+                    </span>
+                  )}
 
-                <h3 className="text-2xl font-bold text-gray-100 mb-1">{plan.name}</h3>
-                <p className="text-sm text-gray-500 mb-4">{plan.subtitle}</p>
-                <p className="text-gray-400 text-sm leading-relaxed mb-6">
-                  {plan.description}
-                </p>
+                  <div
+                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${plan.gradient} flex items-center justify-center mb-5 shadow-lg`}
+                  >
+                    <i
+                      className={`fa-solid ${
+                        plan.name === "Blue Lite"
+                          ? "fa-gem"
+                          : plan.name === "Blue"
+                            ? "fa-crown"
+                            : "fa-rocket"
+                      } text-lg text-white`}
+                    ></i>
+                  </div>
 
-                <div className="mb-6">
-                  <span className="text-4xl font-bold text-gray-100">{plan.price}</span>
-                  <span className="text-gray-500 text-lg">{plan.period}</span>
-                </div>
+                  <h3 className="text-2xl font-bold text-gray-100 mb-1">{plan.name}</h3>
+                  <p className="text-sm text-gray-500 mb-4">{plan.subtitle}</p>
+                  <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                    {plan.description}
+                  </p>
 
-                <ul className="mt-8 space-y-3 flex-1">
-                  {allFeatures.map((feature, i) => (
-                    <li key={feature} className="flex items-center gap-3 text-sm text-gray-400">
-                      {plan.features[i] ? (
-                        <span className="w-4 h-4 rounded-full bg-green-950/60 border border-green-900/60 text-green-400 flex items-center justify-center shrink-0 text-[8px]">
-                          <i className="fa-solid fa-check"></i>
-                        </span>
+                  <div className="mb-6">
+                    <span className="text-4xl font-bold text-gray-100">{plan.price}</span>
+                    <span className="text-gray-500 text-lg">{plan.period}</span>
+                  </div>
+
+                  <ul className="mt-8 space-y-3 flex-1">
+                    {allFeatures.map((feature, i) => (
+                      <li key={feature} className="flex items-center gap-3 text-sm text-gray-400">
+                        {plan.features[i] ? (
+                          <span className="w-4 h-4 rounded-full bg-green-950/60 border border-green-900/60 text-green-400 flex items-center justify-center shrink-0 text-[8px]">
+                            <i className="fa-solid fa-check"></i>
+                          </span>
+                        ) : (
+                          <span className="w-4 h-4 rounded-full bg-gray-800/60 border border-gray-700/60 text-gray-600 flex items-center justify-center shrink-0 text-[8px]">
+                            <i className="fa-solid fa-xmark"></i>
+                          </span>
+                        )}
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {plan.disabled ? (
+                    <button
+                      disabled
+                      className="w-full px-6 py-3 rounded-xl bg-gray-800/50 text-gray-500 font-semibold cursor-not-allowed border border-gray-800/50 text-base mt-6"
+                    >
+                      <i className="fa-solid fa-clock mr-2"></i>
+                      {plan.cta}
+                    </button>
+                  ) : isCurrentPlan ? (
+                    <button
+                      disabled
+                      className="w-full px-6 py-3 rounded-xl bg-gray-800/40 text-gray-500 font-semibold cursor-default border border-gray-800/50 text-base mt-6 inline-flex items-center justify-center gap-2"
+                    >
+                      <i className="fa-solid fa-circle-check text-green-500"></i>
+                      Active Plan
+                    </button>
+                  ) : plan.name === "Blue Lite" && activePlan === "blue" ? (
+                    <Link
+                      href="/console"
+                      className="inline-flex w-full items-center justify-center px-6 py-3 rounded-xl border border-gray-800 text-gray-400 hover:text-white hover:bg-gray-800/50 font-semibold transition duration-200 text-base mt-6"
+                    >
+                      Go to Console
+                    </Link>
+                  ) : plan.name === "Blue Lite" ? (
+                    <Link
+                      href={plan.href}
+                      className="inline-flex w-full items-center justify-center px-6 py-3 rounded-xl bg-gradient-to-r from-green-600 to-teal-600 font-semibold text-white shadow-lg shadow-green-500/20 hover:from-green-500 hover:to-teal-500 transition duration-200 text-base"
+                    >
+                      <i className="fa-solid fa-check mr-2"></i>
+                      {plan.cta}
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={handleSubscribe}
+                      disabled={subscribing}
+                      className="inline-flex w-full items-center justify-center px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition duration-200 text-base disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {subscribing ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+                          Redirecting...
+                        </>
                       ) : (
-                        <span className="w-4 h-4 rounded-full bg-gray-800/60 border border-gray-700/60 text-gray-600 flex items-center justify-center shrink-0 text-[8px]">
-                          <i className="fa-solid fa-xmark"></i>
-                        </span>
+                        <>
+                          <i className="fa-solid fa-arrow-right mr-2"></i>
+                          {plan.cta}
+                        </>
                       )}
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-
-                {plan.disabled ? (
-                  <button
-                    disabled
-                    className="w-full px-6 py-3 rounded-xl bg-gray-800/50 text-gray-500 font-semibold cursor-not-allowed border border-gray-800/50 text-base mt-6"
-                  >
-                    <i className="fa-solid fa-clock mr-2"></i>
-                    {plan.cta}
-                  </button>
-                ) : plan.name === "Blue Lite" ? (
-                  <Link
-                    href={plan.href}
-                    className="inline-flex w-full items-center justify-center px-6 py-3 rounded-xl bg-gradient-to-r from-green-600 to-teal-600 font-semibold text-white shadow-lg shadow-green-500/20 hover:from-green-500 hover:to-teal-500 transition duration-200 text-base"
-                  >
-                    <i className="fa-solid fa-check mr-2"></i>
-                    {plan.cta}
-                  </Link>
-                ) : (
-                  <button
-                    onClick={handleSubscribe}
-                    disabled={subscribing}
-                    className="inline-flex w-full items-center justify-center px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition duration-200 text-base disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {subscribing ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
-                        Redirecting...
-                      </>
-                    ) : (
-                      <>
-                        <i className="fa-solid fa-arrow-right mr-2"></i>
-                        {plan.cta}
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            ))}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="mt-8 text-center">

@@ -36,6 +36,21 @@ export async function POST(request: Request) {
     const plan = body.plan || 'blue';
     const billingCycle = body.billing_cycle || 'monthly';
 
+    // Fetch active IMR discount
+    let imrDiscount = 0;
+    try {
+      const { data: sub } = await supabaseAdmin
+        .from('subscriptions')
+        .select('metadata')
+        .eq('user_id', user.id)
+        .single();
+      if (sub && sub.metadata) {
+        imrDiscount = Number(sub.metadata.imr_discount || 0);
+      }
+    } catch (e) {
+      console.error('Fetch discount error:', e);
+    }
+
     // Create a checkout session with 15-min expiry
     const { data: session, error: insertError } = await supabaseAdmin
       .from('checkout_sessions')
@@ -45,7 +60,10 @@ export async function POST(request: Request) {
         billing_cycle: billingCycle,
         status: 'pending',
         expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        metadata: { email: user.email },
+        metadata: { 
+          email: user.email,
+          imr_discount: imrDiscount
+        },
       })
       .select('id')
       .single();
