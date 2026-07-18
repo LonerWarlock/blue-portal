@@ -21,6 +21,7 @@ export default function ConsolePage() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [plan, setPlan] = useState<string>("lite");
   const [discount, setDiscount] = useState<number>(0);
+  const [isProPayg, setIsProPayg] = useState(false);
 
   // Model catalog search and category filtering
   const [searchQuery, setSearchQuery] = useState("");
@@ -120,6 +121,17 @@ export default function ConsolePage() {
         }
         if (subData.discount !== undefined) {
           setDiscount(subData.discount);
+        }
+      }
+
+      // Check if user has Blue Pro PAYG account
+      const proRes = await fetch('/api/blue-pro/wallet', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (proRes.ok) {
+        const proData = await proRes.json();
+        if (proData.account_type === 'pro_payg') {
+          setIsProPayg(true);
         }
       }
     } catch (err) {
@@ -325,33 +337,39 @@ export default function ConsolePage() {
             <a href="/blog" className="text-sm text-gray-400 hover:text-gray-200 transition">Blog</a>
           </nav>
 
-          {user && (
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-400 font-medium hidden sm:inline">{user.email}</span>
-              {plan === "blue" ? (
-                <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg bg-blue-950/60 border border-blue-500/30 text-xs font-bold text-blue-400">
-                  <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
-                  Blue Active
-                </span>
-              ) : (
-                <>
-                  <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-lg bg-green-950/60 border border-green-500/30 text-[10px] font-bold text-green-400">
-                    Blue Lite
-                  </span>
-                  <a
-                    href="/subscribe"
-                    className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
-                  >
-                    <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
-                    Upgrade
-                  </a>
-                </>
+              {user && (
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-400 font-medium hidden sm:inline">{user.email}</span>
+                  {isProPayg ? (
+                    <a href="/blue-pro/dashboard"
+                      className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg bg-purple-950/60 border border-purple-500/30 text-xs font-bold text-purple-400 hover:bg-purple-900/60 transition">
+                      <i className="fa-solid fa-bolt mr-1.5 text-[10px]"></i>
+                      Blue Pro
+                    </a>
+                  ) : plan === "blue" ? (
+                    <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg bg-blue-950/60 border border-blue-500/30 text-xs font-bold text-blue-400">
+                      <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
+                      Blue Active
+                    </span>
+                  ) : (
+                    <>
+                      <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-lg bg-green-950/60 border border-green-500/30 text-[10px] font-bold text-green-400">
+                        Blue Lite
+                      </span>
+                      <a
+                        href="/subscribe"
+                        className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg border border-blue-800/50 text-sm font-semibold text-blue-400 hover:text-white hover:bg-blue-600/20 transition duration-200"
+                      >
+                        <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
+                        Upgrade
+                      </a>
+                    </>
+                  )}
+                  <button onClick={handleLogout} className="px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold hover:bg-gray-800/50 hover:text-white transition duration-200">
+                    Sign Out
+                  </button>
+                </div>
               )}
-              <button onClick={handleLogout} className="px-4 py-1.5 rounded-lg border border-gray-800 text-sm font-semibold hover:bg-gray-800/50 hover:text-white transition duration-200">
-                Sign Out
-              </button>
-            </div>
-          )}
         </div>
       </header>
 
@@ -429,7 +447,15 @@ export default function ConsolePage() {
                   <span className="text-[20px] text-gray-500 mt-2 block font-mono">1 IMR = ₹0.50 (INR)</span>
                 </div>
                 <div className="mt-6 flex space-x-3">
-                  {plan === 'blue' ? (
+                  {isProPayg ? (
+                    <a
+                      href="/blue-pro/dashboard"
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-semibold text-white shadow-md hover:from-purple-500 hover:to-pink-500 transition duration-200 inline-flex items-center justify-center gap-2"
+                    >
+                      <i className="fa-solid fa-bolt text-xs"></i>
+                      Blue Pro Dashboard
+                    </a>
+                  ) : plan === 'blue' ? (
                     <a
                       href="/subscribe"
                       className="flex-1 py-2.5 px-4 rounded-xl border border-blue-500/30 text-blue-400 text-sm font-semibold hover:bg-blue-600/10 transition duration-200 inline-flex items-center justify-center gap-2"
@@ -450,6 +476,12 @@ export default function ConsolePage() {
                     History
                   </button>
                 </div>
+                {!isProPayg && (
+                  <a href="/blue-pro" className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-purple-400 hover:text-purple-300 transition">
+                    <i className="fa-solid fa-bolt"></i>
+                    Try Blue Pro — pay as you go, no subscription
+                  </a>
+                )}
               </div>
 
               <div className="lg:col-span-2 p-6 rounded-2xl glass relative overflow-hidden flex flex-col justify-between min-h-[220px]">

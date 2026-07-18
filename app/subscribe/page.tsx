@@ -51,18 +51,18 @@ const plans = [
   },
   {
     name: "Blue Pro",
-    subtitle: "Coming soon",
-    price: "—",
-    period: "",
+    subtitle: "Pay As You Go",
+    price: "$15",
+    period: "/15 credits",
     gradient: "from-purple-500 to-pink-500",
-    badge: "Coming Soon",
+    badge: "New",
     badgeStyle: "bg-gradient-to-r from-purple-600 to-pink-600",
-    href: "#",
-    cta: "Notify Me",
-    description: "Infinite extensibility with premium reasoning models.",
+    href: "/blue-pro",
+    cta: "Learn More",
+    description: "Buy credits when you need them. Use premium models with no monthly commitment.",
     features: [true, true, true, true, true, true, true, true, true, true, true],
     featured: false,
-    disabled: true,
+    disabled: false,
   },
 ];
 
@@ -249,14 +249,14 @@ export default function SubscribePage() {
                     ))}
                   </ul>
 
-                  {plan.disabled ? (
-                    <button
-                      disabled
-                      className="w-full px-6 py-3 rounded-xl bg-gray-800/50 text-gray-500 font-semibold cursor-not-allowed border border-gray-800/50 text-base mt-6"
+                  {plan.name === "Blue Pro" ? (
+                    <Link
+                      href={plan.href}
+                      className="inline-flex w-full items-center justify-center px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-semibold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition duration-200 text-base"
                     >
-                      <i className="fa-solid fa-clock mr-2"></i>
+                      <i className="fa-solid fa-bolt mr-2"></i>
                       {plan.cta}
-                    </button>
+                    </Link>
                   ) : isCurrentPlan ? (
                     <button
                       disabled
