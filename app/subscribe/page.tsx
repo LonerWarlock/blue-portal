@@ -17,8 +17,9 @@ const allFeatures = [
   "Figma-to-Code",
   "GitHub Integration",
   "Web Search",
+  "Makes Premium UI",
   "Premium Models",
-  "Premium UI",
+  
 ];
 
 const plans = [
@@ -47,7 +48,7 @@ const plans = [
     href: "",
     cta: "Subscribe Now",
     description: "Advanced integrations and orchestration with Free/BYOK models.",
-    features: [true, true, true, true, true, true, true, true, true, true, false, true],
+    features: [true, true, true, true, true, true, true, true, true, true, true, false],
     featured: true,
   },
   {

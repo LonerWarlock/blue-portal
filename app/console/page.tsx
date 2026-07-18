@@ -5,6 +5,26 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { MODELS } from "@/lib/models";
 
+const BLUE_PRO_MODELS = [
+  { model: "DeepSeek V4 Flash", id: "deepseek-v4-flash", inputCredits: "0.147", outputCredits: "0.294", tier: "Low Cost" },
+  { model: "MiMo V2.5", id: "mimo-v2.5-free", inputCredits: "0.210", outputCredits: "0.420", tier: "Low Cost" },
+  { model: "MiniMax M3", id: "minimax-m3-free", inputCredits: "0.450", outputCredits: "1.800", tier: "Standard" },
+  { model: "GLM 5.2", id: "glm-5.2", inputCredits: "1.434", outputCredits: "4.508", tier: "Standard" },
+  { model: "DeepSeek V4 Pro", id: "deepseek-v4-pro", inputCredits: "0.653", outputCredits: "1.305", tier: "Standard" },
+  { model: "Gemini 2.5 Flash", id: "gemini-3.5-flash", inputCredits: "0.450", outputCredits: "3.750", tier: "Standard" },
+  { model: "Gemini 3 Flash Preview", id: "gemini-3-flash", inputCredits: "0.750", outputCredits: "4.500", tier: "Standard" },
+  { model: "Claude Sonnet 5", id: "claude-sonnet-4-6", inputCredits: "3.000", outputCredits: "15.000", tier: "High Cost" },
+  { model: "Claude Opus 4.8", id: "claude-opus-4-8", inputCredits: "7.500", outputCredits: "37.500", tier: "Premium" },
+  { model: "GPT-5.5", id: "gpt-5.5-pro", inputCredits: "7.500", outputCredits: "45.000", tier: "Premium" },
+];
+
+const TIER_BADGE_COLORS: Record<string, string> = {
+  "Low Cost": "bg-green-950/60 text-green-400 border border-green-900/60",
+  "Standard": "bg-blue-950/60 text-blue-400 border border-blue-900/60",
+  "High Cost": "bg-yellow-950/60 text-yellow-400 border border-yellow-900/60",
+  "Premium": "bg-purple-950/60 text-purple-400 border border-purple-900/60",
+};
+
 export default function ConsolePage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -510,15 +530,7 @@ export default function ConsolePage() {
                   <span className="text-[20px] text-gray-500 mt-2 block font-mono">1 IMR = ₹0.50 (INR)</span>
                 </div>
                 <div className="mt-6 flex space-x-3">
-                  {hasBlueCredits ? (
-                    <a
-                      href="#blue-pro-section"
-                      className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-semibold text-white shadow-md hover:from-purple-500 hover:to-pink-500 transition duration-200 inline-flex items-center justify-center gap-2"
-                    >
-                      <i className="fa-solid fa-bolt text-xs"></i>
-                      Blue Pro Dashboard
-                    </a>
-                  ) : plan === 'blue' ? (
+                  {hasBlueCredits ? null : plan === 'blue' ? (
                     <a
                       href="/subscribe"
                       className="flex-1 py-2.5 px-4 rounded-xl border border-blue-500/30 text-blue-400 text-sm font-semibold hover:bg-blue-600/10 transition duration-200 inline-flex items-center justify-center gap-2"
@@ -553,19 +565,19 @@ export default function ConsolePage() {
               </div>
 
               <div className="lg:col-span-2 p-6 rounded-2xl glass relative overflow-hidden flex flex-col justify-between min-h-[220px]">
-                {/* Premium Glass Cover (car shroud) */}
-                <div className="absolute inset-0 bg-[#030712]/75 backdrop-blur-[3px] z-10 flex flex-col items-center justify-center p-6 text-center select-none">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-3 shadow-lg shadow-blue-500/5">
-                    <i className="fa-solid fa-lock text-blue-400 text-lg"></i>
+                {!hasBlueCredits && (
+                  <div className="absolute inset-0 bg-[#030712]/75 backdrop-blur-[3px] z-10 flex flex-col items-center justify-center p-6 text-center select-none">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-3 shadow-lg shadow-blue-500/5">
+                      <i className="fa-solid fa-lock text-blue-400 text-lg"></i>
+                    </div>
+                    <h4 className="text-sm font-bold text-gray-200 tracking-tight">Direct Key Billing Coming Soon</h4>
+                    <p className="text-xs text-gray-400 max-w-sm mt-1.5 leading-relaxed">
+                      We are preparing direct API key connection. For now, the extension functions natively using your OpenCode API key.
+                    </p>
                   </div>
-                  <h4 className="text-sm font-bold text-gray-200 tracking-tight">Direct Key Billing Coming Soon</h4>
-                  <p className="text-xs text-gray-400 max-w-sm mt-1.5 leading-relaxed">
-                    We are preparing direct API key connection. For now, the extension functions natively using your OpenCode API key.
-                  </p>
-                </div>
+                )}
 
-                {/* Shrouded content underneath */}
-                <div className="filter blur-[1.5px] opacity-35 select-none pointer-events-none flex flex-col justify-between h-full w-full">
+                <div className={`flex flex-col justify-between h-full w-full ${!hasBlueCredits ? 'filter blur-[1.5px] opacity-35 select-none pointer-events-none' : ''}`}>
                   <div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Your Blue API Key</span>
@@ -577,17 +589,17 @@ export default function ConsolePage() {
                     <div className="mt-4 flex items-center space-x-2">
                       <div className="relative flex-1">
                         <input 
-                          type="password" 
+                          type={apiKeyVisible ? "text" : "password"}
                           readOnly 
                           value={currentApiKey} 
                           className="w-full bg-gray-950 border border-gray-800/80 rounded-xl py-3 px-4 text-xs font-mono text-indigo-300 focus:outline-none"
                         />
-                        <button className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500">
-                          <i className="fa-solid fa-eye"></i>
+                        <button onClick={() => setApiKeyVisible(!apiKeyVisible)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-gray-300">
+                          <i className={`fa-solid ${apiKeyVisible ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                         </button>
                       </div>
-                      <button className="p-3 bg-gray-800/80 border border-gray-700/50 text-gray-300 rounded-xl">
-                        <i className="fa-solid fa-copy"></i>
+                      <button onClick={handleCopyKey} className="p-3 bg-gray-800/80 border border-gray-700/50 text-gray-300 rounded-xl hover:bg-gray-700/50 transition">
+                        <i className={`fa-solid ${copySuccess ? 'fa-check' : 'fa-copy'}`}></i>
                       </button>
                     </div>
                   </div>
@@ -598,140 +610,6 @@ export default function ConsolePage() {
                 </div>
               </div>
 
-            </div>
-
-            <div>
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-                <div>
-                  <h3 className="text-xl font-bold tracking-tight">Available Models Catalog</h3>
-                  <p className="text-xs text-gray-500 mt-1">Blue supports standard free tier models alongside premium coding models.</p>
-                </div>
-                <span className="mt-2 md:mt-0 text-xs px-2.5 py-1 bg-green-950/40 border border-green-800/50 text-green-400 rounded-full font-medium">All Models Operational</span>
-              </div>
-
-              <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center mb-6">
-                <div className="flex flex-wrap gap-1.5 p-1 bg-gray-950 border border-gray-900/50 rounded-xl max-w-full overflow-x-auto">
-                  {[
-                    { id: "all", label: "All Models" },
-                    { id: "free", label: "Free Tier" },
-                    { id: "claude", label: "Claude" },
-                    { id: "gpt", label: "GPT-5" },
-                    { id: "gemini", label: "Gemini" },
-                    { id: "specialist", label: "Specialists" },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setSelectedCategory(tab.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition duration-150 whitespace-nowrap ${
-                        selectedCategory === tab.id
-                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/10"
-                          : "text-gray-400 hover:text-gray-200"
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="relative md:w-64">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
-                    <i className="fa-solid fa-magnifying-glass text-xs"></i>
-                  </span>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search models..."
-                    className="w-full bg-gray-900/50 border border-gray-800 rounded-xl py-2 pl-9 pr-4 text-xs text-gray-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300"
-                    >
-                      <i className="fa-solid fa-xmark text-xs"></i>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {(() => {
-                const filteredModels = modelsList.filter((model) => {
-                  const matchesCategory =
-                    selectedCategory === "all" || model.category === selectedCategory;
-                  const matchesSearch =
-                    model.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    model.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    model.description.toLowerCase().includes(searchQuery.toLowerCase());
-                  return matchesCategory && matchesSearch;
-                });
-
-                if (filteredModels.length === 0) {
-                  return (
-                    <div className="text-center py-12 rounded-2xl glass border border-gray-800/80 p-8">
-                      <div className="w-12 h-12 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center mx-auto mb-3">
-                        <i className="fa-solid fa-magnifying-glass text-gray-500"></i>
-                      </div>
-                      <h4 className="text-sm font-semibold text-gray-300">No models match your search</h4>
-                      <p className="text-xs text-gray-500 mt-1">Try clearing your search query or selecting a different category tab.</p>
-                      <button
-                        onClick={() => {
-                          setSearchQuery("");
-                          setSelectedCategory("all");
-                        }}
-                        className="mt-4 px-4 py-1.5 rounded-lg border border-gray-800 text-xs font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition"
-                      >
-                        Reset Filters
-                      </button>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                    {filteredModels.map((model) => (
-                      <div
-                        key={model.id}
-                        className="p-6 rounded-2xl glass border border-gray-800/80 hover:border-gray-700/80 hover:bg-gray-900/10 transition duration-300 flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex justify-between items-start gap-4 mb-3">
-                            <div>
-                              <span className="text-md font-bold tracking-tight block text-gray-200">
-                                {model.displayName}
-                              </span>
-                              <span className="text-[10px] font-mono text-gray-500 block mt-0.5">
-                                {model.id}
-                              </span>
-                            </div>
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded font-semibold font-mono whitespace-nowrap ${
-                                model.isFree
-                                  ? "bg-green-950/60 border border-green-900/60 text-green-400"
-                                  : "bg-blue-950/60 border border-blue-900/60 text-blue-400"
-                              }`}
-                            >
-                              {model.isFree ? "Free Tier" : "Premium"}
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-400 leading-relaxed min-h-[40px]">
-                            {model.description}
-                          </p>
-                        </div>
-                        <div className="mt-6 pt-4 border-t border-gray-800/50 flex justify-between items-center text-xs">
-                          <span className="text-gray-500">
-                            Inputs: <strong className="text-gray-300 font-mono">${model.inputPrice}/1M</strong> • Outputs: <strong className="text-gray-300 font-mono">${model.outputPrice}/1M</strong>
-                          </span>
-                          <span className="text-green-400 font-semibold flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                            Active
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
             </div>
 
           {hasBlueCredits && proWallet && (
@@ -890,6 +768,146 @@ export default function ConsolePage() {
               )}
             </div>
           )}
+
+            <div>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                <div>
+                  <h3 className="text-xl font-bold tracking-tight">Available Models Catalog</h3>
+                  <p className="text-xs text-gray-500 mt-1">Blue Pro models organized by credit cost tier — from everyday coding to maximum intelligence.</p>
+                </div>
+                <span className="mt-2 md:mt-0 text-xs px-2.5 py-1 bg-green-950/40 border border-green-800/50 text-green-400 rounded-full font-medium">All Models Operational</span>
+              </div>
+
+              <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center mb-6">
+                <div className="flex flex-wrap gap-1.5 p-1 bg-gray-950 border border-gray-900/50 rounded-xl max-w-full overflow-x-auto">
+                  {[
+                    { id: "all", label: "All Models" },
+                    { id: "Low Cost", label: "Low Cost" },
+                    { id: "Standard", label: "Standard" },
+                    { id: "High Cost", label: "High Cost" },
+                    { id: "Premium", label: "Premium" },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setSelectedCategory(tab.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition duration-150 whitespace-nowrap ${
+                        selectedCategory === tab.id
+                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/10"
+                          : "text-gray-400 hover:text-gray-200"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative md:w-64">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                    <i className="fa-solid fa-magnifying-glass text-xs"></i>
+                  </span>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search models..."
+                    className="w-full bg-gray-900/50 border border-gray-800 rounded-xl py-2 pl-9 pr-4 text-xs text-gray-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300"
+                    >
+                      <i className="fa-solid fa-xmark text-xs"></i>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {(() => {
+                const catalogModels = BLUE_PRO_MODELS.map(bp => {
+                  const config = MODELS[bp.id];
+                  return {
+                    ...bp,
+                    displayName: config?.displayName || bp.model,
+                    id: config?.id || bp.id,
+                    description: config?.description || "",
+                    isFree: config?.isFree ?? false,
+                  };
+                });
+
+                const filteredModels = catalogModels.filter((model) => {
+                  const matchesCategory =
+                    selectedCategory === "all" || model.tier === selectedCategory;
+                  const matchesSearch =
+                    model.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    model.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    model.description.toLowerCase().includes(searchQuery.toLowerCase());
+                  return matchesCategory && matchesSearch;
+                });
+
+                if (filteredModels.length === 0) {
+                  return (
+                    <div className="text-center py-12 rounded-2xl glass border border-gray-800/80 p-8">
+                      <div className="w-12 h-12 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center mx-auto mb-3">
+                        <i className="fa-solid fa-magnifying-glass text-gray-500"></i>
+                      </div>
+                      <h4 className="text-sm font-semibold text-gray-300">No models match your search</h4>
+                      <p className="text-xs text-gray-500 mt-1">Try clearing your search query or selecting a different tier tab.</p>
+                      <button
+                        onClick={() => {
+                          setSearchQuery("");
+                          setSelectedCategory("all");
+                        }}
+                        className="mt-4 px-4 py-1.5 rounded-lg border border-gray-800 text-xs font-semibold text-gray-400 hover:text-white hover:bg-gray-800/50 transition"
+                      >
+                        Reset Filters
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                    {filteredModels.map((model) => (
+                      <div
+                        key={model.id}
+                        className="p-6 rounded-2xl glass border border-gray-800/80 hover:border-gray-700/80 hover:bg-gray-900/10 transition duration-300 flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex justify-between items-start gap-4 mb-3">
+                            <div>
+                              <span className="text-md font-bold tracking-tight block text-gray-200">
+                                {model.displayName}
+                              </span>
+                              <span className="text-[10px] font-mono text-gray-500 block mt-0.5">
+                                {model.id}
+                              </span>
+                            </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${TIER_BADGE_COLORS[model.tier] || "bg-gray-950/60 text-gray-400 border border-gray-800/60"}`}>
+                              {model.tier}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-400 leading-relaxed min-h-[40px]">
+                            {model.description}
+                          </p>
+                        </div>
+                        <div className="mt-6 pt-4 border-t border-gray-800/50 flex justify-between items-center text-xs">
+                          <span className="text-gray-500">
+                            Input: <strong className="text-gray-300 font-mono">{model.inputCredits} credits/1M</strong> • Output: <strong className="text-gray-300 font-mono">{model.outputCredits} credits/1M</strong>
+                          </span>
+                          <span className="text-green-400 font-semibold flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                            Active
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+          
         </div>
       )}
 
