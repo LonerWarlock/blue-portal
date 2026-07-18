@@ -18,6 +18,7 @@ const allFeatures = [
   "GitHub Integration",
   "Web Search",
   "Premium Models",
+  "Premium UI",
 ];
 
 const plans = [
@@ -32,7 +33,7 @@ const plans = [
     href: "/console",
     cta: "Get Started Free",
     description: "Baseline features common in any modern SOTA coding agent.",
-    features: [true, true, true, true, true, true, false, false, false, false, false],
+    features: [true, true, true, true, true, true, false, false, false, false, false, false],
     featured: false,
   },
   {
@@ -46,7 +47,7 @@ const plans = [
     href: "",
     cta: "Subscribe Now",
     description: "Advanced integrations and orchestration with Free/BYOK models.",
-    features: [true, true, true, true, true, true, true, true, true, true, false],
+    features: [true, true, true, true, true, true, true, true, true, true, false, true],
     featured: true,
   },
   {
@@ -60,7 +61,7 @@ const plans = [
     href: "/blue-pro",
     cta: "Learn More",
     description: "Buy credits when you need them. Use premium models with no monthly commitment.",
-    features: [true, true, true, true, true, true, true, true, true, true, true],
+    features: [true, true, true, true, true, true, true, true, true, true, true, true],
     featured: false,
     disabled: false,
   },

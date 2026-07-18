@@ -22,6 +22,12 @@ export default function ConsolePage() {
   const [plan, setPlan] = useState<string>("lite");
   const [discount, setDiscount] = useState<number>(0);
   const [isProPayg, setIsProPayg] = useState(false);
+  const [hasBlueCredits, setHasBlueCredits] = useState(false);
+  const [proWallet, setProWallet] = useState<any>(null);
+  const [proTransactions, setProTransactions] = useState<any[]>([]);
+  const [proUsage, setProUsage] = useState<any>(null);
+  const [proPackConfig, setProPackConfig] = useState<any>({ priceUSD: 15, credits: 15 });
+  const [proTab, setProTab] = useState<"overview" | "purchases" | "usage">("overview");
 
   // Model catalog search and category filtering
   const [searchQuery, setSearchQuery] = useState("");
@@ -124,7 +130,7 @@ export default function ConsolePage() {
         }
       }
 
-      // Check if user has Blue Pro PAYG account
+      // Load Blue Pro data for PAYG users
       const proRes = await fetch('/api/blue-pro/wallet', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -132,6 +138,29 @@ export default function ConsolePage() {
         const proData = await proRes.json();
         if (proData.account_type === 'pro_payg') {
           setIsProPayg(true);
+          setProWallet(proData);
+          if (proData.total_purchased > 0 || Number(proData.blue_credits) > 0) {
+            setHasBlueCredits(true);
+          }
+
+          const [txnRes, usageRes, packRes] = await Promise.all([
+            fetch('/api/blue-pro/transactions', { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/blue-pro/usage?days=30', { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/blue-pro/pack-config')
+          ]);
+
+          if (txnRes.ok) {
+            const txnData = await txnRes.json();
+            setProTransactions(txnData.transactions || []);
+          }
+          if (usageRes.ok) {
+            const usageData = await usageRes.json();
+            setProUsage(usageData);
+          }
+          if (packRes.ok) {
+            const packData = await packRes.json();
+            setProPackConfig(packData);
+          }
         }
       }
     } catch (err) {
@@ -340,12 +369,11 @@ export default function ConsolePage() {
               {user && (
                 <div className="flex items-center space-x-4">
                   <span className="text-sm text-gray-400 font-medium hidden sm:inline">{user.email}</span>
-                  {isProPayg ? (
-                    <a href="/blue-pro/dashboard"
-                      className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg bg-purple-950/60 border border-purple-500/30 text-xs font-bold text-purple-400 hover:bg-purple-900/60 transition">
+                  {hasBlueCredits ? (
+                    <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg bg-purple-950/60 border border-purple-500/30 text-xs font-bold text-purple-400">
                       <i className="fa-solid fa-bolt mr-1.5 text-[10px]"></i>
                       Blue Pro
-                    </a>
+                    </span>
                   ) : plan === "blue" ? (
                     <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg bg-blue-950/60 border border-blue-500/30 text-xs font-bold text-blue-400">
                       <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
@@ -426,9 +454,44 @@ export default function ConsolePage() {
           
           <div className="w-full space-y-10">
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className={`grid grid-cols-1 ${isProPayg ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-8`}>
               
-              <div className="lg:col-span-1 p-6 rounded-2xl glass relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+              {isProPayg && (
+                <div className="lg:col-span-1 p-6 rounded-2xl glass border border-purple-900/40 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+                  <div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Blue Credits</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-purple-950/60 border border-purple-900/60 text-purple-400">
+                        PAYG
+                      </span>
+                    </div>
+                    <span className="text-4xl font-extrabold tracking-tight mt-2 block bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
+                      {Number(proWallet?.blue_credits || 0).toFixed(4)}
+                    </span>
+                    <span className="text-xs text-gray-500 mt-1 block">Available credits</span>
+                    {hasBlueCredits && (
+                      <span className="text-[20px] text-gray-500 mt-2 block font-mono">
+                        {proWallet?.total_purchased?.toFixed(2) || "0"} lifetime purchased
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-6 flex space-x-3">
+                    <a href="/blue-pro/checkout"
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-semibold text-white shadow-md hover:from-purple-500 hover:to-pink-500 transition inline-flex items-center justify-center gap-2">
+                      <i className="fa-solid fa-cart-plus text-xs"></i>
+                      Buy {proPackConfig.credits} Credits
+                    </a>
+                  </div>
+                  {!hasBlueCredits && (
+                    <a href="/blue-pro" className="mt-2 inline-flex items-center gap-1.5 text-[10px] text-purple-400 hover:text-purple-300 transition">
+                      <i className="fa-solid fa-circle-info"></i>
+                      Learn about Blue Pro
+                    </a>
+                  )}
+                </div>
+              )}
+
+              <div className={`p-6 rounded-2xl glass relative overflow-hidden flex flex-col justify-between min-h-[220px] ${isProPayg ? 'lg:col-span-1' : 'lg:col-span-1'}`}>
                 <div>
                   <div className="flex justify-between items-start">
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">IMR Balance</span>
@@ -447,9 +510,9 @@ export default function ConsolePage() {
                   <span className="text-[20px] text-gray-500 mt-2 block font-mono">1 IMR = ₹0.50 (INR)</span>
                 </div>
                 <div className="mt-6 flex space-x-3">
-                  {isProPayg ? (
+                  {hasBlueCredits ? (
                     <a
-                      href="/blue-pro/dashboard"
+                      href="#blue-pro-section"
                       className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-semibold text-white shadow-md hover:from-purple-500 hover:to-pink-500 transition duration-200 inline-flex items-center justify-center gap-2"
                     >
                       <i className="fa-solid fa-bolt text-xs"></i>
@@ -476,7 +539,12 @@ export default function ConsolePage() {
                     History
                   </button>
                 </div>
-                {!isProPayg && (
+                {isProPayg && !hasBlueCredits ? (
+                  <a href="/blue-pro/checkout" className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-purple-400 hover:text-purple-300 transition">
+                    <i className="fa-solid fa-cart-plus"></i>
+                    Buy your first Blue Credits pack
+                  </a>
+                ) : !isProPayg && (
                   <a href="/blue-pro" className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-purple-400 hover:text-purple-300 transition">
                     <i className="fa-solid fa-bolt"></i>
                     Try Blue Pro — pay as you go, no subscription
@@ -666,8 +734,164 @@ export default function ConsolePage() {
               })()}
             </div>
 
-          </div>
-        )}
+          {hasBlueCredits && proWallet && (
+            <div id="blue-pro-section" className="scroll-mt-24 pt-10 border-t border-purple-900/30">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold tracking-tight text-white">
+                    <i className="fa-solid fa-bolt text-purple-400 mr-2"></i>
+                    Blue Pro
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">Credit usage and purchase history</p>
+                </div>
+                <a href="/blue-pro/checkout"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-bold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition text-sm">
+                  <i className="fa-solid fa-cart-plus mr-2"></i>
+                  Buy {proPackConfig.credits} Credits
+                </a>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="p-4 rounded-xl glass border border-gray-800/80">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Blue Credits</span>
+                  <p className="text-2xl font-extrabold text-white mt-1">{Number(proWallet.blue_credits || 0).toFixed(4)}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">Available balance</p>
+                </div>
+                <div className="p-4 rounded-xl glass border border-gray-800/80">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Purchased</span>
+                  <p className="text-2xl font-extrabold text-white mt-1">{Number(proWallet.total_purchased || 0).toFixed(2)}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">All time</p>
+                </div>
+                <div className="p-4 rounded-xl glass border border-gray-800/80">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">30-Day Usage</span>
+                  <p className="text-2xl font-extrabold text-white mt-1">{proUsage?.summary?.total_blue_credits_used?.toFixed(4) || "0.0000"}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">{proUsage?.summary?.total_requests || 0} requests</p>
+                </div>
+              </div>
+
+              <div className="flex gap-1.5 p-1 bg-gray-950 border border-gray-900/50 rounded-xl mb-6 max-w-sm">
+                {(["overview", "purchases", "usage"] as const).map((tab) => (
+                  <button key={tab} onClick={() => setProTab(tab)}
+                    className={`flex-1 px-4 py-2 rounded-lg text-xs font-bold transition ${
+                      proTab === tab
+                        ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}>
+                    {tab === "overview" ? "Overview" : tab === "purchases" ? "Purchases" : "Usage History"}
+                  </button>
+                ))}
+              </div>
+
+              {proTab === "overview" && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="p-5 rounded-xl glass border border-gray-800/80">
+                    <h4 className="text-xs font-bold text-gray-300 mb-3">Recent Purchases</h4>
+                    {proTransactions.filter((t: any) => t.status === "completed" || t.status === "failed").length === 0 ? (
+                      <p className="text-xs text-gray-500">No completed purchases yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {proTransactions.filter((t: any) => t.status === "completed" || t.status === "failed").slice(0, 5).map((txn: any) => (
+                          <div key={txn.id} className="flex items-center justify-between py-1.5 border-b border-gray-800/40 last:border-0">
+                            <div>
+                              <p className="text-xs font-semibold text-gray-200">{txn.credits_purchased} Blue Credits</p>
+                              <p className="text-[10px] text-gray-500">{new Date(txn.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                              txn.status === "completed" ? "bg-green-950/60 text-green-400" : "bg-red-950/60 text-red-400"
+                            }`}>{txn.status}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5 rounded-xl glass border border-gray-800/80">
+                    <h4 className="text-xs font-bold text-gray-300 mb-3">Usage by Model (30 days)</h4>
+                    {!proUsage?.summary?.model_breakdown || Object.keys(proUsage.summary.model_breakdown).length === 0 ? (
+                      <p className="text-xs text-gray-500">No usage recorded yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {Object.entries(proUsage.summary.model_breakdown).map(([model, data]: [string, any]) => (
+                          <div key={model} className="flex items-center justify-between py-1.5 border-b border-gray-800/40 last:border-0">
+                            <div>
+                              <p className="text-xs font-semibold text-gray-200">{model}</p>
+                              <p className="text-[10px] text-gray-500">{data.requests} requests</p>
+                            </div>
+                            <span className="text-xs font-mono text-purple-400">{data.totalCost.toFixed(4)} credits</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {proTab === "purchases" && (
+                <div className="rounded-xl glass border border-gray-800/80 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-800/80">
+                          <th className="text-left py-3 px-5 text-gray-400 font-semibold text-[10px] uppercase">Date</th>
+                          <th className="text-right py-3 px-5 text-gray-400 font-semibold text-[10px] uppercase">Amount</th>
+                          <th className="text-right py-3 px-5 text-gray-400 font-semibold text-[10px] uppercase">Credits</th>
+                          <th className="text-right py-3 px-5 text-gray-400 font-semibold text-[10px] uppercase">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {proTransactions.filter((t: any) => t.status === "completed" || t.status === "failed").length === 0 ? (
+                          <tr><td colSpan={4} className="py-8 text-center text-gray-500 text-xs">No purchases yet.</td></tr>
+                        ) : proTransactions.filter((t: any) => t.status === "completed" || t.status === "failed").map((txn: any) => (
+                          <tr key={txn.id} className="border-b border-gray-800/40 hover:bg-gray-900/30 transition">
+                            <td className="py-3 px-5 text-gray-300 text-xs">{new Date(txn.created_at).toLocaleString()}</td>
+                            <td className="py-3 px-5 text-right text-gray-300 text-xs">${Number(txn.amount_paid).toFixed(2)}</td>
+                            <td className="py-3 px-5 text-right text-purple-400 font-mono text-xs">{Number(txn.credits_purchased).toFixed(2)}</td>
+                            <td className="py-3 px-5 text-right">
+                              <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                                txn.status === "completed" ? "bg-green-950/60 text-green-400" : "bg-red-950/60 text-red-400"
+                              }`}>{txn.status}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {proTab === "usage" && (
+                <div className="rounded-xl glass border border-gray-800/80 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-800/80">
+                          <th className="text-left py-3 px-5 text-gray-400 font-semibold text-[10px] uppercase">Date</th>
+                          <th className="text-left py-3 px-5 text-gray-400 font-semibold text-[10px] uppercase">Model</th>
+                          <th className="text-right py-3 px-5 text-gray-400 font-semibold text-[10px] uppercase">Input</th>
+                          <th className="text-right py-3 px-5 text-gray-400 font-semibold text-[10px] uppercase">Output</th>
+                          <th className="text-right py-3 px-5 text-gray-400 font-semibold text-[10px] uppercase">Cost</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {!proUsage?.usage || proUsage.usage.length === 0 ? (
+                          <tr><td colSpan={5} className="py-8 text-center text-gray-500 text-xs">No usage recorded yet.</td></tr>
+                        ) : proUsage.usage.map((row: any, i: number) => (
+                          <tr key={i} className="border-b border-gray-800/40 hover:bg-gray-900/30 transition">
+                            <td className="py-3 px-5 text-gray-300 text-[10px]">{new Date(row.created_at).toLocaleString()}</td>
+                            <td className="py-3 px-5 text-gray-200 text-[10px] font-semibold">{row.model}</td>
+                            <td className="py-3 px-5 text-right text-gray-300 font-mono text-[10px]">{row.prompt_tokens?.toLocaleString() || 0}</td>
+                            <td className="py-3 px-5 text-right text-gray-300 font-mono text-[10px]">{row.completion_tokens?.toLocaleString() || 0}</td>
+                            <td className="py-3 px-5 text-right text-purple-400 font-mono text-[10px]">{Number(row.blue_credits_cost || row.cost || 0).toFixed(6)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       </main>
 

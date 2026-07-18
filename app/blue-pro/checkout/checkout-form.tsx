@@ -34,7 +34,7 @@ export function CheckoutForm() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
-      const returnUrl = `${window.location.origin}/blue-pro/dashboard`;
+      const returnUrl = `${window.location.origin}/console`;
 
       const hashRes = await fetch("/api/blue-pro/payu/create-hash", {
         method: "POST",

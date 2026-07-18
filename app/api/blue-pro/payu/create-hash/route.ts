@@ -62,7 +62,7 @@ export async function POST(request: Request) {
         metadata: {
           usd_amount: pack.priceUSD,
           exchange_rate: rate,
-          return_url: returnUrl || '',
+          return_url: returnUrl || `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005'}/console`,
           payu_txnid: txnid
         }
       })
