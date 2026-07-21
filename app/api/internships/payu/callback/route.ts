@@ -5,7 +5,7 @@ import nodemailer from 'nodemailer';
 import { INTERNSHIP_FEE } from '@/app/internships/config';
 
 export async function POST(req: Request) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
 
   try {
     const formData = await req.formData();
