@@ -1,34 +1,52 @@
-const FALLBACK_INR_RATE = 83;
-let cachedRate: number | null = null;
-let cacheTime = 0;
-const CACHE_TTL = 3600000;
+export const APPROX_USD_TO_INR = 96;
 
-export async function getUsdToInr(): Promise<number> {
-  if (cachedRate && Date.now() - cacheTime < CACHE_TTL) {
-    return cachedRate;
-  }
+export type BlueCreditPackId = 'starter' | 'standard';
 
-  try {
-    const res = await fetch('https://open.er-api.com/v6/latest/USD', {
-      signal: AbortSignal.timeout(5000)
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const rate = Number(data.rates?.INR);
-    if (!rate || rate <= 0) throw new Error('Invalid rate');
-    cachedRate = rate;
-    cacheTime = Date.now();
-    return rate;
-  } catch (err) {
-    console.warn('Exchange rate fetch failed, using fallback:', err);
-    return FALLBACK_INR_RATE;
-  }
+export interface BlueCreditPack {
+  id: BlueCreditPackId;
+  name: string;
+  description: string;
+  priceUSD: number;
+  priceINR: number;
+  credits: number;
+  accessTier: 'trial' | 'full';
+  multiplier: number;
 }
 
-export function getPackConfig() {
+export function getPackConfig(packId: string = 'starter'): BlueCreditPack {
+  const multiplier = positiveNumber(process.env.BLUE_CREDIT_MULTIPLIER, 1.5);
+  if (packId === 'standard') {
+    const priceUSD = positiveNumber(process.env.BLUE_STANDARD_PACK_PRICE_USD, 15);
+    return {
+      id: 'standard',
+      name: 'Blue Pro Full',
+      description: 'Full paid-model catalog with renewable Blue Credits.',
+      priceUSD,
+      priceINR: Math.round(priceUSD * APPROX_USD_TO_INR),
+      credits: positiveNumber(process.env.BLUE_STANDARD_PACK_CREDITS, 15),
+      accessTier: 'full',
+      multiplier
+    };
+  }
+
+  const priceUSD = positiveNumber(process.env.BLUE_STARTER_PACK_PRICE_USD, 1);
   return {
-    priceUSD: parseFloat(process.env.BLUE_CREDIT_PACK_PRICE_USD || '15'),
-    credits: parseFloat(process.env.BLUE_CREDIT_PACK_CREDITS || '15'),
-    multiplier: parseFloat(process.env.BLUE_CREDIT_MULTIPLIER || '1.5'),
+    id: 'starter',
+    name: 'Blue Pro Starter',
+    description: 'A renewable paid trial with selected cost-efficient models and no expiry.',
+    priceUSD,
+    priceINR: Math.round(priceUSD * APPROX_USD_TO_INR),
+    credits: positiveNumber(process.env.BLUE_STARTER_PACK_CREDITS, 1),
+    accessTier: 'trial',
+    multiplier
   };
+}
+
+export function getPackCatalog(): BlueCreditPack[] {
+  return [getPackConfig('starter'), getPackConfig('standard')];
+}
+
+function positiveNumber(value: string | undefined, fallback: number): number {
+  const parsed = Number(value || fallback);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

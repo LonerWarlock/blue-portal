@@ -1,106 +1,54 @@
+import { randomBytes } from 'crypto';
 import { NextResponse } from 'next/server';
+import { getBluePaygAccount, statusError } from '@/lib/bluePayg';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-// Helper to authenticate user from token
-async function getAuthenticatedUser(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return { user: null, error: 'Unauthorized: Missing token' };
-  }
-
-  const token = authHeader.replace('Bearer ', '').trim();
-  if (!supabaseAdmin) {
-    return { user: null, error: 'Internal Server Error: Supabase Admin not configured' };
-  }
-
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user) {
-    return { user: null, error: 'Unauthorized: Invalid token' };
-  }
-
-  return { user, error: null };
-}
-
-// GET: Fetch current API key, auto-generate if missing
 export async function GET(request: Request) {
   try {
-    const { user, error } = await getAuthenticatedUser(request);
-    if (error || !user) {
-      return NextResponse.json({ error }, { status: 401 });
-    }
-
-    if (!supabaseAdmin) return NextResponse.json({ error: 'DB error' }, { status: 500 });
-
-    // 1. Fetch API Key
-    let { data: keyData, error: keyError } = await supabaseAdmin
+    const userId = await authenticatedEligibleUser(request);
+    const { data, error } = await supabaseAdmin!
       .from('user_keys')
       .select('key')
-      .eq('user_id', user.id)
-      .single();
-
-    if (keyError && keyError.code === 'PGRST116') {
-      // Key doesn't exist, create a new one
-      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-      let keyString = 'blue_';
-      for (let i = 0; i < 32; i++) {
-        keyString += characters.charAt(Math.floor(Math.random() * characters.length));
-      }
-
-      const { data: insertData, error: insertError } = await supabaseAdmin
-        .from('user_keys')
-        .insert({ user_id: user.id, key: keyString })
-        .select('key')
-        .single();
-
-      if (insertError) {
-        console.error('Insert API key error:', insertError);
-        return NextResponse.json({ error: 'Failed to generate API key' }, { status: 500 });
-      }
-
-      keyData = insertData;
-    } else if (keyError) {
-      console.error('Fetch API key error:', keyError);
-      return NextResponse.json({ error: 'Failed to retrieve API key' }, { status: 500 });
-    }
-
-    return NextResponse.json({ key: keyData?.key || '' });
-
-  } catch (err: any) {
-    console.error('Fetch API key route error:', err);
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) throw statusError(500, 'Failed to retrieve Blue API key');
+    if (data?.key) return NextResponse.json({ key: data.key });
+    return createKey(userId);
+  } catch (error) {
+    return errorResponse(error);
   }
 }
 
-// POST: Rotate/Update API Key
 export async function POST(request: Request) {
   try {
-    const { user, error } = await getAuthenticatedUser(request);
-    if (error || !user) {
-      return NextResponse.json({ error }, { status: 401 });
-    }
-
-    if (!supabaseAdmin) return NextResponse.json({ error: 'DB error' }, { status: 500 });
-
-    // Generate new key
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let keyString = 'blue_';
-    for (let i = 0; i < 32; i++) {
-      keyString += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from('user_keys')
-      .upsert({ user_id: user.id, key: keyString }, { onConflict: 'user_id' });
-
-    if (updateError) {
-      console.error('Rotate API key error:', updateError);
-      return NextResponse.json({ error: 'Failed to rotate API key' }, { status: 500 });
-    }
-
-    return NextResponse.json({ key: keyString });
-
-  } catch (err: any) {
-    console.error('Rotate API key route error:', err);
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+    return createKey(await authenticatedEligibleUser(request));
+  } catch (error) {
+    return errorResponse(error);
   }
+}
+
+async function authenticatedEligibleUser(request: Request): Promise<string> {
+  if (!supabaseAdmin) throw statusError(500, 'Database is not configured');
+  const authorization = request.headers.get('authorization') || '';
+  if (!authorization.startsWith('Bearer ')) throw statusError(401, 'Unauthorized: Missing token');
+  const { data, error } = await supabaseAdmin.auth.getUser(authorization.slice(7).trim());
+  if (error || !data.user) throw statusError(401, 'Unauthorized: Invalid token');
+  await getBluePaygAccount(data.user.id);
+  return data.user.id;
+}
+
+async function createKey(userId: string) {
+  const key = `blue_${randomBytes(24).toString('base64url')}`;
+  const { error } = await supabaseAdmin!
+    .from('user_keys')
+    .upsert({ user_id: userId, key }, { onConflict: 'user_id' });
+  if (error) throw statusError(500, 'Failed to generate Blue API key');
+  return NextResponse.json({ key });
+}
+
+function errorResponse(error: unknown) {
+  const status = Number((error as { status?: number })?.status || 500);
+  return NextResponse.json({
+    error: error instanceof Error ? error.message : 'Server error'
+  }, { status });
 }

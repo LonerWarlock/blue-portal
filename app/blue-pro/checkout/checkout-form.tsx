@@ -4,11 +4,27 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
+interface CreditPack {
+  id: "starter" | "standard";
+  name: string;
+  description: string;
+  priceINR: number;
+  credits: number;
+}
+
 export function CheckoutForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [pack, setPack] = useState({ priceUSD: 15, credits: 15 });
+  const [packs, setPacks] = useState<CreditPack[]>([]);
+  const [selectedPackId, setSelectedPackId] = useState<CreditPack["id"]>("starter");
+  const pack = packs.find(item => item.id === selectedPackId) || {
+    id: "starter" as const,
+    name: "Blue Pro Starter",
+    description: "Renewable paid trial with selected models and no expiry.",
+    priceINR: 96,
+    credits: 1
+  };
   const [email, setEmail] = useState("");
 
   useEffect(() => {
@@ -22,7 +38,7 @@ export function CheckoutForm() {
     });
 
     fetch("/api/blue-pro/pack-config").then(r => r.ok && r.json()).then(d => {
-      if (d) setPack(d);
+      if (Array.isArray(d?.packs)) setPacks(d.packs);
     }).catch(() => {});
   }, []);
 
@@ -42,7 +58,7 @@ export function CheckoutForm() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ returnUrl })
+        body: JSON.stringify({ returnUrl, packId: selectedPackId })
       });
 
       const hashData = await hashRes.json();
@@ -114,6 +130,27 @@ export function CheckoutForm() {
                   </div>
 
                   <div className="pt-3 border-t border-gray-800/80">
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Choose a credit pack</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {(packs.length ? packs : [pack]).map(item => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setSelectedPackId(item.id)}
+                          className={`text-left rounded-xl border p-4 transition ${selectedPackId === item.id
+                            ? "border-purple-400 bg-purple-500/10"
+                            : "border-gray-800 bg-gray-900/30 hover:border-gray-700"}`}
+                        >
+                          <span className="block text-sm font-semibold text-gray-100">{item.name}</span>
+                          <span className="mt-1 block text-xl font-bold text-white">₹{item.priceINR.toLocaleString('en-IN')}</span>
+                          <span className="mt-1 block text-xs text-gray-400">{item.credits} Blue Credits</span>
+                          <span className="mt-2 block text-[10px] leading-relaxed text-gray-500">{item.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-800/80">
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Payment Method</h3>
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-900/40 border border-gray-800/80">
                       <div className="w-10 h-7 rounded-lg bg-purple-900/40 flex items-center justify-center text-purple-400 text-xs font-bold">
@@ -138,7 +175,7 @@ export function CheckoutForm() {
                     {loading ? (
                       <><i className="fa-solid fa-spinner animate-spin"></i> Redirecting to PayU...</>
                     ) : (
-                      <><i className="fa-solid fa-lock"></i> Pay ${pack.priceUSD.toFixed(2)} — Add {pack.credits} Blue Credits</>
+                      <><i className="fa-solid fa-lock"></i> Pay ₹{pack.priceINR.toLocaleString('en-IN')} - Add {pack.credits} Blue Credits</>
                     )}
                   </button>
 
@@ -168,7 +205,7 @@ export function CheckoutForm() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Price</span>
-                    <span className="text-gray-200 font-semibold">${pack.priceUSD.toFixed(2)}</span>
+                    <span className="text-gray-200 font-semibold">₹{pack.priceINR.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
 
@@ -177,6 +214,7 @@ export function CheckoutForm() {
                     Blue Credits are service-usage units used to access Blue's AI coding models.
                     They are not cash or stored monetary value. Credit consumption varies by model
                     and may include model inference, reasoning, caching, tools, and platform services.
+                    Credits do not expire; add another pack whenever your balance runs out.
                   </p>
                 </div>
               </div>

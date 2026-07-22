@@ -1,0 +1,8 @@
+{
+  "/api/models/route": "app/api/models/route.js",
+  "/api/user/wallet/route": "app/api/user/wallet/route.js",
+  "/api/blue-pro/pack-config/route": "app/api/blue-pro/pack-config/route.js",
+  "/api/user/subscription/route": "app/api/user/subscription/route.js",
+  "/api/blue-pro/wallet/route": "app/api/blue-pro/wallet/route.js",
+  "/console/page": "app/console/page.js"
+}

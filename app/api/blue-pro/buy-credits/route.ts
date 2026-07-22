@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { getPackConfig } from '@/lib/exchangeRate';
+import { getPackCatalog, getPackConfig } from '@/lib/exchangeRate';
 
 async function getAuthUser(request: Request) {
   const authHeader = request.headers.get('authorization');
@@ -30,12 +30,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'You need a Blue Pro account to purchase credits' }, { status: 403 });
     }
 
-    const pack = getPackConfig();
+    const body = await request.json().catch(() => ({})) as { packId?: string };
+    const pack = getPackConfig(body.packId);
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
 
     return NextResponse.json({
-      price_usd: pack.priceUSD,
+      price_inr: pack.priceINR,
+      base_price_usd: pack.priceUSD,
       credits: pack.credits,
+      pack_id: pack.id,
+      access_tier: pack.accessTier,
+      packs: getPackCatalog(),
       return_url: `${siteUrl}/blue-pro/dashboard`
     });
   } catch (err: any) {
