@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import PageLayout from "@/app/components/PageLayout";
@@ -8,15 +7,11 @@ import Link from "next/link";
 
 const modelPricing = [
   { model: "DeepSeek V4 Flash", inputCredits: "0.147", outputCredits: "0.294", tier: "Low Cost" },
-  { model: "MiMo V2.5", inputCredits: "0.210", outputCredits: "0.420", tier: "Low Cost" },
-  { model: "MiniMax M3", inputCredits: "0.450", outputCredits: "1.800", tier: "Standard" },
-  { model: "GLM 5.2", inputCredits: "1.434", outputCredits: "4.508", tier: "Standard" },
+  { model: "Poolside Laguna S 2.1", inputCredits: "0.150", outputCredits: "0.300", tier: "Low Cost" },
+  { model: "KAT Coder Air 2.5", inputCredits: "0.225", outputCredits: "0.900", tier: "Low Cost" },
   { model: "DeepSeek V4 Pro", inputCredits: "0.653", outputCredits: "1.305", tier: "Standard" },
-  { model: "Gemini 2.5 Flash", inputCredits: "0.450", outputCredits: "3.750", tier: "Standard" },
-  { model: "Gemini 3 Flash Preview", inputCredits: "0.750", outputCredits: "4.500", tier: "Standard" },
-  { model: "Claude Sonnet 5", inputCredits: "3.000", outputCredits: "15.000", tier: "High Cost" },
-  { model: "Claude Opus 4.8", inputCredits: "7.500", outputCredits: "37.500", tier: "Premium" },
-  { model: "GPT-5.5", inputCredits: "7.500", outputCredits: "45.000", tier: "Premium" },
+  { model: "Qwen 3.7 Plus", inputCredits: "0.480", outputCredits: "1.920", tier: "Standard" },
+  { model: "GLM 5", inputCredits: "0.900", outputCredits: "2.880", tier: "Standard" },
 ];
 
 const tiers = [
@@ -29,11 +24,11 @@ const tiers = [
 const faqs = [
   {
     q: "What are Blue Credits?",
-    a: "Blue Credits are service-usage units that let you access Blue's AI coding models on a pay-as-you-go basis. One Blue Credit pack costs $15 and grants 15 Blue Credits. Different models consume credits at different rates based on their computational cost."
+    a: "Blue Credits are service-usage units for Blue's pay-as-you-go models. The renewable Starter pack costs ₹96 for 1 Blue Credit and the Full pack costs ₹1,440 for 15 Blue Credits. There is no time limit."
   },
   {
     q: "How is credit usage calculated?",
-    a: "Each model has a per-token rate in Blue Credits. When you send a request, total credits used = (input tokens × input rate) + (output tokens × output rate). For example, a DeepSeek V4 Flash request with 100,000 input tokens and 20,000 output tokens would use approximately 0.021 Blue Credits."
+    a: "Blue uses the actual cost reported by OpenRouter for each completed request, then converts it into Blue Credits at the published Blue rate. The extension updates your remaining balance after every request."
   },
   {
     q: "Do my credits expire?",
@@ -45,7 +40,7 @@ const faqs = [
   },
   {
     q: "Can I use free models without credits?",
-    a: "Yes. Free-tier models are available to all users without deducting Blue Credits, subject to daily usage limits."
+    a: "Blue Pro is for paid OpenRouter models. Users without active Blue Pro credits can continue with their own OpenCode API key."
   },
   {
     q: "Are there any refunds?",
@@ -54,41 +49,16 @@ const faqs = [
 ];
 
 export default function BlueProPage() {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
-  const [settingUp, setSettingUp] = useState(false);
 
-  const handleGetStarted = async () => {
+  const handleGetStarted = () => {
     if (!user) {
-      sessionStorage.setItem("redirectAfterLogin", "/blue-pro");
+      sessionStorage.setItem("redirectAfterLogin", "/blue-pro/checkout?pack=starter");
       router.push("/console");
       return;
     }
-
-    setSettingUp(true);
-    try {
-      const token = session?.access_token;
-      if (!token) throw new Error("No session");
-
-      const res = await fetch("/api/blue-pro/setup", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      const data = await res.json();
-
-      if (res.status === 409) {
-        router.push("/blue-pro/dashboard");
-        return;
-      }
-
-      if (!res.ok) throw new Error(data.error || "Setup failed");
-
-      router.push("/blue-pro/dashboard");
-    } catch (err: any) {
-      alert(err.message);
-      setSettingUp(false);
-    }
+    router.push("/blue-pro/checkout?pack=starter");
   };
 
   return (
@@ -115,7 +85,7 @@ export default function BlueProPage() {
               </span>
             </h1>
             <p className="mt-6 text-lg text-gray-400 max-w-3xl mx-auto leading-relaxed">
-              Buy Blue Credits when you need them. Use them across any model. No monthly commitment.
+              Start with a renewable ₹96 paid trial for selected paid models, or choose the ₹1,440 full-access pack. Credits never expire.
             </p>
           </div>
 
@@ -124,15 +94,15 @@ export default function BlueProPage() {
               <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mx-auto mb-4">
                 <i className="fa-solid fa-cart-shopping text-purple-400"></i>
               </div>
-              <h3 className="text-lg font-bold text-gray-100 mb-2">Buy Credits</h3>
-              <p className="text-sm text-gray-400">$15 for 15 Blue Credits. No subscription, no hidden fees.</p>
+              <h3 className="text-lg font-bold text-gray-100 mb-2">₹96 Trial Pack</h3>
+              <p className="text-sm text-gray-400">Get 1 Blue Credit for selected paid models. No expiry; purchase it again after using the credit.</p>
             </div>
             <div className="p-6 rounded-2xl glass border border-gray-800/80 text-center">
               <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mx-auto mb-4">
                 <i className="fa-solid fa-microchip text-purple-400"></i>
               </div>
-              <h3 className="text-lg font-bold text-gray-100 mb-2">Any Model</h3>
-              <p className="text-sm text-gray-400">Use Low Cost, Standard, or Premium models. Each shows its credit rate upfront.</p>
+              <h3 className="text-lg font-bold text-gray-100 mb-2">₹1,440 Full Pack</h3>
+              <p className="text-sm text-gray-400">Get 15 Blue Credits and access the full Blue Pro model catalog.</p>
             </div>
             <div className="p-6 rounded-2xl glass border border-gray-800/80 text-center">
               <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mx-auto mb-4">
@@ -146,16 +116,11 @@ export default function BlueProPage() {
           <div className="mt-12 text-center">
             <button
               onClick={handleGetStarted}
-              disabled={settingUp}
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-bold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition duration-200 text-base disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-bold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition duration-200 text-base"
             >
-              {settingUp ? (
-                <><i className="fa-solid fa-spinner animate-spin"></i> Setting up...</>
-              ) : (
-                <><i className="fa-solid fa-rocket"></i> Get Started with Blue Pro</>
-              )}
+              <><i className="fa-solid fa-cart-plus"></i> Choose ₹96 Trial or Add Credits</>
             </button>
-            <p className="text-xs text-gray-500 mt-3">No credit card required to set up your account.</p>
+            <p className="text-xs text-gray-500 mt-3">Blue Pro activates only after a successful payment.</p>
           </div>
         </div>
       </section>
@@ -262,14 +227,9 @@ export default function BlueProPage() {
             <p className="text-sm text-gray-500 mb-4">Ready to get started?</p>
             <button
               onClick={handleGetStarted}
-              disabled={settingUp}
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-bold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition duration-200 text-base disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-bold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition duration-200 text-base"
             >
-              {settingUp ? (
-                <><i className="fa-solid fa-spinner animate-spin"></i> Setting up...</>
-              ) : (
-                <><i className="fa-solid fa-rocket"></i> Get Started with Blue Pro</>
-              )}
+              <><i className="fa-solid fa-cart-plus"></i> Choose ₹96 Trial or Add Credits</>
             </button>
           </div>
         </div>

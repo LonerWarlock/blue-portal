@@ -1,88 +1,84 @@
+import { createHash, timingSafeEqual } from 'crypto';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { createHash } from 'crypto';
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
+  const site = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
   try {
-    const formData = await req.formData();
-    const data: Record<string, string> = {};
-    formData.forEach((value, key) => { data[key] = value.toString(); });
-
-    const { key, txnid, amount, productinfo, firstname, email, status, hash, additionalCharges } = data;
-    const salt = process.env.PAYU_MERCHANT_SALT || '';
-
-    let hashString = `${salt}|${status}|||||||||||${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`;
-    if (additionalCharges) {
-      hashString = `${additionalCharges}|${salt}|${status}|||||||||||${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`;
+    const form = await request.formData();
+    const data = Object.fromEntries(Array.from(form.entries()).map(([key, value]) => [key, String(value)]));
+    if (!validSignature(data)) {
+      console.error('[Blue PAYG] Rejected PayU callback with an invalid signature');
+      return NextResponse.redirect(new URL('/blue-pro/dashboard?payment=invalid', site), 303);
     }
+    if (!supabaseAdmin) return NextResponse.json({ error: 'Database is not configured' }, { status: 500 });
 
-    const calculatedHash = createHash('sha512').update(hashString).digest('hex');
-    if (calculatedHash !== hash) {
-      console.error('PayU Blue Pro callback signature mismatch');
-    }
-
-    if (!supabaseAdmin) {
-      return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
-    }
-
-    const { data: payments } = await supabaseAdmin
+    const { data: payment, error } = await supabaseAdmin
       .from('credit_payments')
       .select('*')
-      .eq('provider_txnid', txnid)
-      .limit(1);
+      .eq('provider_txnid', data.txnid)
+      .maybeSingle();
+    if (error || !payment) return NextResponse.redirect(new URL('/blue-pro/dashboard?payment=error', site), 303);
 
-    if (!payments || payments.length === 0) {
-      console.error('No payment found for txnid:', txnid);
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005'}/blue-pro/dashboard?payment=error`, 303);
+    const metadata = payment.metadata as Record<string, unknown> | null;
+    const returnUrl = safeReturnUrl(String(metadata?.return_url || ''), site);
+    if (!matchesStoredPayment(data, metadata || {})) {
+      console.error('[Blue PAYG] Rejected PayU callback whose fields did not match the stored payment');
+      return NextResponse.redirect(withQuery(returnUrl, 'payment', 'invalid'), 303);
     }
 
-    const payment = payments[0];
-    const metadata = (payment.metadata as any) || {};
-    const returnUrl = metadata.return_url || `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005'}/blue-pro/dashboard`;
-
-    if (status === 'success') {
-      const { error: updateError } = await supabaseAdmin
-        .from('credit_payments')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          provider_order_id: txnid
-        })
-        .eq('id', payment.id);
-
-      if (updateError) {
-        console.error('Failed to update payment:', updateError);
-      }
-
-      const { error: creditError } = await supabaseAdmin.rpc('add_blue_credits', {
-        user_id_param: payment.user_id,
-        amount_param: payment.credits_purchased
+    if (data.status === 'success') {
+      const { data: completion, error: completionError } = await supabaseAdmin.rpc('complete_blue_credit_payment', {
+        payment_id_param: payment.id,
+        provider_txnid_param: data.txnid
       });
-
-      if (creditError) {
-        console.error('Failed to add credits:', creditError);
-      }
-
-      const { error: profileError } = await supabaseAdmin.rpc('increment_blue_credits_purchased', {
-        user_id_param: payment.user_id,
-        amount_param: payment.credits_purchased
-      });
-
-      if (profileError) {
-        console.error('Failed to update profile:', profileError);
-      }
-
-      return NextResponse.redirect(`${returnUrl}?payment=success&credits=${payment.credits_purchased}`, 303);
-    } else {
-      await supabaseAdmin
-        .from('credit_payments')
-        .update({ status: 'failed' })
-        .eq('id', payment.id);
-
-      return NextResponse.redirect(`${returnUrl}?payment=failed`, 303);
+      if (completionError) throw new Error(`Could not activate Blue Credits: ${completionError.message}`);
+      const redirect = withQuery(returnUrl, 'payment', 'success');
+      redirect.searchParams.set('credits', String(completion?.credits || payment.credits_purchased));
+      return NextResponse.redirect(redirect, 303);
     }
-  } catch (err: any) {
-    console.error('Blue Pro PayU callback error:', err);
-    return NextResponse.json({ error: err.message || 'Callback error' }, { status: 500 });
+
+    await supabaseAdmin
+      .from('credit_payments')
+      .update({ status: 'failed' })
+      .eq('id', payment.id)
+      .eq('status', 'pending');
+    return NextResponse.redirect(withQuery(returnUrl, 'payment', 'failed'), 303);
+  } catch (error) {
+    console.error('[Blue PAYG] PayU callback failed:', error);
+    return NextResponse.redirect(new URL('/blue-pro/dashboard?payment=error', site), 303);
   }
+}
+
+function validSignature(data: Record<string, string>): boolean {
+  const salt = process.env.PAYU_MERCHANT_SALT || '';
+  if (!salt || !data.hash) return false;
+  const base = `${salt}|${data.status}|||||||||||${data.email}|${data.firstname}|${data.productinfo}|${data.amount}|${data.txnid}|${data.key}`;
+  const input = data.additionalCharges ? `${data.additionalCharges}|${base}` : base;
+  const expected = createHash('sha512').update(input).digest();
+  const received = Buffer.from(data.hash, 'hex');
+  return expected.length === received.length && timingSafeEqual(expected, received);
+}
+
+function matchesStoredPayment(data: Record<string, string>, metadata: Record<string, unknown>): boolean {
+  return data.key === String(metadata.expected_key || '')
+    && data.amount === String(metadata.expected_amount || '')
+    && data.productinfo === String(metadata.expected_productinfo || '')
+    && data.firstname === String(metadata.expected_firstname || '')
+    && data.email === String(metadata.expected_email || '');
+}
+
+function safeReturnUrl(value: string, site: string): URL {
+  try {
+    const candidate = new URL(value || '/blue-pro/dashboard', site);
+    if (candidate.origin === new URL(site).origin) return candidate;
+  } catch {
+  }
+  return new URL('/blue-pro/dashboard', site);
+}
+
+function withQuery(url: URL, key: string, value: string): URL {
+  const copy = new URL(url);
+  copy.searchParams.set(key, value);
+  return copy;
 }

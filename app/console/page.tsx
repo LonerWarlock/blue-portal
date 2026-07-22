@@ -3,20 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { MODELS } from "@/lib/models";
-
-const BLUE_PRO_MODELS = [
-  { model: "DeepSeek V4 Flash", id: "deepseek-v4-flash", inputCredits: "0.147", outputCredits: "0.294", tier: "Low Cost" },
-  { model: "MiMo V2.5", id: "mimo-v2.5-free", inputCredits: "0.210", outputCredits: "0.420", tier: "Low Cost" },
-  { model: "MiniMax M3", id: "minimax-m3-free", inputCredits: "0.450", outputCredits: "1.800", tier: "Standard" },
-  { model: "GLM 5.2", id: "glm-5.2", inputCredits: "1.434", outputCredits: "4.508", tier: "Standard" },
-  { model: "DeepSeek V4 Pro", id: "deepseek-v4-pro", inputCredits: "0.653", outputCredits: "1.305", tier: "Standard" },
-  { model: "Gemini 2.5 Flash", id: "gemini-3.5-flash", inputCredits: "0.450", outputCredits: "3.750", tier: "Standard" },
-  { model: "Gemini 3 Flash Preview", id: "gemini-3-flash", inputCredits: "0.750", outputCredits: "4.500", tier: "Standard" },
-  { model: "Claude Sonnet 5", id: "claude-sonnet-4-6", inputCredits: "3.000", outputCredits: "15.000", tier: "High Cost" },
-  { model: "Claude Opus 4.8", id: "claude-opus-4-8", inputCredits: "7.500", outputCredits: "37.500", tier: "Premium" },
-  { model: "GPT-5.5", id: "gpt-5.5-pro", inputCredits: "7.500", outputCredits: "45.000", tier: "Premium" },
-];
 
 const TIER_BADGE_COLORS: Record<string, string> = {
   "Low Cost": "bg-green-950/60 text-green-400 border border-green-900/60",
@@ -24,6 +10,61 @@ const TIER_BADGE_COLORS: Record<string, string> = {
   "High Cost": "bg-yellow-950/60 text-yellow-400 border border-yellow-900/60",
   "Premium": "bg-purple-950/60 text-purple-400 border border-purple-900/60",
 };
+
+const MODEL_CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
+const MODEL_CATALOG_SESSION_KEY = 'blue.modelCatalog.v1';
+let modelCatalogCache: any[] = [];
+let modelCatalogLoadedAt = 0;
+let modelCatalogRequest: Promise<any[]> | null = null;
+
+function restoreModelCatalogCache(): void {
+  if (typeof window === 'undefined' || modelCatalogCache.length > 0) return;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(MODEL_CATALOG_SESSION_KEY) || 'null');
+    if (!saved || !Array.isArray(saved.models) || saved.models.length === 0) return;
+    modelCatalogCache = saved.models;
+    modelCatalogLoadedAt = Number(saved.loadedAt || 0);
+  } catch {
+    sessionStorage.removeItem(MODEL_CATALOG_SESSION_KEY);
+  }
+}
+
+async function getModelCatalog(force = false): Promise<any[]> {
+  if (!force && modelCatalogCache.length > 0 && Date.now() - modelCatalogLoadedAt < MODEL_CATALOG_CACHE_TTL_MS) {
+    return modelCatalogCache;
+  }
+  if (modelCatalogRequest) return modelCatalogRequest;
+  modelCatalogRequest = (async () => {
+    const response = await fetch('/api/models?catalog=public');
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'The model catalog could not be loaded.');
+    if (!Array.isArray(payload.models) || payload.models.length === 0) {
+      throw new Error('The provider returned an empty model catalog.');
+    }
+    modelCatalogCache = payload.models;
+    modelCatalogLoadedAt = Date.now();
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(MODEL_CATALOG_SESSION_KEY, JSON.stringify({
+        models: modelCatalogCache,
+        loadedAt: modelCatalogLoadedAt
+      }));
+    }
+    return modelCatalogCache;
+  })();
+  try {
+    return await modelCatalogRequest;
+  } finally {
+    modelCatalogRequest = null;
+  }
+}
+
+function modelTier(inputCredits: number, outputCredits: number) {
+  const highest = Math.max(inputCredits, outputCredits);
+  if (highest <= 1) return "Low Cost";
+  if (highest <= 5) return "Standard";
+  if (highest <= 15) return "High Cost";
+  return "Premium";
+}
 
 export default function ConsolePage() {
   const [user, setUser] = useState<any>(null);
@@ -46,15 +87,22 @@ export default function ConsolePage() {
   const [proWallet, setProWallet] = useState<any>(null);
   const [proTransactions, setProTransactions] = useState<any[]>([]);
   const [proUsage, setProUsage] = useState<any>(null);
-  const [proPackConfig, setProPackConfig] = useState<any>({ priceUSD: 15, credits: 15 });
+  const [proPackConfig, setProPackConfig] = useState<any>({ priceINR: 96, credits: 1 });
   const [proTab, setProTab] = useState<"overview" | "purchases" | "usage">("overview");
 
   // Model catalog search and category filtering
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [modelsList, setModelsList] = useState<any[]>(Object.values(MODELS));
+  const [modelsList, setModelsList] = useState<any[]>(() => modelCatalogCache);
+  const [modelsLoading, setModelsLoading] = useState(modelCatalogCache.length === 0);
+  const [modelsError, setModelsError] = useState("");
 
   useEffect(() => {
+    restoreModelCatalogCache();
+    if (modelCatalogCache.length > 0) {
+      setModelsList(modelCatalogCache);
+      setModelsLoading(false);
+    }
     supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -110,11 +158,33 @@ export default function ConsolePage() {
     }
   }, [loading]);
 
+  const refreshModelCatalog = async (force = false) => {
+    const hasCachedCatalog = modelCatalogCache.length > 0;
+    if (hasCachedCatalog) setModelsList(modelCatalogCache);
+    setModelsLoading(!hasCachedCatalog);
+    setModelsError('');
+    try {
+      setModelsList(await getModelCatalog(force));
+    } catch (error) {
+      if (!hasCachedCatalog) {
+        setModelsError(error instanceof Error ? error.message : 'The model catalog could not be loaded.');
+      }
+    } finally {
+      setModelsLoading(false);
+    }
+  };
+
   const loadUserData = async (userId: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       const token = session.access_token;
+
+      setIsProPayg(false);
+      setHasBlueCredits(false);
+      setProWallet(null);
+      setCurrentApiKey('');
+      void refreshModelCatalog();
 
       const walletRes = await fetch('/api/user/wallet', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -123,20 +193,8 @@ export default function ConsolePage() {
       if (!walletRes.ok || walletData.error) throw new Error(walletData.error || 'Failed to load wallet');
       setBalance(walletData.balance);
 
-      const keyRes = await fetch('/api/user/key', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const keyData = await keyRes.json();
-      if (!keyRes.ok || keyData.error) throw new Error(keyData.error || 'Failed to load key');
-      setCurrentApiKey(keyData.key);
-
-      const modelsRes = await fetch('/api/models', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const modelsData = await modelsRes.json();
-      if (modelsRes.ok && modelsData.models) {
-        setModelsList(modelsData.models);
-      }
+      const packRes = await fetch('/api/blue-pro/pack-config');
+      if (packRes.ok) setProPackConfig(await packRes.json());
 
       // Fetch subscription plan by user email
       const subRes = await fetch(`/api/user/subscription?email=${encodeURIComponent(session.user.email || '')}`);
@@ -156,19 +214,18 @@ export default function ConsolePage() {
       });
       if (proRes.ok) {
         const proData = await proRes.json();
-        if (proData.account_type === 'pro_payg') {
+        if (proData.eligible && proData.account_type === 'pro_payg') {
           setIsProPayg(true);
           setProWallet(proData);
-          if (proData.total_purchased > 0 || Number(proData.blue_credits) > 0) {
-            setHasBlueCredits(true);
-          }
+          setHasBlueCredits(Number(proData.blue_credits || 0) > 0);
 
-          const [txnRes, usageRes, packRes] = await Promise.all([
+          const [keyRes, txnRes, usageRes] = await Promise.all([
+            fetch('/api/user/key', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/blue-pro/transactions', { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch('/api/blue-pro/usage?days=30', { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch('/api/blue-pro/pack-config')
+            fetch('/api/blue-pro/usage?days=30', { headers: { 'Authorization': `Bearer ${token}` } })
           ]);
 
+          if (keyRes.ok) setCurrentApiKey((await keyRes.json()).key || '');
           if (txnRes.ok) {
             const txnData = await txnRes.json();
             setProTransactions(txnData.transactions || []);
@@ -177,11 +234,11 @@ export default function ConsolePage() {
             const usageData = await usageRes.json();
             setProUsage(usageData);
           }
-          if (packRes.ok) {
-            const packData = await packRes.json();
-            setProPackConfig(packData);
-          }
         }
+      } else {
+        setIsProPayg(false);
+        setHasBlueCredits(false);
+        setCurrentApiKey('');
       }
     } catch (err) {
       console.error("Error loading user data:", err);
@@ -389,7 +446,7 @@ export default function ConsolePage() {
               {user && (
                 <div className="flex items-center space-x-4">
                   <span className="text-sm text-gray-400 font-medium hidden sm:inline">{user.email}</span>
-                  {hasBlueCredits ? (
+                  {isProPayg ? (
                     <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg bg-purple-950/60 border border-purple-500/30 text-xs font-bold text-purple-400">
                       <i className="fa-solid fa-bolt mr-1.5 text-[10px]"></i>
                       Blue Pro
@@ -499,7 +556,7 @@ export default function ConsolePage() {
                     <a href="/blue-pro/checkout"
                       className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-semibold text-white shadow-md hover:from-purple-500 hover:to-pink-500 transition inline-flex items-center justify-center gap-2">
                       <i className="fa-solid fa-cart-plus text-xs"></i>
-                      Buy {proPackConfig.credits} Credits
+                      Add Credits
                     </a>
                   </div>
                   {!hasBlueCredits && (
@@ -559,7 +616,7 @@ export default function ConsolePage() {
                 ) : !isProPayg && (
                   <a href="/blue-pro" className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-purple-400 hover:text-purple-300 transition">
                     <i className="fa-solid fa-bolt"></i>
-                    Try Blue Pro — pay as you go, no subscription
+                    Try Blue Pro for ₹96 — no subscription or expiry
                   </a>
                 )}
               </div>
@@ -570,10 +627,14 @@ export default function ConsolePage() {
                     <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-3 shadow-lg shadow-blue-500/5">
                       <i className="fa-solid fa-lock text-blue-400 text-lg"></i>
                     </div>
-                    <h4 className="text-sm font-bold text-gray-200 tracking-tight">Direct Key Billing Coming Soon</h4>
+                    <h4 className="text-sm font-bold text-gray-200 tracking-tight">Add Blue Credits to continue</h4>
                     <p className="text-xs text-gray-400 max-w-sm mt-1.5 leading-relaxed">
-                      We are preparing direct API key connection. For now, the extension functions natively using your OpenCode API key.
+                      Start with the renewable ₹96 trial or choose the ₹1,440 full-access pack.
                     </p>
+                    <a href="/blue-pro/checkout?pack=starter" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-xs font-bold text-white">
+                      <i className="fa-solid fa-cart-plus"></i>
+                      Buy ₹96 Trial
+                    </a>
                   </div>
                 )}
 
@@ -612,7 +673,7 @@ export default function ConsolePage() {
 
             </div>
 
-          {hasBlueCredits && proWallet && (
+          {isProPayg && proWallet && (
             <div id="blue-pro-section" className="scroll-mt-24 pt-10 border-t border-purple-900/30">
               <div className="flex items-center justify-between mb-6">
                 <div>
@@ -625,7 +686,7 @@ export default function ConsolePage() {
                 <a href="/blue-pro/checkout"
                   className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-bold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition text-sm">
                   <i className="fa-solid fa-cart-plus mr-2"></i>
-                  Buy {proPackConfig.credits} Credits
+                  Add Credits
                 </a>
               </div>
 
@@ -775,7 +836,15 @@ export default function ConsolePage() {
                   <h3 className="text-xl font-bold tracking-tight">Available Models Catalog</h3>
                   <p className="text-xs text-gray-500 mt-1">Blue Pro models organized by credit cost tier — from everyday coding to maximum intelligence.</p>
                 </div>
-                <span className="mt-2 md:mt-0 text-xs px-2.5 py-1 bg-green-950/40 border border-green-800/50 text-green-400 rounded-full font-medium">All Models Operational</span>
+                <span className={`mt-2 md:mt-0 text-xs px-2.5 py-1 rounded-full font-medium border ${
+                  modelsLoading
+                    ? 'bg-blue-950/40 border-blue-800/50 text-blue-400'
+                    : modelsError
+                      ? 'bg-red-950/40 border-red-800/50 text-red-400'
+                      : 'bg-green-950/40 border-green-800/50 text-green-400'
+                }`}>
+                  {modelsLoading ? 'Loading Catalog' : modelsError ? 'Catalog Unavailable' : `${modelsList.length} Models Available`}
+                </span>
               </div>
 
               <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center mb-6">
@@ -824,14 +893,44 @@ export default function ConsolePage() {
               </div>
 
               {(() => {
-                const catalogModels = BLUE_PRO_MODELS.map(bp => {
-                  const config = MODELS[bp.id];
+                if (modelsLoading) {
+                  return (
+                    <div className="text-center py-12 rounded-2xl glass border border-gray-800/80 p-8">
+                      <div className="w-8 h-8 rounded-full border-2 border-gray-800 border-t-blue-500 animate-spin mx-auto mb-3"></div>
+                      <h4 className="text-sm font-semibold text-gray-300">Loading the model catalog</h4>
+                      <p className="text-xs text-gray-500 mt-1">Fetching the latest models and pricing from the provider.</p>
+                    </div>
+                  );
+                }
+
+                if (modelsError) {
+                  return (
+                    <div className="text-center py-12 rounded-2xl glass border border-red-900/60 p-8">
+                      <div className="w-12 h-12 rounded-full bg-red-950/50 border border-red-900/60 flex items-center justify-center mx-auto mb-3">
+                        <i className="fa-solid fa-triangle-exclamation text-red-400"></i>
+                      </div>
+                      <h4 className="text-sm font-semibold text-gray-200">The model catalog is temporarily unavailable</h4>
+                      <p className="text-xs text-gray-500 mt-1">{modelsError}</p>
+                      <button
+                        onClick={() => void refreshModelCatalog(true)}
+                        className="mt-4 px-4 py-1.5 rounded-lg border border-red-900/70 text-xs font-semibold text-red-300 hover:text-white hover:bg-red-950/50 transition"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  );
+                }
+
+                const catalogModels = modelsList.map(model => {
+                  const inputCredits = Number(model.inputPrice || 0) * 1.5;
+                  const outputCredits = Number(model.outputPrice || 0) * 1.5;
                   return {
-                    ...bp,
-                    displayName: config?.displayName || bp.model,
-                    id: config?.id || bp.id,
-                    description: config?.description || "",
-                    isFree: config?.isFree ?? false,
+                    ...model,
+                    displayName: model.displayName || model.id,
+                    description: model.description || "Available through the Blue OpenRouter gateway.",
+                    inputCredits: inputCredits.toFixed(3),
+                    outputCredits: outputCredits.toFixed(3),
+                    tier: modelTier(inputCredits, outputCredits)
                   };
                 });
 

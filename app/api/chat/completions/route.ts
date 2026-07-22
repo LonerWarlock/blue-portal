@@ -1,330 +1,289 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { getModelConfig } from '@/lib/models';
+import { authenticateBlueKey, BLUE_CREDIT_MULTIPLIER, releaseUsage, reserveUsage, settleUsage, statusError } from '@/lib/bluePayg';
+import { estimatePromptTokens, getOpenRouterModels, modelsForAccess, openRouterApiKey, price, publicModel, resolveModel } from '@/lib/openrouter';
 
 export const runtime = 'edge';
 
-const BLUE_CREDIT_MULTIPLIER = 1.5;
+const TOP_UP_URL = '/blue-pro/checkout';
+const MAX_REQUEST_BYTES = 2_000_000;
 
-async function deductBalance(
-  userId: string,
-  cost: number,
-  modelId: string,
-  promptTokens: number,
-  completionTokens: number,
-  accountType: string
-) {
-  try {
-    if (!supabaseAdmin) return;
-
-    const blueCreditsCost = accountType === 'pro_payg' ? cost * BLUE_CREDIT_MULTIPLIER : 0;
-
-    if (accountType === 'pro_payg') {
-      const { data: newBalance, error: rpcError } = await supabaseAdmin.rpc(
-        'deduct_blue_credits',
-        { user_id_param: userId, cost_param: blueCreditsCost }
-      );
-
-      if (rpcError) {
-        console.warn('Blue Credits RPC failed, fallback:', rpcError);
-        const { data: walletData } = await supabaseAdmin
-          .from('wallets')
-          .select('blue_credits')
-          .eq('user_id', userId)
-          .single();
-
-        if (walletData) {
-          const updated = Number(walletData.blue_credits) - blueCreditsCost;
-          await supabaseAdmin
-            .from('wallets')
-            .update({ blue_credits: updated, updated_at: new Date().toISOString() })
-            .eq('user_id', userId);
-        }
-      }
-
-      await supabaseAdmin.rpc('increment_blue_credits_used', {
-        user_id_param: userId,
-        amount_param: blueCreditsCost
-      });
-    } else {
-      const { data: newBalance, error: rpcError } = await supabaseAdmin.rpc(
-        'deduct_wallet_balance',
-        { user_id_param: userId, cost_param: cost }
-      );
-
-      if (rpcError) {
-        console.warn('Atomic RPC deduction failed, fallback:', rpcError);
-        const { data: walletData, error: readError } = await supabaseAdmin
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', userId)
-          .single();
-
-        if (readError || !walletData) throw new Error('Failed to read wallet');
-
-        const updatedBalance = Number(walletData.balance) - cost;
-        await supabaseAdmin
-          .from('wallets')
-          .update({ balance: updatedBalance })
-          .eq('user_id', userId);
-      }
-    }
-
-    const { error: txError } = await supabaseAdmin
-      .from('billing_transactions')
-      .insert({
-        user_id: userId,
-        model: modelId,
-        prompt_tokens: promptTokens,
-        completion_tokens: completionTokens,
-        cost: accountType === 'pro_payg' ? 0 : cost,
-        blue_credits_cost: accountType === 'pro_payg' ? blueCreditsCost : null,
-        account_type: accountType,
-        rate_card_version: accountType === 'pro_payg' ? `1.0x${BLUE_CREDIT_MULTIPLIER}` : null
-      });
-
-    if (txError) {
-      console.error('Failed to insert billing audit log:', txError.message);
-    }
-  } catch (err: any) {
-    console.error('Error during deduction:', err.message || err);
-  }
+interface UsageData {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  cost?: number;
 }
 
 export async function POST(request: Request) {
+  let account: Awaited<ReturnType<typeof authenticateBlueKey>> | undefined;
+  let requestId = '';
+  let reserved = false;
+
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Missing or invalid Authorization header' }, { status: 401 });
+    const token = bearerToken(request);
+    account = await authenticateBlueKey(token);
+    const rawBody = await request.text();
+    if (rawBody.length > MAX_REQUEST_BYTES) throw statusError(413, 'Request is too large');
+
+    const body = JSON.parse(rawBody) as Record<string, unknown>;
+    if (!Array.isArray(body.messages) || body.messages.length === 0) {
+      throw statusError(400, 'A non-empty messages array is required');
     }
 
-    const clientKey = authHeader.replace('Bearer ', '').trim();
-    if (!clientKey) {
-      return NextResponse.json({ error: 'API key is required' }, { status: 401 });
+    const availableModels = modelsForAccess(await getOpenRouterModels(), account.accessTier);
+    const model = resolveModel(availableModels, String(body.model || ''));
+    if (!model) {
+      throw statusError(400, account.accessTier === 'trial'
+        ? 'This model is not included in the Blue Pro Starter catalog'
+        : 'The requested model is unavailable');
     }
 
-    if (!supabaseAdmin) {
-      return NextResponse.json({
-        error: 'Supabase admin is not configured. Please contact the administrator.'
-      }, { status: 500 });
+    const modelInfo = publicModel(model);
+    const promptTokens = estimatePromptTokens(body.messages, body.tools);
+    const inputCost = promptTokens * price(model.pricing?.prompt);
+    const requestedMaxTokens = boundedInteger(body.max_tokens ?? body.max_completion_tokens, 4096, 256, 16_384);
+    const affordableProviderCost = Math.max(0, account.balance / BLUE_CREDIT_MULTIPLIER / 1.15 - inputCost - price(model.pricing?.request));
+    const outputPrice = price(model.pricing?.completion);
+    const affordableOutputTokens = outputPrice > 0
+      ? Math.floor(affordableProviderCost / outputPrice)
+      : requestedMaxTokens;
+    const maxTokens = Math.min(requestedMaxTokens, affordableOutputTokens);
+
+    if (account.balance <= 0 || maxTokens < 256) {
+      return paymentRequired(account.balance, account.threshold);
     }
 
-    const { data: keyRecord, error: dbError } = await supabaseAdmin
-      .from('user_keys')
-      .select('user_id')
-      .eq('key', clientKey)
-      .single();
+    const estimatedProviderCost = inputCost
+      + maxTokens * outputPrice
+      + price(model.pricing?.request);
+    const reservationAmount = Math.max(0.0001, estimatedProviderCost * BLUE_CREDIT_MULTIPLIER * 1.15);
+    requestId = crypto.randomUUID();
+    await reserveUsage(account, requestId, model.id, reservationAmount);
+    reserved = true;
 
-    if (dbError || !keyRecord) {
-      return NextResponse.json({ error: 'Unauthorized: Invalid Blue API Key' }, { status: 401 });
-    }
-
-    let { data: walletData, error: walletError } = await supabaseAdmin
-      .from('wallets')
-      .select('balance, blue_credits, account_type')
-      .eq('user_id', keyRecord.user_id)
-      .single();
-
-    if (walletError && walletError.code === 'PGRST116') {
-      const { data: newWallet, error: createError } = await supabaseAdmin
-        .from('wallets')
-        .insert({ user_id: keyRecord.user_id, balance: 1.00 })
-        .select('balance, blue_credits, account_type')
-        .single();
-
-      if (createError) {
-        console.error('Failed to create wallet:', createError);
-        return NextResponse.json({ error: 'Database wallet initialization failed' }, { status: 500 });
-      }
-      walletData = newWallet;
-    } else if (walletError) {
-      console.error('Failed to fetch wallet:', walletError);
-      return NextResponse.json({ error: 'Failed to retrieve balance information' }, { status: 500 });
-    }
-
-    const accountType = walletData?.account_type || 'standard';
-    const isProPayg = accountType === 'pro_payg';
-    const availableBalance = isProPayg ? Number(walletData?.blue_credits || 0) : Number(walletData?.balance || 0);
-
-    if (availableBalance <= 0) {
-      const msg = isProPayg
-        ? 'Payment Required: Your Blue Credits have finished. Top up at /blue-pro/dashboard to continue.'
-        : 'Payment Required: Your API key wallet has $0.00 or insufficient credits. Please top up your balance.';
-      return NextResponse.json({ error: msg }, { status: 402 });
-    }
-
-    const body = await request.json();
-    const { model, messages, temperature, tools, stream } = body;
-
-    if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });
-    }
-
-    const modelConfig = getModelConfig(model || '');
-    const upstreamModel = modelConfig.upstreamModel;
-    const isFree = modelConfig.isFree;
-    const inputPrice = parseFloat(modelConfig.inputPrice || '0');
-    const outputPrice = parseFloat(modelConfig.outputPrice || '0');
-
-    const openCodeKey = process.env.OPENCODE_ZEN_API_KEY;
-    if (!openCodeKey || openCodeKey === 'your_opencode_api_key_here') {
-      return NextResponse.json({
-        error: 'Upstream provider key (OPENCODE_ZEN_API_KEY) is not configured on the gateway server.'
-      }, { status: 500 });
-    }
-
-    const upstreamUrl = 'https://opencode.ai/zen/v1/chat/completions';
-
-    const isStream = stream ?? true;
-    const bodyPayload: any = {
-      model: upstreamModel,
-      messages,
-      temperature: temperature ?? 0.5,
-      stream: isStream,
+    const upstreamPayload = {
+      ...body,
+      model: model.id,
+      max_tokens: maxTokens,
+      stream: body.stream !== false,
+      stream_options: undefined
     };
 
-    if (isStream) {
-      bodyPayload.stream_options = { include_usage: true };
-    }
-
-    if (tools) {
-      bodyPayload.tools = tools;
-      bodyPayload.tool_choice = 'auto';
-    }
-
-    const response = await fetch(upstreamUrl, {
+    const upstream = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openCodeKey}`
+        Authorization: `Bearer ${openRouterApiKey()}`,
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app',
+        'X-Title': 'Blue AI'
       },
-      body: JSON.stringify(bodyPayload)
+      body: JSON.stringify(upstreamPayload),
+      signal: request.signal
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenCode upstream error:', errorText);
+    if (!upstream.ok) {
+      await releaseUsage(account, requestId);
+      reserved = false;
+      const providerMessage = await safeProviderMessage(upstream);
+      return NextResponse.json({ error: providerMessage }, { status: upstream.status });
+    }
+
+    if (body.stream === false) {
+      const payload = await upstream.json() as Record<string, unknown> & { usage?: UsageData };
+      const usage = normalizedUsage(payload.usage, promptTokens, JSON.stringify(payload.choices || '').length, model);
+      const settlement = await settleUsage(account, requestId, usage.cost, usage.promptTokens, usage.completionTokens);
+      reserved = false;
       return NextResponse.json({
-        error: `Upstream service error (Status ${response.status}): ${errorText}`
-      }, { status: response.status });
+        ...payload,
+        model: modelInfo.id,
+        usage: publicUsage(usage, settlement)
+      });
     }
 
-    if (!isStream) {
-      const data = await response.json();
+    if (!upstream.body) throw statusError(502, 'OpenRouter returned an empty response stream');
+    return streamingResponse(upstream.body, account, requestId, promptTokens, model, request.signal);
+  } catch (error) {
+    if (reserved && account && requestId) await releaseUsage(account, requestId);
+    const status = errorStatus(error);
+    if (status === 402) return paymentRequired(account?.balance || 0, account?.threshold || 0.15);
+    const message = error instanceof SyntaxError ? 'Invalid JSON request body' : errorMessage(error);
+    console.error('[Blue PAYG] Chat request failed:', message);
+    return NextResponse.json({ error: message }, { status });
+  }
+}
 
-      let promptTokens = 0;
-      let completionTokens = 0;
+function streamingResponse(
+  upstream: ReadableStream<Uint8Array>,
+  account: Awaited<ReturnType<typeof authenticateBlueKey>>,
+  requestId: string,
+  estimatedPromptTokens: number,
+  model: Awaited<ReturnType<typeof getOpenRouterModels>>[number],
+  signal: AbortSignal
+) {
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  const reader = upstream.getReader();
+  let buffer = '';
+  let completionCharacters = 0;
+  let providerUsage: UsageData | undefined;
+  let finalized: Promise<ReturnType<typeof publicUsage>> | undefined;
 
-      if (data.usage) {
-        promptTokens = data.usage.prompt_tokens || 0;
-        completionTokens = data.usage.completion_tokens || 0;
-      } else {
-        const promptText = messages.map((m: any) => m.content).join(' ');
-        promptTokens = Math.max(1, Math.round(promptText.length / 4));
-        const completionText = data.choices?.[0]?.message?.content || '';
-        completionTokens = Math.max(1, Math.round(completionText.length / 4));
-      }
+  const finalize = () => {
+    if (finalized) return finalized;
+    finalized = (async () => {
+      const usage = normalizedUsage(providerUsage, estimatedPromptTokens, completionCharacters, model);
+      const settlement = await settleUsage(account, requestId, usage.cost, usage.promptTokens, usage.completionTokens);
+      return publicUsage(usage, settlement);
+    })();
+    return finalized;
+  };
 
-      const inputCost = (promptTokens / 1000000) * inputPrice;
-      const outputCost = (completionTokens / 1000000) * outputPrice;
-      const totalCost = isFree ? 0 : (inputCost + outputCost);
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const abort = () => void reader.cancel('Client disconnected').finally(() => finalize().catch(error => {
+        console.error('[Blue PAYG] Failed to settle cancelled stream:', errorMessage(error));
+      }));
+      signal.addEventListener('abort', abort, { once: true });
 
-      if (!isFree && totalCost > 0) {
-        await deductBalance(
-          keyRecord.user_id, totalCost, modelConfig.id,
-          promptTokens, completionTokens, accountType
-        );
-      }
-
-      return NextResponse.json(data);
-    }
-
-    const responseStream = response.body;
-    if (!responseStream) {
-      return NextResponse.json({ error: 'Empty upstream response stream' }, { status: 500 });
-    }
-
-    const decoder = new TextDecoder('utf-8');
-    let buffer = '';
-
-    const promptText = messages.map((m: any) => m.content).join(' ');
-    const estimatedPromptTokens = Math.max(1, Math.round(promptText.length / 4));
-
-    let promptTokens = 0;
-    let completionTokens = 0;
-    let completionText = '';
-    let usageFound = false;
-
-    const transformStream = new TransformStream({
-      transform(chunk, controller) {
-        controller.enqueue(chunk);
-
-        try {
-          const text = decoder.decode(chunk, { stream: true });
-          buffer += text;
+      try {
+        while (true) {
+          const result = await reader.read();
+          if (result.done) break;
+          buffer += decoder.decode(result.value, { stream: true });
           const lines = buffer.split('\n');
           buffer = lines.pop() || '';
 
           for (const line of lines) {
-            const cleanLine = line.trim();
-            if (!cleanLine) continue;
-
-            if (cleanLine.startsWith('data: ')) {
-              const dataStr = cleanLine.slice(6).trim();
-              if (dataStr === '[DONE]') continue;
-
-              try {
-                const parsed = JSON.parse(dataStr);
-
-                if (parsed.usage) {
-                  promptTokens = parsed.usage.prompt_tokens || 0;
-                  completionTokens = parsed.usage.completion_tokens || 0;
-                  usageFound = true;
-                } else if (parsed.choices?.[0]?.delta?.content) {
-                  completionText += parsed.choices[0].delta.content;
-                }
-              } catch (e) {
+            const trimmed = line.trim();
+            if (trimmed === 'data: [DONE]') continue;
+            let forward = true;
+            if (trimmed.startsWith('data: ')) {
+              const payload = parseSseJson(trimmed.slice(6));
+              if (payload?.usage) {
+                providerUsage = payload.usage as UsageData;
+                forward = false;
               }
+              const content = payload?.choices?.[0]?.delta?.content;
+              if (typeof content === 'string') completionCharacters += content.length;
             }
+            if (forward) controller.enqueue(encoder.encode(`${line}\n`));
           }
-        } catch (err: any) {
-          console.error('Error parsing stream:', err.message || err);
         }
-      },
-      async flush() {
+
+        const usage = await finalize();
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'blue.usage', usage })}\n\n`));
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      } catch (error) {
         try {
-          const finalPromptTokens = usageFound ? promptTokens : estimatedPromptTokens;
-          const finalCompletionTokens = usageFound
-            ? completionTokens
-            : Math.max(1, Math.round(completionText.length / 4));
-
-          const inputCost = (finalPromptTokens / 1000000) * inputPrice;
-          const outputCost = (finalCompletionTokens / 1000000) * outputPrice;
-          const totalCost = isFree ? 0 : (inputCost + outputCost);
-
-          if (!isFree && totalCost > 0) {
-            await deductBalance(
-              keyRecord.user_id, totalCost, modelConfig.id,
-              finalPromptTokens, finalCompletionTokens, accountType
-            );
-          }
-        } catch (err: any) {
-          console.error('Error processing stream charge:', err.message || err);
+          await finalize();
+        } catch (settlementError) {
+          console.error('[Blue PAYG] Stream settlement failed:', errorMessage(settlementError));
         }
+        if (!signal.aborted) controller.error(error);
+      } finally {
+        signal.removeEventListener('abort', abort);
+        reader.releaseLock();
       }
-    });
+    },
+    async cancel(reason) {
+      await reader.cancel(reason);
+      await finalize();
+    }
+  });
 
-    const pipedStream = responseStream.pipeThrough(transformStream);
-    return new Response(pipedStream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-transform',
-        'Connection': 'keep-alive',
-      }
-    });
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no'
+    }
+  });
+}
 
-  } catch (error: any) {
-    console.error('Chat completions API gateway error:', error);
-    return NextResponse.json({ error: error.message || 'An internal server error occurred' }, { status: 500 });
+function normalizedUsage(
+  usage: UsageData | undefined,
+  estimatedPromptTokens: number,
+  completionCharacters: number,
+  model: Awaited<ReturnType<typeof getOpenRouterModels>>[number]
+) {
+  const promptTokens = Math.max(0, Number(usage?.prompt_tokens || estimatedPromptTokens));
+  const completionTokens = Math.max(0, Number(usage?.completion_tokens || Math.ceil(completionCharacters / 3)));
+  const reportedCost = Number(usage?.cost);
+  const cost = Number.isFinite(reportedCost) && reportedCost >= 0
+    ? reportedCost
+    : promptTokens * price(model.pricing?.prompt)
+      + completionTokens * price(model.pricing?.completion)
+      + price(model.pricing?.request);
+  return { promptTokens, completionTokens, totalTokens: promptTokens + completionTokens, cost };
+}
+
+function publicUsage(
+  usage: ReturnType<typeof normalizedUsage>,
+  settlement: Awaited<ReturnType<typeof settleUsage>>
+) {
+  return {
+    prompt_tokens: usage.promptTokens,
+    completion_tokens: usage.completionTokens,
+    total_tokens: usage.totalTokens,
+    cost: usage.cost,
+    blue_credits_used: settlement.charged,
+    blue_credits_remaining: settlement.remaining,
+    blue_credit_threshold: settlement.threshold,
+    blue_credit_warning: settlement.low,
+    blue_request_id: settlement.requestId
+  };
+}
+
+function bearerToken(request: Request): string {
+  const authorization = request.headers.get('authorization') || '';
+  if (!authorization.startsWith('Bearer ')) throw statusError(401, 'Missing or invalid Authorization header');
+  const token = authorization.slice(7).trim();
+  if (!token) throw statusError(401, 'A Blue API key is required');
+  return token;
+}
+
+function boundedInteger(value: unknown, fallback: number, minimum: number, maximum: number): number {
+  const parsed = Math.floor(Number(value || fallback));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(minimum, Math.min(maximum, parsed));
+}
+
+function parseSseJson(value: string): Record<string, any> | undefined {
+  try {
+    return JSON.parse(value) as Record<string, any>;
+  } catch {
+    return undefined;
   }
+}
+
+async function safeProviderMessage(response: Response): Promise<string> {
+  const fallback = `OpenRouter request failed (${response.status})`;
+  try {
+    const payload = await response.json() as { error?: { message?: string } | string };
+    if (typeof payload.error === 'string') return payload.error;
+    return payload.error?.message || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function paymentRequired(balance: number, threshold: number) {
+  return NextResponse.json({
+    error: 'Your Blue Credits are exhausted. Add credits to continue.',
+    code: 'blue_credits_exhausted',
+    blue_credits_remaining: Math.max(0, balance),
+    blue_credit_threshold: threshold,
+    renewal_url: TOP_UP_URL
+  }, { status: 402 });
+}
+
+function errorStatus(error: unknown): number {
+  const status = Number((error as { status?: number })?.status || 500);
+  return status >= 400 && status <= 599 ? status : 500;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'An internal server error occurred';
 }

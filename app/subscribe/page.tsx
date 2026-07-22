@@ -53,15 +53,15 @@ const plans = [
   },
   {
     name: "Blue Pro",
-    subtitle: "Pay As You Go",
-    price: "$15",
-    period: "/15 credits",
+    subtitle: "₹96 paid trial · no expiry",
+    price: "₹96",
+    period: "/1 credit",
     gradient: "from-purple-500 to-pink-500",
-    badge: "New",
+    badge: "Starts at ₹96",
     badgeStyle: "bg-gradient-to-r from-purple-600 to-pink-600",
-    href: "/blue-pro",
-    cta: "Learn More",
-    description: "Buy credits when you need them. Use premium models with no monthly commitment.",
+    href: "/blue-pro/checkout?pack=starter",
+    cta: "Buy ₹96 Trial",
+    description: "Try selected paid models for ₹96. Credits never expire; renew the trial or choose the ₹1,440 full-access pack whenever you need more.",
     features: [true, true, true, true, true, true, true, true, true, true, true, true],
     featured: false,
     disabled: false,
@@ -165,7 +165,7 @@ export default function SubscribePage() {
               </span>
             </h1>
             <p className="mt-6 text-lg text-gray-400 max-w-3xl mx-auto leading-relaxed">
-              Start with Blue Lite for free. Upgrade to Blue for full access.
+              Start free, choose the ₹149 monthly plan, or try paid models with the renewable ₹96 Blue Pro trial.
             </p>
             {user && (
               <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-950/40 border border-purple-800/40 text-purple-400 text-sm font-semibold">
@@ -308,7 +308,7 @@ export default function SubscribePage() {
 
           <div className="mt-8 text-center">
             <p className="text-xs text-gray-600">
-              All plans are in INR (₹). Prices include applicable taxes.
+              All current plans and Blue Pro credit packs are billed in INR. Prices include applicable taxes.
               <br />
               By subscribing, you agree to our{" "}
               <Link href="/terms" className="text-blue-400 hover:text-blue-300 underline">

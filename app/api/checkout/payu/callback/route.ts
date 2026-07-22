@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { createHash } from 'crypto';
+import { createHash, timingSafeEqual } from 'crypto';
 
 export async function POST(req: Request) {
   try {
@@ -25,8 +25,11 @@ export async function POST(req: Request) {
 
     const calculatedHash = createHash('sha512').update(hashString).digest('hex');
 
-    if (calculatedHash !== hash) {
-      console.error('PayU Callback Signature Verification Failed!', { calculatedHash, receivedHash: hash });
+    const expectedHash = Buffer.from(calculatedHash, 'hex');
+    const receivedHash = Buffer.from(hash || '', 'hex');
+    if (expectedHash.length !== receivedHash.length || !timingSafeEqual(expectedHash, receivedHash)) {
+      console.error('PayU Callback Signature Verification Failed');
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005'}/console?payment=invalid`, 303);
     }
 
     if (!supabaseAdmin) {
@@ -51,10 +54,18 @@ export async function POST(req: Request) {
 
     if (status === 'success') {
       // 2. Update checkout session status
-      await supabaseAdmin
+      const { data: claimedSession, error: claimError } = await supabaseAdmin
         .from('checkout_sessions')
         .update({ status: 'completed' })
-        .eq('id', session.id);
+        .eq('id', session.id)
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle();
+
+      if (claimError) throw new Error(`Failed to complete checkout: ${claimError.message}`);
+      if (!claimedSession) {
+        return NextResponse.redirect(`${returnUrl}?payment=success`, 303);
+      }
 
       // 3. Deduct applied IMR credits from user's wallet
       const appliedImr = Number(metadata.redeemed_imr || 0);
@@ -109,7 +120,8 @@ export async function POST(req: Request) {
       await supabaseAdmin
         .from('checkout_sessions')
         .update({ status: 'expired' })
-        .eq('id', session.id);
+        .eq('id', session.id)
+        .eq('status', 'pending');
 
       return NextResponse.redirect(`${returnUrl}?payment=failed`, 303);
     }
