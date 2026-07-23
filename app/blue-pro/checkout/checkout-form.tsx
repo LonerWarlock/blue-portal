@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CurrencySelector } from "@/app/components/CurrencySelector";
@@ -22,6 +22,7 @@ export function CheckoutForm() {
   const [selectedPackId, setSelectedPackId] = useState<CreditPack["id"]>("starter");
   const [currency, setCurrency] = useState<"INR" | "USD">("INR");
   const [paypalLoaded, setPaypalLoaded] = useState(false);
+  const txnidRef = useRef<string>('');
 
   const pack = packs.find(item => item.id === selectedPackId) || {
     id: "starter" as const,
@@ -81,10 +82,11 @@ export function CheckoutForm() {
           });
           const data = await res.json();
           if (!res.ok || data.error) throw new Error(data.error || "Failed to create PayPal order");
+          txnidRef.current = data.txnid || '';
           return data.orderId;
         },
         onApprove: async (data: { orderID: string }) => {
-          window.location.href = `/api/blue-pro/paypal/capture?token=${data.orderID}`;
+          window.location.href = `/api/blue-pro/paypal/capture?token=${data.orderID}&txnid=${txnidRef.current}`;
         },
         onError: (err: any) => {
           setError(err.message || "PayPal payment failed");

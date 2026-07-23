@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { createPaypalOrder } from '@/lib/paypal';
+import { APPROX_USD_TO_INR } from '@/lib/exchangeRate';
 
 const SUBSCRIPTION_PRICE_USD = '1.99';
 
@@ -31,6 +32,10 @@ export async function POST(request: Request) {
     const basePriceINR = 149;
     const finalPriceINR = Math.max(1, basePriceINR - discount);
 
+    const discountUsd = discount / APPROX_USD_TO_INR;
+    const finalPriceUsd = Math.max(0.01, parseFloat(SUBSCRIPTION_PRICE_USD) - discountUsd);
+    const finalPriceUsdStr = finalPriceUsd.toFixed(2);
+
     const existingMetadata = session.metadata || {};
 
     let email = existingMetadata.email || '';
@@ -48,7 +53,7 @@ export async function POST(request: Request) {
     const paypalCancelUrl = returnUrl || `${siteUrl}/console`;
 
     const order = await createPaypalOrder({
-      amount: SUBSCRIPTION_PRICE_USD,
+      amount: finalPriceUsdStr,
       currency: 'USD',
       description: 'Blue Subscription - Monthly Plan',
       returnUrl: paypalReturnUrl,
@@ -65,7 +70,7 @@ export async function POST(request: Request) {
       redeemed_imr: appliedImr,
       imr_discount: discount,
       price_inr: finalPriceINR,
-      price_usd: SUBSCRIPTION_PRICE_USD,
+      price_usd: finalPriceUsdStr,
       currency: 'USD',
       payment_provider: 'paypal',
     };

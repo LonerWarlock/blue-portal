@@ -65,6 +65,7 @@ export async function POST(request: Request) {
       approveUrl: order.approveUrl,
       orderId: order.orderId,
       paymentId: payment.id,
+      txnid,
     });
 
   } catch (err: any) {

@@ -33,23 +33,17 @@ export async function GET(request: Request) {
     }
 
     if (!payment) {
-      const { data } = await supabaseAdmin
-        .from('credit_payments')
-        .select('*')
-        .eq('status', 'pending')
-        .eq('payment_provider', 'paypal')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      payment = data;
-    }
-
-    if (!payment) {
-      return NextResponse.redirect(`${dashboardUrl}?payment=error`, 303);
+      return NextResponse.redirect(`${dashboardUrl}?payment=failed`, 303);
     }
 
     const metadata = payment.metadata as Record<string, unknown> | null;
     const returnUrl = safeReturnUrl(String(metadata?.return_url || ''), siteUrl);
+
+    if (payment.status === 'completed') {
+      const redirect = withQuery(returnUrl, 'payment', 'success');
+      redirect.searchParams.set('credits', String(payment.credits_purchased));
+      return NextResponse.redirect(redirect, 303);
+    }
 
     const captureResult = await capturePaypalOrder(token);
 
@@ -74,6 +68,24 @@ export async function GET(request: Request) {
     return NextResponse.redirect(redirect, 303);
 
   } catch (err: any) {
+    if (err?.message?.includes('ORDER_ALREADY_CAPTURED') && supabaseAdmin) {
+      try {
+        const { searchParams } = new URL(request.url);
+        const txnid = searchParams.get('txnid');
+        const { data: recheck } = await supabaseAdmin
+          .from('credit_payments')
+          .select('status, credits_purchased, metadata')
+          .eq('provider_txnid', txnid || '')
+          .single();
+        if (recheck?.status === 'completed') {
+          const metadata = recheck.metadata as Record<string, unknown> | null;
+          const returnUrl = safeReturnUrl(String(metadata?.return_url || ''), siteUrl);
+          const redirect = withQuery(returnUrl, 'payment', 'success');
+          redirect.searchParams.set('credits', String(recheck.credits_purchased));
+          return NextResponse.redirect(redirect, 303);
+        }
+      } catch { /* fall through to error redirect */ }
+    }
     console.error('[Blue PAYG] PayPal capture failed:', err);
     return NextResponse.redirect(`${dashboardUrl}?payment=error`, 303);
   }

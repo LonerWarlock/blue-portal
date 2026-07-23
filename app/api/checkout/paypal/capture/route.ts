@@ -34,6 +34,10 @@ export async function GET(request: Request) {
     const metadata = session.metadata || {};
     const returnUrl = metadata.return_url || consoleUrl;
 
+    if (session.status === 'completed') {
+      return NextResponse.redirect(`${returnUrl}?payment=success`, 303);
+    }
+
     const captureResult = await capturePaypalOrder(token);
 
     if (captureResult.status !== 'COMPLETED') {
@@ -109,8 +113,24 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${returnUrl}?payment=success`, 303);
 
   } catch (err: any) {
-    console.error('PayPal Capture Error:', err);
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
+    if (err?.message?.includes('ORDER_ALREADY_CAPTURED') && supabaseAdmin) {
+      try {
+        const { searchParams } = new URL(request.url);
+        const sessionId = searchParams.get('session_id');
+        const { data: recheck } = await supabaseAdmin
+          .from('checkout_sessions')
+          .select('status, metadata')
+          .eq('id', sessionId || '')
+          .single();
+        if (recheck?.status === 'completed') {
+          const meta = recheck.metadata || {};
+          const returnUrl = meta.return_url || `${siteUrl}/console`;
+          return NextResponse.redirect(`${returnUrl}?payment=success`, 303);
+        }
+      } catch { /* fall through to error redirect */ }
+    }
+    console.error('PayPal Capture Error:', err);
     return NextResponse.redirect(`${siteUrl}/console?payment=failed`, 303);
   }
 }
