@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { CurrencySelector } from "@/app/components/CurrencySelector";
 
 interface CreditPack {
   id: "starter" | "standard";
   name: string;
   description: string;
   priceINR: number;
+  priceUSD: number;
   credits: number;
 }
 
@@ -18,13 +20,18 @@ export function CheckoutForm() {
   const [error, setError] = useState("");
   const [packs, setPacks] = useState<CreditPack[]>([]);
   const [selectedPackId, setSelectedPackId] = useState<CreditPack["id"]>("starter");
+  const [currency, setCurrency] = useState<"INR" | "USD">("INR");
+  const [paypalLoaded, setPaypalLoaded] = useState(false);
+
   const pack = packs.find(item => item.id === selectedPackId) || {
     id: "starter" as const,
     name: "Blue Pro Starter",
     description: "Renewable paid trial with selected models and no expiry.",
     priceINR: 96,
+    priceUSD: 1.00,
     credits: 1
   };
+
   const [email, setEmail] = useState("");
 
   useEffect(() => {
@@ -41,6 +48,51 @@ export function CheckoutForm() {
       if (Array.isArray(d?.packs)) setPacks(d.packs);
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (currency === "USD" && !paypalLoaded) {
+      const script = document.createElement("script");
+      script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD`;
+      script.async = true;
+      script.onload = () => setPaypalLoaded(true);
+      script.onerror = () => console.error("Failed to load PayPal SDK");
+      document.body.appendChild(script);
+    }
+  }, [currency, paypalLoaded]);
+
+  useEffect(() => {
+    if (currency === "USD" && paypalLoaded && (window as any).paypal) {
+      const container = document.getElementById("paypal-button-container-bluepro");
+      if (container) container.innerHTML = "";
+
+      (window as any).paypal.Buttons({
+        style: { layout: "vertical", color: "blue", shape: "rect", label: "paypal", height: 45 },
+        createOrder: async () => {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) throw new Error("Not authenticated");
+
+          const res = await fetch("/api/blue-pro/paypal/create-order", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ returnUrl: `${window.location.origin}/console`, packId: selectedPackId })
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || "Failed to create PayPal order");
+          return data.orderId;
+        },
+        onApprove: async (data: { orderID: string }) => {
+          window.location.href = `/api/blue-pro/paypal/capture?token=${data.orderID}`;
+        },
+        onError: (err: any) => {
+          setError(err.message || "PayPal payment failed");
+          setLoading(false);
+        },
+      }).render("#paypal-button-container-bluepro");
+    }
+  }, [currency, paypalLoaded, selectedPackId]);
 
   const handlePayment = async () => {
     setLoading(true);
@@ -129,6 +181,8 @@ export function CheckoutForm() {
                       className="w-full px-4 py-2.5 rounded-xl bg-gray-900/60 border border-gray-800 text-gray-100 text-sm opacity-70 cursor-not-allowed" />
                   </div>
 
+                  <CurrencySelector value={currency} onChange={setCurrency} />
+
                   <div className="pt-3 border-t border-gray-800/80">
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Choose a credit pack</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -142,7 +196,9 @@ export function CheckoutForm() {
                             : "border-gray-800 bg-gray-900/30 hover:border-gray-700"}`}
                         >
                           <span className="block text-sm font-semibold text-gray-100">{item.name}</span>
-                          <span className="mt-1 block text-xl font-bold text-white">₹{item.priceINR.toLocaleString('en-IN')}</span>
+                          <span className="mt-1 block text-xl font-bold text-white">
+                            {currency === "INR" ? `₹${(item.priceINR || item.priceUSD * 96).toLocaleString("en-IN")}` : `$${item.priceUSD.toFixed(2)}`}
+                          </span>
                           <span className="mt-1 block text-xs text-gray-400">{item.credits} Blue Credits</span>
                           <span className="mt-2 block text-[10px] leading-relaxed text-gray-500">{item.description}</span>
                         </button>
@@ -152,15 +208,27 @@ export function CheckoutForm() {
 
                   <div className="pt-3 border-t border-gray-800/80">
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Payment Method</h3>
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-900/40 border border-gray-800/80">
-                      <div className="w-10 h-7 rounded-lg bg-purple-900/40 flex items-center justify-center text-purple-400 text-xs font-bold">
-                        <i className="fa-solid fa-credit-card"></i>
+                    {currency === "INR" ? (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-900/40 border border-gray-800/80">
+                        <div className="w-10 h-7 rounded-lg bg-purple-900/40 flex items-center justify-center text-purple-400 text-xs font-bold">
+                          <i className="fa-solid fa-credit-card"></i>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-200">Pay securely with PayU</p>
+                          <p className="text-[10px] text-gray-500">Supports cards, Net Banking, UPI</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-200">Pay securely with PayU</p>
-                        <p className="text-[10px] text-gray-500">Supports cards, Net Banking, UPI, and international cards</p>
+                    ) : (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-900/40 border border-gray-800/80">
+                        <div className="w-10 h-7 rounded-lg bg-yellow-900/40 flex items-center justify-center text-yellow-400 text-xs font-bold">
+                          <i className="fa-brands fa-paypal"></i>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-200">Pay securely with PayPal</p>
+                          <p className="text-[10px] text-gray-500">Cards, bank accounts, or PayPal balance</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {error && (
@@ -170,17 +238,30 @@ export function CheckoutForm() {
                     </div>
                   )}
 
-                  <button type="button" onClick={handlePayment} disabled={loading}
-                    className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-bold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                    {loading ? (
-                      <><i className="fa-solid fa-spinner animate-spin"></i> Redirecting to PayU...</>
-                    ) : (
-                      <><i className="fa-solid fa-lock"></i> Pay ₹{pack.priceINR.toLocaleString('en-IN')} - Add {pack.credits} Blue Credits</>
-                    )}
-                  </button>
+                  {currency === "INR" ? (
+                    <button type="button" onClick={handlePayment} disabled={loading}
+                      className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-bold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                      {loading ? (
+                        <><i className="fa-solid fa-spinner animate-spin"></i> Redirecting to PayU...</>
+                      ) : (
+                        <><i className="fa-solid fa-lock"></i> Pay ₹{(pack.priceINR || pack.priceUSD * 96).toLocaleString("en-IN")} - Add {pack.credits} Blue Credits</>
+                      )}
+                    </button>
+                  ) : (
+                    <div id="paypal-button-container-bluepro" className="min-h-[50px]">
+                      {!paypalLoaded && (
+                        <div className="w-full px-6 py-3 rounded-xl bg-gray-800/50 flex items-center justify-center gap-2 text-sm text-gray-400">
+                          <i className="fa-solid fa-spinner animate-spin"></i>
+                          Loading PayPal...
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <p className="text-xs text-gray-400 text-center">
-                    Secured by <span className="text-purple-400 font-semibold">PayU Payments</span>.
+                    Secured by <span className="text-purple-400 font-semibold">
+                      {currency === "INR" ? "PayU Payments" : "PayPal"}
+                    </span>.
                   </p>
                 </div>
               </div>
@@ -205,13 +286,15 @@ export function CheckoutForm() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Price</span>
-                    <span className="text-gray-200 font-semibold">₹{pack.priceINR.toLocaleString('en-IN')}</span>
+                    <span className="text-gray-200 font-semibold">
+                      {currency === "INR" ? `₹${(pack.priceINR || pack.priceUSD * 96).toLocaleString("en-IN")}` : `$${pack.priceUSD.toFixed(2)}`}
+                    </span>
                   </div>
                 </div>
 
                 <div className="pt-4 space-y-2">
                   <p className="text-[10px] text-gray-500 leading-relaxed">
-                    Blue Credits are service-usage units used to access Blue's AI coding models.
+                    Blue Credits are service-usage units used to access Blue&apos;s AI coding models.
                     They are not cash or stored monetary value. Credit consumption varies by model
                     and may include model inference, reasoning, caching, tools, and platform services.
                     Credits do not expire; add another pack whenever your balance runs out.

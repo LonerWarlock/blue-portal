@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { CurrencySelector } from '@/app/components/CurrencySelector';
 
 interface Props {
   sessionId: string;
@@ -23,21 +24,63 @@ const blueFeatures = [
   'Web Search',
 ];
 
+const USD_PRICE = 1.99;
+
 export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [redeemedImr, setRedeemedImr] = useState<number>(0);
+  const [currency, setCurrency] = useState<'INR' | 'USD'>('INR');
+  const [paypalLoaded, setPaypalLoaded] = useState(false);
 
   const basePrice = 149;
   const discount = redeemedImr * 0.5;
-  const finalPrice = Math.max(1, basePrice - discount); // keep minimum price at ₹1
+  const finalPrice = Math.max(1, basePrice - discount);
+
+  useEffect(() => {
+    if (currency === 'USD' && !paypalLoaded) {
+      const script = document.createElement('script');
+      script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD`;
+      script.async = true;
+      script.onload = () => setPaypalLoaded(true);
+      script.onerror = () => console.error('Failed to load PayPal SDK');
+      document.body.appendChild(script);
+    }
+  }, [currency, paypalLoaded]);
+
+  useEffect(() => {
+    if (currency === 'USD' && paypalLoaded && (window as any).paypal) {
+      const container = document.getElementById('paypal-button-container');
+      if (container) container.innerHTML = '';
+
+      (window as any).paypal.Buttons({
+        style: { layout: 'vertical', color: 'blue', shape: 'rect', label: 'paypal', height: 45 },
+        createOrder: async () => {
+          const res = await fetch('/api/checkout/paypal/create-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, returnUrl, redeemedImr }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || 'Failed to create PayPal order');
+          return data.orderId;
+        },
+        onApprove: async (data: { orderID: string }) => {
+          window.location.href = `/api/checkout/paypal/capture?session_id=${sessionId}&token=${data.orderID}`;
+        },
+        onError: (err: any) => {
+          setError(err.message || 'PayPal payment failed');
+          setLoading(false);
+        },
+      }).render('#paypal-button-container');
+    }
+  }, [currency, paypalLoaded, sessionId, returnUrl, redeemedImr]);
 
   const handlePayment = async () => {
     setLoading(true);
     setError('');
 
     try {
-      // 1. Fetch secure PayU hash and transaction parameters
       const hashRes = await fetch('/api/checkout/payu/create-hash', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -49,9 +92,8 @@ export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }
         throw new Error(hashData.error || 'Failed to generate payment signature');
       }
 
-      // 2. Construct dynamic hidden HTML form pointing to PayU gateway
       const form = document.createElement('form');
-      form.action = hashData.payuUrl; // e.g. https://secure.payu.in/_payment
+      form.action = hashData.payuUrl;
       form.method = 'POST';
 
       const params: Record<string, string> = {
@@ -61,7 +103,7 @@ export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }
         productinfo: hashData.productinfo,
         firstname: hashData.firstname,
         email: hashData.email,
-        phone: '9999999999', // standard placeholder phone number for PayU validation
+        phone: '9999999999',
         surl: `${window.location.origin}/api/checkout/payu/callback`,
         furl: `${window.location.origin}/api/checkout/payu/callback`,
         hash: hashData.hash,
@@ -76,7 +118,6 @@ export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }
         form.appendChild(input);
       }
 
-      // 3. Append to body and submit to redirect user away to PayU merchant checkout screen
       document.body.appendChild(form);
       form.submit();
 
@@ -124,8 +165,9 @@ export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }
                     />
                   </div>
 
-                  {/* DYNAMIC IMR REDEMPTION SELECTOR */}
-                  {imrBalance > 0 ? (
+                  <CurrencySelector value={currency} onChange={setCurrency} />
+
+                  {currency === 'INR' && imrBalance > 0 && (
                     <div className="pt-3 border-t border-gray-800/80">
                       <div className="flex justify-between items-center mb-2">
                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Apply IMR Credits</h3>
@@ -158,7 +200,9 @@ export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }
                         )}
                       </div>
                     </div>
-                  ) : (
+                  )}
+
+                  {currency === 'INR' && imrBalance === 0 && (
                     <div className="pt-3 border-t border-gray-800/80">
                       <p className="text-[10px] text-gray-500">No IMR balance available to redeem.</p>
                     </div>
@@ -166,15 +210,27 @@ export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }
 
                   <div className="pt-3 border-t border-gray-800/80">
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Payment Method</h3>
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-900/40 border border-gray-800/80">
-                      <div className="w-10 h-7 rounded-lg bg-blue-900/40 flex items-center justify-center text-blue-400 text-xs font-bold">
-                        <i className="fa-solid fa-credit-card"></i>
+                    {currency === 'INR' ? (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-900/40 border border-gray-800/80">
+                        <div className="w-10 h-7 rounded-lg bg-blue-900/40 flex items-center justify-center text-blue-400 text-xs font-bold">
+                          <i className="fa-solid fa-credit-card"></i>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-200">Pay securely with PayU</p>
+                          <p className="text-[10px] text-gray-500">Supports cards, Net Banking, UPI</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-200">Pay securely with PayU</p>
-                        <p className="text-[10px] text-gray-500">Supports cards, Net Banking, UPI, and international cards</p>
+                    ) : (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-900/40 border border-gray-800/80">
+                        <div className="w-10 h-7 rounded-lg bg-yellow-900/40 flex items-center justify-center text-yellow-400 text-xs font-bold">
+                          <i className="fa-brands fa-paypal"></i>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-200">Pay securely with PayPal</p>
+                          <p className="text-[10px] text-gray-500">Cards, bank accounts, or PayPal balance</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {error && (
@@ -184,28 +240,41 @@ export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }
                     </div>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={handlePayment}
-                    disabled={loading}
-                    className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <>
-                        <i className="fa-solid fa-spinner animate-spin"></i>
-                        Redirecting to PayU...
-                      </>
-                    ) : (
-                      <>
-                        <i className="fa-solid fa-lock"></i>
-                        Pay ₹{finalPrice.toFixed(0)} — Subscribe to Blue
-                      </>
-                    )}
-                  </button>
+                  {currency === 'INR' ? (
+                    <button
+                      type="button"
+                      onClick={handlePayment}
+                      disabled={loading}
+                      className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        <>
+                          <i className="fa-solid fa-spinner animate-spin"></i>
+                          Redirecting to PayU...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-lock"></i>
+                          Pay ₹{finalPrice.toFixed(0)} — Subscribe to Blue
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div id="paypal-button-container" className="min-h-[50px]">
+                      {!paypalLoaded && (
+                        <div className="w-full px-6 py-3 rounded-xl bg-gray-800/50 flex items-center justify-center gap-2 text-sm text-gray-400">
+                          <i className="fa-solid fa-spinner animate-spin"></i>
+                          Loading PayPal...
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <p className="text-xs text-gray-400 text-center">
                     Your transaction is encrypted and secured by{' '}
-                    <span className="text-blue-400 font-semibold">PayU Payments</span>.
+                    <span className="text-blue-400 font-semibold">
+                      {currency === 'INR' ? 'PayU Payments' : 'PayPal'}
+                    </span>.
                   </p>
                 </div>
               </div>
@@ -219,7 +288,9 @@ export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-100 text-sm">Blue Plan</h3>
-                    <p className="text-xs text-gray-500">₹{basePrice}/month — Cancel anytime</p>
+                    <p className="text-xs text-gray-500">
+                      {currency === 'INR' ? `₹${basePrice}/month` : `$${USD_PRICE}/month`} — Cancel anytime
+                    </p>
                   </div>
                 </div>
 
@@ -236,24 +307,47 @@ export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }
                 </div>
 
                 <div className="pt-4 space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">Subtotal</span>
-                    <span className="text-gray-200">₹{basePrice}</span>
-                  </div>
-                  {discount > 0 && (
-                    <div className="flex justify-between text-xs text-indigo-400 font-semibold">
-                      <span>IMR Discount Applied</span>
-                      <span>-₹{discount.toFixed(2)}</span>
-                    </div>
+                  {currency === 'INR' ? (
+                    <>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-400">Subtotal</span>
+                        <span className="text-gray-200">₹{basePrice}</span>
+                      </div>
+                      {discount > 0 && (
+                        <div className="flex justify-between text-xs text-indigo-400 font-semibold">
+                          <span>IMR Discount Applied</span>
+                          <span>-₹{discount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-400">Tax</span>
+                        <span className="text-gray-500">Included</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-bold pt-2 border-t border-gray-800/80">
+                        <span className="text-gray-100">Total</span>
+                        <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">₹{finalPrice.toFixed(0)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-400">Plan</span>
+                        <span className="text-gray-200">Blue Subscription</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-400">Billing</span>
+                        <span className="text-gray-200">Monthly</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-400">Tax</span>
+                        <span className="text-gray-500">Included</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-bold pt-2 border-t border-gray-800/80">
+                        <span className="text-gray-100">Total</span>
+                        <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">${USD_PRICE.toFixed(2)}</span>
+                      </div>
+                    </>
                   )}
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">Tax</span>
-                    <span className="text-gray-500">Included</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-bold pt-2 border-t border-gray-800/80">
-                    <span className="text-gray-100">Total</span>
-                    <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">₹{finalPrice.toFixed(0)}</span>
-                  </div>
                 </div>
               </div>
             </div>
