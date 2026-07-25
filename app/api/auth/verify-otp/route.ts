@@ -48,19 +48,15 @@ export async function POST(request: Request) {
     const pepper = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
     const password = crypto.createHmac('sha256', pepper).update(cleanEmail).digest('hex');
 
-    // 5. Authenticate user
-    let sessionData: any = null;
-    let authError: any = null;
-
-    // Try signing in
-    const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+    // 5. Try signing in first (works immediately if password is already in sync)
+    let { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
       email: cleanEmail,
       password
     });
 
-    if (signInError) {
-      // User likely does not exist yet (or has a different password, which won't happen for clean emails).
-      // Create user using Supabase Admin Auth API
+    // 6. If sign in fails, user either doesn't exist or has a different password in Supabase Auth
+    if (signInError || !signInData?.session) {
+      // Try creating user
       const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: cleanEmail,
         password,
@@ -68,37 +64,53 @@ export async function POST(request: Request) {
       });
 
       if (createError) {
-        console.error('Error creating user via admin API:', createError);
-        return NextResponse.json({ error: createError.message || 'Failed to register account' }, { status: 500 });
+        // If user already exists, list users to locate their ID and update password
+        const isAlreadyRegistered = createError.message?.toLowerCase().includes('already') || 
+                                    createError.message?.toLowerCase().includes('registered') ||
+                                    createError.status === 422;
+                                    
+        if (isAlreadyRegistered) {
+          // Fetch user via admin API with large page size to handle pagination
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+          const existingUser = listData?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
+
+          if (existingUser) {
+            // Sync password & confirm email
+            const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+              password,
+              email_confirm: true
+            });
+            if (updateError) {
+              console.error('Error updating user password via admin API:', updateError);
+            }
+          }
+        } else {
+          console.error('Error creating user via admin API:', createError);
+          return NextResponse.json({ error: createError.message || 'Failed to register account' }, { status: 500 });
+        }
       }
 
-      // Retry sign-in now that user is created and confirmed
-      const { data: retryData, error: retryError } = await supabaseAdmin.auth.signInWithPassword({
+      // Retry sign in after creation / password sync
+      const { data: retrySignIn, error: retryError } = await supabaseAdmin.auth.signInWithPassword({
         email: cleanEmail,
         password
       });
 
-      if (retryError) {
-        console.error('Error signing in after creation:', retryError);
-        return NextResponse.json({ error: retryError.message || 'Failed to authenticate after signup' }, { status: 500 });
+      if (retryError || !retrySignIn?.session) {
+        console.error('Error signing in after creation/password sync:', retryError);
+        return NextResponse.json({ error: retryError?.message || 'Failed to establish session' }, { status: 500 });
       }
 
-      sessionData = retryData.session;
-    } else {
-      sessionData = signInData.session;
+      signInData = retrySignIn;
     }
 
-    if (!sessionData) {
-      return NextResponse.json({ error: 'Failed to retrieve session tokens' }, { status: 500 });
-    }
-
-    // Return the access and refresh tokens to establish user session in the frontend client
+    // 7. Return session tokens to client
     return NextResponse.json({
       success: true,
       session: {
-        access_token: sessionData.access_token,
-        refresh_token: sessionData.refresh_token,
-        user: sessionData.user
+        access_token: signInData.session.access_token,
+        refresh_token: signInData.session.refresh_token,
+        user: signInData.session.user
       }
     });
 

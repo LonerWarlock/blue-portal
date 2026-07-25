@@ -23,14 +23,24 @@ export interface BillingSettlement {
 export async function authenticateBlueKey(clientKey: string): Promise<BluePaygAccount> {
   if (!supabaseAdmin) throw statusError(500, 'Supabase admin is not configured');
 
-  const { data: keyRecord, error: keyError } = await supabaseAdmin
+  let userId: string | null = null;
+  const { data: keyRecord } = await supabaseAdmin
     .from('user_keys')
     .select('user_id')
     .eq('key', clientKey)
     .maybeSingle();
-  if (keyError || !keyRecord) throw statusError(401, 'Unauthorized: Invalid Blue API Key');
 
-  return getBluePaygAccount(keyRecord.user_id);
+  if (keyRecord?.user_id) {
+    userId = keyRecord.user_id;
+  } else {
+    const { data: userData } = await supabaseAdmin.auth.getUser(clientKey);
+    if (userData?.user?.id) {
+      userId = userData.user.id;
+    }
+  }
+
+  if (!userId) throw statusError(401, 'Unauthorized: Invalid Blue API Key or session token');
+  return getBluePaygAccount(userId);
 }
 
 export async function getBluePaygAccount(userId: string): Promise<BluePaygAccount> {
