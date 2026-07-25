@@ -3,6 +3,33 @@ import { isLowBalance, lowBalanceThreshold } from '@/lib/openrouter';
 
 export const BLUE_CREDIT_MULTIPLIER = Math.max(1, Number(process.env.BLUE_CREDIT_MULTIPLIER || 1.5));
 
+export function getBearerToken(request: Request): string {
+  let authorization = '';
+  try {
+    authorization = request.headers.get('authorization')
+      || request.headers.get('Authorization')
+      || request.headers.get('x-api-key')
+      || request.headers.get('X-Api-Key')
+      || '';
+  } catch {}
+
+  if (!authorization && request.headers) {
+    try {
+      request.headers.forEach((value, key) => {
+        const k = key.toLowerCase();
+        if (k === 'authorization' || k === 'x-api-key' || k === 'api-key') {
+          if (!authorization) authorization = value;
+        }
+      });
+    } catch {}
+  }
+
+  if (authorization.startsWith('Bearer ')) {
+    return authorization.slice(7).trim();
+  }
+  return authorization.trim();
+}
+
 export interface BluePaygAccount {
   userId: string;
   balance: number;

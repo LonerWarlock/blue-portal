@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { authenticateBlueKey, BLUE_CREDIT_MULTIPLIER, releaseUsage, reserveUsage, settleUsage, statusError } from '@/lib/bluePayg';
 import { estimatePromptTokens, getOpenRouterModels, modelsForAccess, openRouterApiKey, price, publicModel, resolveModel } from '@/lib/openrouter';
 
-export const runtime = 'edge';
-
+// Standard Node.js Serverless Runtime for full header & streaming compatibility
 const TOP_UP_URL = '/blue-pro/checkout';
 const MAX_REQUEST_BYTES = 2_000_000;
 
@@ -20,8 +19,7 @@ export async function POST(request: Request) {
   let reserved = false;
 
   try {
-    const token = bearerToken(request);
-    account = await authenticateBlueKey(token);
+    let token = extractTokenFromHeaders(request);
     const rawBody = await request.text();
     if (rawBody.length > MAX_REQUEST_BYTES) throw statusError(413, 'Request is too large');
 
@@ -29,6 +27,11 @@ export async function POST(request: Request) {
     if (!Array.isArray(body.messages) || body.messages.length === 0) {
       throw statusError(400, 'A non-empty messages array is required');
     }
+
+    if (!token) {
+      token = extractTokenFromBodyOrUrl(request, body);
+    }
+    account = await authenticateBlueKey(token);
 
     const availableModels = modelsForAccess(await getOpenRouterModels(), account.accessTier);
     const model = resolveModel(availableModels, String(body.model || ''));
@@ -236,10 +239,49 @@ function publicUsage(
   };
 }
 
-function bearerToken(request: Request): string {
-  const authorization = request.headers.get('authorization') || request.headers.get('Authorization') || request.headers.get('x-api-key') || '';
-  if (!authorization) throw statusError(401, 'Missing Authentication header');
-  const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : authorization.trim();
+function extractTokenFromHeaders(request: Request): string {
+  let token = '';
+
+  try {
+    token = request.headers.get('authorization')
+      || request.headers.get('Authorization')
+      || request.headers.get('x-api-key')
+      || request.headers.get('X-Api-Key')
+      || '';
+  } catch {}
+
+  if (!token && request.headers) {
+    try {
+      request.headers.forEach((value, key) => {
+        const k = key.toLowerCase();
+        if (k === 'authorization' || k === 'x-api-key' || k === 'api-key') {
+          if (!token) token = value;
+        }
+      });
+    } catch {}
+  }
+
+  if (token.startsWith('Bearer ')) {
+    token = token.slice(7).trim();
+  }
+  return token;
+}
+
+function extractTokenFromBodyOrUrl(request: Request, body?: Record<string, unknown>): string {
+  let token = '';
+
+  try {
+    const url = new URL(request.url);
+    token = url.searchParams.get('key')
+      || url.searchParams.get('apiKey')
+      || url.searchParams.get('token')
+      || '';
+  } catch {}
+
+  if (!token && body) {
+    token = String(body.apiKey || body.api_key || body.key || '').trim();
+  }
+
   if (!token) throw statusError(401, 'A Blue API key is required');
   return token;
 }

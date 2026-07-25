@@ -180,44 +180,41 @@ export default function ConsolePage() {
       if (!session) return;
       const token = session.access_token;
 
-      setIsProPayg(false);
-      setHasBlueCredits(false);
-      setProWallet(null);
-      setCurrentApiKey('');
       void refreshModelCatalog();
 
-      const walletRes = await fetch('/api/user/wallet', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const walletData = await walletRes.json();
-      if (!walletRes.ok || walletData.error) throw new Error(walletData.error || 'Failed to load wallet');
-      setBalance(walletData.balance);
+      // Parallelize wallet, subscription, pack-config, and Blue Pro wallet requests
+      const [walletRes, packRes, subRes, proRes] = await Promise.all([
+        fetch('/api/user/wallet', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/blue-pro/pack-config'),
+        fetch(`/api/user/subscription?email=${encodeURIComponent(session.user.email || '')}`),
+        fetch('/api/blue-pro/wallet', { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
 
-      const packRes = await fetch('/api/blue-pro/pack-config');
+      if (walletRes.ok) {
+        const walletData = await walletRes.json();
+        if (walletData.balance !== undefined) setBalance(walletData.balance);
+      }
       if (packRes.ok) setProPackConfig(await packRes.json());
 
-      // Fetch subscription plan by user email
-      const subRes = await fetch(`/api/user/subscription?email=${encodeURIComponent(session.user.email || '')}`);
+      let fetchedPlan = 'lite';
+      let fetchedDiscount = 0;
       if (subRes.ok) {
         const subData = await subRes.json();
-        if (subData.plan) {
-          setPlan(subData.plan);
-        }
-        if (subData.discount !== undefined) {
-          setDiscount(subData.discount);
-        }
+        if (subData.plan) fetchedPlan = subData.plan;
+        if (subData.discount !== undefined) fetchedDiscount = subData.discount;
       }
 
-      // Load Blue Pro data for PAYG users
-      const proRes = await fetch('/api/blue-pro/wallet', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      let nextIsProPayg = false;
+      let nextProWallet: any = null;
+      let nextHasBlueCredits = false;
+
       if (proRes.ok) {
         const proData = await proRes.json();
         if (proData.eligible && proData.account_type === 'pro_payg') {
-          setIsProPayg(true);
-          setProWallet(proData);
-          setHasBlueCredits(Number(proData.blue_credits || 0) > 0);
+          nextIsProPayg = true;
+          fetchedPlan = 'blue_pro';
+          nextProWallet = proData;
+          nextHasBlueCredits = Number(proData.blue_credits || 0) > 0;
 
           const [keyRes, txnRes, usageRes] = await Promise.all([
             fetch('/api/user/key', { headers: { 'Authorization': `Bearer ${token}` } }),
@@ -235,11 +232,14 @@ export default function ConsolePage() {
             setProUsage(usageData);
           }
         }
-      } else {
-        setIsProPayg(false);
-        setHasBlueCredits(false);
-        setCurrentApiKey('');
       }
+
+      // Synchronously update all plan states to prevent UI flickering between Blue and Blue Pro
+      setPlan(fetchedPlan);
+      setDiscount(fetchedDiscount);
+      setIsProPayg(nextIsProPayg);
+      setProWallet(nextProWallet);
+      setHasBlueCredits(nextHasBlueCredits);
     } catch (err) {
       console.error("Error loading user data:", err);
     }
@@ -573,11 +573,13 @@ export default function ConsolePage() {
                   <div className="flex justify-between items-start">
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">IMR Balance</span>
                     <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
-                      plan === 'blue'
+                      isProPayg
+                        ? 'bg-purple-950/60 border border-purple-900/60 text-purple-400'
+                        : plan === 'blue'
                         ? 'bg-blue-950/60 border border-blue-900/60 text-blue-400'
                         : 'bg-green-950/60 border border-green-900/60 text-green-400'
                     }`}>
-                      {plan === 'blue' ? 'Blue' : 'Blue Lite'}
+                      {isProPayg ? 'Blue Pro' : plan === 'blue' ? 'Blue' : 'Blue Lite'}
                     </span>
                   </div>
                   <span className="text-4xl font-extrabold tracking-tight mt-2 block bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
