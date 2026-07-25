@@ -1,56 +1,24 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email');
-
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
-    }
-
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'DB admin client missing' }, { status: 500 });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    let userId: string | null = null;
-
-    // 1. Try finding user ID via GoTrue Admin API
-    try {
-      const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-      if (users && !listError) {
-        const matchedUser = users.find(u => u.email?.toLowerCase() === cleanEmail);
-        if (matchedUser) {
-          userId = matchedUser.id;
-        }
-      }
-    } catch (e) {
-      console.error('listUsers lookup error:', e);
+    const authorization = request.headers.get('authorization') || '';
+    const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+    if (!token) return NextResponse.json({ error: 'Unauthorized: Missing token' }, { status: 401 });
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !authData.user) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
     }
+    const userId = authData.user.id;
 
-    // 2. Fallback to checkout_sessions metadata if Admin API is unavailable
-    if (!userId) {
-      try {
-        const { data: sessions } = await supabaseAdmin
-          .from('checkout_sessions')
-          .select('user_id')
-          .eq('metadata->>email', cleanEmail)
-          .limit(1);
-        if (sessions && sessions.length > 0) {
-          userId = sessions[0].user_id;
-        }
-      } catch (e) {
-        console.error('checkout_sessions metadata lookup error:', e);
-      }
-    }
-
-    if (!userId) {
-      return NextResponse.json({ plan: 'lite', discount: 0 });
-    }
-
-    // 3. Check if user has active Blue Pro (PAYG)
+    // Check if the authenticated user has active Blue Pro (PAYG).
     const { data: walletData } = await supabaseAdmin
       .from('wallets')
       .select('account_type, blue_credits')
@@ -65,7 +33,7 @@ export async function GET(request: Request) {
 
     const isProActive = walletData?.account_type === 'pro_payg' && profileData?.status === 'active';
 
-    // 4. Look up subscription record for discount and legacy plan info
+    // Look up subscription record for discount and legacy plan info.
     const { data: subData } = await supabaseAdmin
       .from('subscriptions')
       .select('plan, status, current_period_end, metadata')
