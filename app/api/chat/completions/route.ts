@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { authenticateBlueKey, BLUE_CREDIT_MULTIPLIER, releaseUsage, reserveUsage, settleUsage, statusError } from '@/lib/bluePayg';
 import { estimatePromptTokens, getOpenRouterModels, modelsForAccess, openRouterApiKey, price, publicModel, resolveModel } from '@/lib/openrouter';
 
-export const runtime = 'edge';
-
+// Standard Node.js Serverless Runtime for full header & streaming compatibility
 const TOP_UP_URL = '/blue-pro/checkout';
 const MAX_REQUEST_BYTES = 2_000_000;
 
@@ -20,6 +19,7 @@ export async function POST(request: Request) {
   let reserved = false;
 
   try {
+    let token = extractTokenFromHeaders(request);
     const rawBody = await request.text();
     if (rawBody.length > MAX_REQUEST_BYTES) throw statusError(413, 'Request is too large');
 
@@ -28,7 +28,9 @@ export async function POST(request: Request) {
       throw statusError(400, 'A non-empty messages array is required');
     }
 
-    const token = extractToken(request, body);
+    if (!token) {
+      token = extractTokenFromBodyOrUrl(request, body);
+    }
     account = await authenticateBlueKey(token);
 
     const availableModels = modelsForAccess(await getOpenRouterModels(), account.accessTier);
@@ -237,7 +239,7 @@ function publicUsage(
   };
 }
 
-function extractToken(request: Request, body?: Record<string, unknown>): string {
+function extractTokenFromHeaders(request: Request): string {
   let token = '';
 
   try {
@@ -262,16 +264,19 @@ function extractToken(request: Request, body?: Record<string, unknown>): string 
   if (token.startsWith('Bearer ')) {
     token = token.slice(7).trim();
   }
+  return token;
+}
 
-  if (!token) {
-    try {
-      const url = new URL(request.url);
-      token = url.searchParams.get('key')
-        || url.searchParams.get('apiKey')
-        || url.searchParams.get('token')
-        || '';
-    } catch {}
-  }
+function extractTokenFromBodyOrUrl(request: Request, body?: Record<string, unknown>): string {
+  let token = '';
+
+  try {
+    const url = new URL(request.url);
+    token = url.searchParams.get('key')
+      || url.searchParams.get('apiKey')
+      || url.searchParams.get('token')
+      || '';
+  } catch {}
 
   if (!token && body) {
     token = String(body.apiKey || body.api_key || body.key || '').trim();
