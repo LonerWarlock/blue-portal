@@ -45,7 +45,11 @@ const TRIAL_MODEL_IDS = new Set([
 let cache: { loadedAt: number; models: OpenRouterModel[] } | undefined;
 
 export function openRouterApiKey(): string {
-  return String(process.env.OPENROUTER_API_KEY || '').trim();
+  return String(process.env.OPENROUTER_API_KEY || '')
+    .trim()
+    .replace(/^Bearer\s+/i, '')
+    .replace(/^(['"])(.*)\1$/, '$2')
+    .trim();
 }
 
 export async function getOpenRouterModels(): Promise<OpenRouterModel[]> {

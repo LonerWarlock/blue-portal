@@ -3,6 +3,8 @@ import { authenticateBlueKey, BLUE_CREDIT_MULTIPLIER, releaseUsage, reserveUsage
 import { estimatePromptTokens, getOpenRouterModels, modelsForAccess, openRouterApiKey, price, publicModel, resolveModel } from '@/lib/openrouter';
 
 // Standard Node.js Serverless Runtime for full header & streaming compatibility
+export const runtime = 'nodejs';
+
 const TOP_UP_URL = '/blue-pro/checkout';
 const MAX_REQUEST_BYTES = 2_000_000;
 
@@ -73,11 +75,13 @@ export async function POST(request: Request) {
       stream_options: undefined
     };
 
+    const providerKey = openRouterApiKey();
+    if (!providerKey) throw statusError(500, 'OpenRouter is not configured for the Blue gateway');
     const upstream = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${openRouterApiKey()}`,
+        Authorization: `Bearer ${providerKey}`,
         'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app',
         'X-Title': 'Blue AI'
       },
