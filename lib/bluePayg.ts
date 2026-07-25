@@ -13,15 +13,8 @@ export function getBearerToken(request: Request): string {
       || '';
   } catch {}
 
-  if (!authorization && request.headers) {
-    try {
-      request.headers.forEach((value, key) => {
-        const k = key.toLowerCase();
-        if (k === 'authorization' || k === 'x-api-key' || k === 'api-key') {
-          if (!authorization) authorization = value;
-        }
-      });
-    } catch {}
+  if (authorization.includes(',')) {
+    authorization = authorization.split(',')[0].trim();
   }
 
   if (authorization.startsWith('Bearer ')) {
