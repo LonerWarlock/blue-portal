@@ -20,8 +20,6 @@ export async function POST(request: Request) {
   let reserved = false;
 
   try {
-    const token = bearerToken(request);
-    account = await authenticateBlueKey(token);
     const rawBody = await request.text();
     if (rawBody.length > MAX_REQUEST_BYTES) throw statusError(413, 'Request is too large');
 
@@ -29,6 +27,9 @@ export async function POST(request: Request) {
     if (!Array.isArray(body.messages) || body.messages.length === 0) {
       throw statusError(400, 'A non-empty messages array is required');
     }
+
+    const token = extractToken(request, body);
+    account = await authenticateBlueKey(token);
 
     const availableModels = modelsForAccess(await getOpenRouterModels(), account.accessTier);
     const model = resolveModel(availableModels, String(body.model || ''));
@@ -236,29 +237,46 @@ function publicUsage(
   };
 }
 
-function bearerToken(request: Request): string {
-  let authorization = '';
+function extractToken(request: Request, body?: Record<string, unknown>): string {
+  let token = '';
+
   try {
-    authorization = request.headers.get('authorization')
+    token = request.headers.get('authorization')
       || request.headers.get('Authorization')
       || request.headers.get('x-api-key')
       || request.headers.get('X-Api-Key')
       || '';
   } catch {}
 
-  if (!authorization && request.headers) {
+  if (!token && request.headers) {
     try {
       request.headers.forEach((value, key) => {
         const k = key.toLowerCase();
         if (k === 'authorization' || k === 'x-api-key' || k === 'api-key') {
-          if (!authorization) authorization = value;
+          if (!token) token = value;
         }
       });
     } catch {}
   }
 
-  if (!authorization) throw statusError(401, 'Missing Authentication header');
-  const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : authorization.trim();
+  if (token.startsWith('Bearer ')) {
+    token = token.slice(7).trim();
+  }
+
+  if (!token) {
+    try {
+      const url = new URL(request.url);
+      token = url.searchParams.get('key')
+        || url.searchParams.get('apiKey')
+        || url.searchParams.get('token')
+        || '';
+    } catch {}
+  }
+
+  if (!token && body) {
+    token = String(body.apiKey || body.api_key || body.key || '').trim();
+  }
+
   if (!token) throw statusError(401, 'A Blue API key is required');
   return token;
 }
