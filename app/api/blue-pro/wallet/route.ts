@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getBluePaygAccount, statusError } from '@/lib/bluePayg';
+import { getBearerToken, getBluePaygAccount, statusError } from '@/lib/bluePayg';
 import { isLowBalance } from '@/lib/openrouter';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function GET(request: Request) {
   try {
     if (!supabaseAdmin) throw statusError(500, 'Database is not configured');
-    const authorization = request.headers.get('authorization') || '';
-    if (!authorization.startsWith('Bearer ')) throw statusError(401, 'Unauthorized: Missing token');
-    const { data, error } = await supabaseAdmin.auth.getUser(authorization.slice(7).trim());
+    const token = getBearerToken(request);
+    if (!token) throw statusError(401, 'Unauthorized: Missing token');
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
     if (error || !data.user) throw statusError(401, 'Unauthorized: Invalid token');
 
     const account = await getBluePaygAccount(data.user.id);
