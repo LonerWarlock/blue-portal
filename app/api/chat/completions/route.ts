@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     if (!token) {
       token = extractTokenFromBodyOrUrl(request, body);
     }
+    console.log('[Chat API Debug] Extracted token length:', token ? token.length : 0, 'Prefix:', token ? token.slice(0, 8) : 'NONE');
     account = await authenticateBlueKey(token);
 
     const availableModels = modelsForAccess(await getOpenRouterModels(), account.accessTier);
@@ -250,15 +251,8 @@ function extractTokenFromHeaders(request: Request): string {
       || '';
   } catch {}
 
-  if (!token && request.headers) {
-    try {
-      request.headers.forEach((value, key) => {
-        const k = key.toLowerCase();
-        if (k === 'authorization' || k === 'x-api-key' || k === 'api-key') {
-          if (!token) token = value;
-        }
-      });
-    } catch {}
+  if (token.includes(',')) {
+    token = token.split(',')[0].trim();
   }
 
   if (token.startsWith('Bearer ')) {
