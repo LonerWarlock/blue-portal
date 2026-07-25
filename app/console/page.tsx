@@ -212,6 +212,7 @@ export default function ConsolePage() {
         const proData = await proRes.json();
         if (proData.eligible && proData.account_type === 'pro_payg') {
           nextIsProPayg = true;
+          fetchedPlan = 'blue_pro';
           nextProWallet = proData;
           nextHasBlueCredits = Number(proData.blue_credits || 0) > 0;
 

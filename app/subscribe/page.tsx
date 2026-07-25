@@ -178,7 +178,8 @@ export default function SubscribePage() {
           <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
             {plans.map((plan) => {
               const isCurrentPlan = (plan.name === "Blue Lite" && activePlan === "lite") || 
-                                    (plan.name === "Blue" && activePlan === "blue");
+                                    (plan.name === "Blue" && activePlan === "blue") ||
+                                    (plan.name === "Blue Pro" && (activePlan === "blue_pro" || activePlan === "pro_payg"));
               
               let planBadge = plan.badge;
               let planBadgeStyle = plan.badgeStyle;

@@ -50,27 +50,46 @@ export async function GET(request: Request) {
       return NextResponse.json({ plan: 'lite', discount: 0 });
     }
 
-    // 3. Look up subscription record for this resolved user ID (without active constraint to check discount)
-    const { data: subData, error: subError } = await supabaseAdmin
+    // 3. Check if user has active Blue Pro (PAYG)
+    const { data: walletData } = await supabaseAdmin
+      .from('wallets')
+      .select('account_type, blue_credits')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const { data: profileData } = await supabaseAdmin
+      .from('blue_profiles')
+      .select('status, access_tier')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const isProActive = walletData?.account_type === 'pro_payg' && profileData?.status === 'active';
+
+    // 4. Look up subscription record for discount and legacy plan info
+    const { data: subData } = await supabaseAdmin
       .from('subscriptions')
       .select('plan, status, current_period_end, metadata')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
-    if (subError || !subData) {
-      return NextResponse.json({ plan: 'lite', discount: 0 });
+    const discount = Number(subData?.metadata?.imr_discount || 0);
+
+    if (isProActive) {
+      return NextResponse.json({ plan: 'blue_pro', is_pro: true, discount });
     }
 
-    // Check expiration securely (timezone-safe absolute UTC comparison)
+    if (!subData) {
+      return NextResponse.json({ plan: 'lite', is_pro: false, discount });
+    }
+
     const hasExpired = subData.current_period_end
       ? new Date(subData.current_period_end).getTime() <= Date.now()
       : false;
 
     const isActive = subData.status === 'active' && !hasExpired;
     const plan = isActive ? (subData.plan || 'lite') : 'lite';
-    const discount = Number(subData.metadata?.imr_discount || 0);
 
-    return NextResponse.json({ plan, discount });
+    return NextResponse.json({ plan, is_pro: false, discount });
   } catch (err) {
     console.error('Subscription check error:', err);
     return NextResponse.json({ plan: 'lite', discount: 0 });
