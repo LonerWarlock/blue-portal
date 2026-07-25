@@ -237,7 +237,26 @@ function publicUsage(
 }
 
 function bearerToken(request: Request): string {
-  const authorization = request.headers.get('authorization') || request.headers.get('Authorization') || request.headers.get('x-api-key') || '';
+  let authorization = '';
+  try {
+    authorization = request.headers.get('authorization')
+      || request.headers.get('Authorization')
+      || request.headers.get('x-api-key')
+      || request.headers.get('X-Api-Key')
+      || '';
+  } catch {}
+
+  if (!authorization && request.headers) {
+    try {
+      request.headers.forEach((value, key) => {
+        const k = key.toLowerCase();
+        if (k === 'authorization' || k === 'x-api-key' || k === 'api-key') {
+          if (!authorization) authorization = value;
+        }
+      });
+    } catch {}
+  }
+
   if (!authorization) throw statusError(401, 'Missing Authentication header');
   const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : authorization.trim();
   if (!token) throw statusError(401, 'A Blue API key is required');
