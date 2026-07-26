@@ -16,12 +16,22 @@ interface UsageData {
 }
 
 export async function POST(request: Request) {
+  const traceId = request.headers.get('x-blue-trace-id') || crypto.randomUUID();
   let account: Awaited<ReturnType<typeof authenticateBlueKey>> | undefined;
   let requestId = '';
   let reserved = false;
 
   try {
-    let token = extractTokenFromHeaders(request);
+    const authorization = request.headers.get('authorization') || '';
+    const xApiKey = request.headers.get('x-api-key') || '';
+    const headerToken = extractTokenFromHeaders(request);
+    let token = headerToken;
+    console.log(
+      `[Chat API Trace][${traceId}] request.received ` +
+      `authorizationPresent=${Boolean(authorization)} authorizationLen=${authorization.length} ` +
+      `xApiKeyPresent=${Boolean(xApiKey)} xApiKeyLen=${xApiKey.length} ` +
+      `contentType=${request.headers.get('content-type') || 'missing'}`
+    );
     const rawBody = await request.text();
     if (rawBody.length > MAX_REQUEST_BYTES) throw statusError(413, 'Request is too large');
 
@@ -33,7 +43,14 @@ export async function POST(request: Request) {
     if (!token) {
       token = extractTokenFromBodyOrUrl(request, body);
     }
-    console.log('[Chat API Debug] Extracted token length:', token ? token.length : 0, 'Prefix:', token ? token.slice(0, 8) : 'NONE');
+    const bodyKey = String(body.apiKey || body.api_key || body.key || '').trim();
+    console.log(
+      `[Chat API Trace][${traceId}] request.parsed ` +
+      `tokenSource=${headerToken ? 'header' : bodyKey ? 'body' : 'url-or-none'} ` +
+      `tokenType=${token.startsWith('blue_') ? 'blue' : token ? 'other' : 'none'} tokenLen=${token.length} ` +
+      `bodyKeyPresent=${Boolean(bodyKey)} bodyKeyLen=${bodyKey.length} model=${String(body.model || 'missing')} ` +
+      `messageCount=${Array.isArray(body.messages) ? body.messages.length : 0}`
+    );
     account = await authenticateBlueKey(token);
 
     const availableModels = modelsForAccess(await getOpenRouterModels(), account.accessTier);
@@ -56,7 +73,7 @@ export async function POST(request: Request) {
     const maxTokens = Math.min(requestedMaxTokens, affordableOutputTokens);
 
     if (account.balance <= 0 || maxTokens < 256) {
-      return paymentRequired(account.balance, account.threshold);
+      return paymentRequired(account.balance, account.threshold, traceId);
     }
 
     const estimatedProviderCost = inputCost
@@ -105,18 +122,23 @@ export async function POST(request: Request) {
         ...payload,
         model: modelInfo.id,
         usage: publicUsage(usage, settlement)
+      }, {
+        headers: { 'X-Blue-Trace-ID': traceId }
       });
     }
 
     if (!upstream.body) throw statusError(502, 'OpenRouter returned an empty response stream');
-    return streamingResponse(upstream.body, account, requestId, promptTokens, model, request.signal);
+    return streamingResponse(upstream.body, account, requestId, promptTokens, model, request.signal, traceId);
   } catch (error) {
     if (reserved && account && requestId) await releaseUsage(account, requestId);
     const status = errorStatus(error);
-    if (status === 402) return paymentRequired(account?.balance || 0, account?.threshold || 0.15);
+    if (status === 402) return paymentRequired(account?.balance || 0, account?.threshold || 0.15, traceId);
     const message = error instanceof SyntaxError ? 'Invalid JSON request body' : errorMessage(error);
-    console.error('[Blue PAYG] Chat request failed:', message);
-    return NextResponse.json({ error: message }, { status });
+    console.error(`[Chat API Trace][${traceId}] request.failed status=${status} message=${message}`);
+    return NextResponse.json(
+      { error: message, trace_id: traceId },
+      { status, headers: { 'X-Blue-Trace-ID': traceId } }
+    );
   }
 }
 
@@ -126,7 +148,8 @@ function streamingResponse(
   requestId: string,
   estimatedPromptTokens: number,
   model: Awaited<ReturnType<typeof getOpenRouterModels>>[number],
-  signal: AbortSignal
+  signal: AbortSignal,
+  traceId: string
 ) {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
@@ -205,7 +228,8 @@ function streamingResponse(
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no'
+      'X-Accel-Buffering': 'no',
+      'X-Blue-Trace-ID': traceId
     }
   });
 }
@@ -309,14 +333,15 @@ async function safeProviderMessage(response: Response): Promise<string> {
   }
 }
 
-function paymentRequired(balance: number, threshold: number) {
+function paymentRequired(balance: number, threshold: number, traceId = 'untracked') {
   return NextResponse.json({
     error: 'Your Blue Credits are exhausted. Add credits to continue.',
     code: 'blue_credits_exhausted',
     blue_credits_remaining: Math.max(0, balance),
     blue_credit_threshold: threshold,
-    renewal_url: TOP_UP_URL
-  }, { status: 402 });
+    renewal_url: TOP_UP_URL,
+    trace_id: traceId
+  }, { status: 402, headers: { 'X-Blue-Trace-ID': traceId } });
 }
 
 function errorStatus(error: unknown): number {
