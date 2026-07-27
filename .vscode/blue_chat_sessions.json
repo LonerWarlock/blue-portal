@@ -2,10 +2,15 @@
   "sessions": [
     {
       "id": "session_1784998701273_qo3k0cu",
-      "title": "New Chat",
+      "title": "Explain this codebase",
       "timestamp": 1784998701273,
-      "messages": [],
-      "model": "anthropic/claude-fable-5",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Explain this codebase"
+        }
+      ],
+      "model": "deepseek/deepseek-v4-pro",
       "provider": "opencode"
     },
     {
@@ -16,6 +21,5 @@
       "model": "anthropic/claude-fable-5",
       "provider": "opencode"
     }
-  ],
-  "activeSessionId": "session_1784998701273_qo3k0cu"
+  ]
 }
