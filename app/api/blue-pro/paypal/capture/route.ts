@@ -5,7 +5,7 @@ import { capturePaypalOrder } from '@/lib/paypal';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
   const dashboardUrl = `${siteUrl}/blue-pro/dashboard`;
 
   try {

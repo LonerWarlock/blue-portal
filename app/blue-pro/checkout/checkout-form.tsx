@@ -28,7 +28,7 @@ export function CheckoutForm() {
     id: "starter" as const,
     name: "Blue Pro Starter",
     description: "Renewable paid trial with selected models and no expiry.",
-    priceINR: 96,
+    priceINR: 100,
     priceUSD: 1.00,
     credits: 1
   };
@@ -199,7 +199,7 @@ export function CheckoutForm() {
                         >
                           <span className="block text-sm font-semibold text-gray-100">{item.name}</span>
                           <span className="mt-1 block text-xl font-bold text-white">
-                            {currency === "INR" ? `₹${(item.priceINR || item.priceUSD * 96).toLocaleString("en-IN")}` : `$${item.priceUSD.toFixed(2)}`}
+                            {currency === "INR" ? `₹${(item.priceINR || item.priceUSD * 100).toLocaleString("en-IN")}` : `$${item.priceUSD.toFixed(2)}`}
                           </span>
                           <span className="mt-1 block text-xs text-gray-400">{item.credits} Blue Credits</span>
                           <span className="mt-2 block text-[10px] leading-relaxed text-gray-500">{item.description}</span>
@@ -246,7 +246,7 @@ export function CheckoutForm() {
                       {loading ? (
                         <><i className="fa-solid fa-spinner animate-spin"></i> Redirecting to PayU...</>
                       ) : (
-                        <><i className="fa-solid fa-lock"></i> Pay ₹{(pack.priceINR || pack.priceUSD * 96).toLocaleString("en-IN")} - Add {pack.credits} Blue Credits</>
+                        <><i className="fa-solid fa-lock"></i> Pay ₹{(pack.priceINR || pack.priceUSD * 100).toLocaleString("en-IN")} - Add {pack.credits} Blue Credits</>
                       )}
                     </button>
                   ) : (
@@ -289,7 +289,7 @@ export function CheckoutForm() {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Price</span>
                     <span className="text-gray-200 font-semibold">
-                      {currency === "INR" ? `₹${(pack.priceINR || pack.priceUSD * 96).toLocaleString("en-IN")}` : `$${pack.priceUSD.toFixed(2)}`}
+                      {currency === "INR" ? `₹${(pack.priceINR || pack.priceUSD * 100).toLocaleString("en-IN")}` : `$${pack.priceUSD.toFixed(2)}`}
                     </span>
                   </div>
                 </div>

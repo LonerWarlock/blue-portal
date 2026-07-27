@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     const receivedHash = Buffer.from(hash || '', 'hex');
     if (expectedHash.length !== receivedHash.length || !timingSafeEqual(expectedHash, receivedHash)) {
       console.error('PayU Callback Signature Verification Failed');
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005'}/console?payment=invalid`, 303);
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app'}/console?payment=invalid`, 303);
     }
 
     if (!supabaseAdmin) {
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 
     const session = sessions[0];
     const metadata = session.metadata || {};
-    const returnUrl = metadata.return_url || 'http://localhost:3005/console';
+    const returnUrl = metadata.return_url || `${process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app'}/console`;
 
     if (status === 'success') {
       // 2. Update checkout session status

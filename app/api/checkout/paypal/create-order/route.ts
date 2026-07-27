@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
     const txnid = 'ppc_' + Math.random().toString(36).substring(2, 11) + Date.now().toString().slice(-7);
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
     const paypalReturnUrl = `${siteUrl}/api/checkout/paypal/capture?session_id=${sessionId}&txnid=${txnid}`;
     const paypalCancelUrl = returnUrl || `${siteUrl}/console`;
 

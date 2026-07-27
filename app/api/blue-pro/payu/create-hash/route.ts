@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 }
 
 function safeReturnUrl(value: string | undefined): string {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
+  const site = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
   try {
     const candidate = new URL(value || '/console', site);
     if (candidate.origin !== new URL(site).origin) return new URL('/console', site).toString();

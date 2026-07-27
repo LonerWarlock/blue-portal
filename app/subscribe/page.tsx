@@ -53,15 +53,15 @@ const plans = [
   },
   {
     name: "Blue Pro",
-    subtitle: "₹96 paid trial · no expiry",
-    price: "₹96",
+    subtitle: "₹100 paid trial · no expiry",
+    price: "₹100",
     period: "/1 credit",
     gradient: "from-purple-500 to-pink-500",
-    badge: "Starts at ₹96",
+    badge: "Starts at ₹100",
     badgeStyle: "bg-gradient-to-r from-purple-600 to-pink-600",
     href: "/blue-pro/checkout?pack=starter",
-    cta: "Buy ₹96 Trial",
-    description: "Try selected paid models for ₹96. Credits never expire; renew the trial or choose the ₹1,440 full-access pack whenever you need more.",
+    cta: "Buy ₹100 Trial",
+    description: "Try selected paid models for ₹100. Credits never expire; renew the trial or choose the ₹1,500 full-access pack whenever you need more.",
     features: [true, true, true, true, true, true, true, true, true, true, true, true],
     featured: false,
     disabled: false,
@@ -165,7 +165,7 @@ export default function SubscribePage() {
               </span>
             </h1>
             <p className="mt-6 text-lg text-gray-400 max-w-3xl mx-auto leading-relaxed">
-              Start free, choose the ₹149 monthly plan, or try paid models with the renewable ₹96 Blue Pro trial.
+              Start free, choose the ₹149 monthly plan, or try paid models with the renewable ₹100 Blue Pro trial.
             </p>
             {user && (
               <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-950/40 border border-purple-800/40 text-purple-400 text-sm font-semibold">

@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({})) as { packId?: string };
     const pack = getPackConfig(body.packId);
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
 
     return NextResponse.json({
       price_inr: pack.priceINR,

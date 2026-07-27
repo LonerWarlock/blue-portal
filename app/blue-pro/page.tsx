@@ -24,7 +24,7 @@ const tiers = [
 const faqs = [
   {
     q: "What are Blue Credits?",
-    a: "Blue Credits are service-usage units for Blue's pay-as-you-go models. The renewable Starter pack costs ₹96 for 1 Blue Credit and the Full pack costs ₹1,440 for 15 Blue Credits. There is no time limit."
+    a: "Blue Credits are service-usage units for Blue's pay-as-you-go models. The renewable Starter pack costs ₹100 for 1 Blue Credit and the Full pack costs ₹1,500 for 15 Blue Credits. There is no time limit."
   },
   {
     q: "How is credit usage calculated?",
@@ -85,7 +85,7 @@ export default function BlueProPage() {
               </span>
             </h1>
             <p className="mt-6 text-lg text-gray-400 max-w-3xl mx-auto leading-relaxed">
-              Start with a renewable ₹96 paid trial for selected paid models, or choose the ₹1,440 full-access pack. Credits never expire.
+              Start with a renewable ₹100 paid trial for selected paid models, or choose the ₹1,500 full-access pack. Credits never expire.
             </p>
           </div>
 
@@ -94,14 +94,14 @@ export default function BlueProPage() {
               <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mx-auto mb-4">
                 <i className="fa-solid fa-cart-shopping text-purple-400"></i>
               </div>
-              <h3 className="text-lg font-bold text-gray-100 mb-2">₹96 Trial Pack</h3>
+              <h3 className="text-lg font-bold text-gray-100 mb-2">₹100 Trial Pack</h3>
               <p className="text-sm text-gray-400">Get 1 Blue Credit for selected paid models. No expiry; purchase it again after using the credit.</p>
             </div>
             <div className="p-6 rounded-2xl glass border border-gray-800/80 text-center">
               <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mx-auto mb-4">
                 <i className="fa-solid fa-microchip text-purple-400"></i>
               </div>
-              <h3 className="text-lg font-bold text-gray-100 mb-2">₹1,440 Full Pack</h3>
+              <h3 className="text-lg font-bold text-gray-100 mb-2">₹1,500 Full Pack</h3>
               <p className="text-sm text-gray-400">Get 15 Blue Credits and access the full Blue Pro model catalog.</p>
             </div>
             <div className="p-6 rounded-2xl glass border border-gray-800/80 text-center">
@@ -118,7 +118,7 @@ export default function BlueProPage() {
               onClick={handleGetStarted}
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-bold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition duration-200 text-base"
             >
-              <><i className="fa-solid fa-cart-plus"></i> Choose ₹96 Trial or Add Credits</>
+              <><i className="fa-solid fa-cart-plus"></i> Choose ₹100 Trial or Add Credits</>
             </button>
             <p className="text-xs text-gray-500 mt-3">Blue Pro activates only after a successful payment.</p>
           </div>
@@ -229,7 +229,7 @@ export default function BlueProPage() {
               onClick={handleGetStarted}
               className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-bold text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500 transition duration-200 text-base"
             >
-              <><i className="fa-solid fa-cart-plus"></i> Choose ₹96 Trial or Add Credits</>
+              <><i className="fa-solid fa-cart-plus"></i> Choose ₹100 Trial or Add Credits</>
             </button>
           </div>
         </div>

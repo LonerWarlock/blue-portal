@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(request: Request) {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
+  const site = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
   try {
     const form = await request.formData();
     const data = Object.fromEntries(Array.from(form.entries()).map(([key, value]) => [key, String(value)]));

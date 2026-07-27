@@ -87,7 +87,7 @@ export default function ConsolePage() {
   const [proWallet, setProWallet] = useState<any>(null);
   const [proTransactions, setProTransactions] = useState<any[]>([]);
   const [proUsage, setProUsage] = useState<any>(null);
-  const [proPackConfig, setProPackConfig] = useState<any>({ priceINR: 96, credits: 1 });
+  const [proPackConfig, setProPackConfig] = useState<any>({ priceINR: 100, credits: 1 });
   const [proTab, setProTab] = useState<"overview" | "purchases" | "usage">("overview");
 
   // Model catalog search and category filtering
@@ -618,7 +618,7 @@ export default function ConsolePage() {
                 ) : !isProPayg && (
                   <a href="/blue-pro" className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-purple-400 hover:text-purple-300 transition">
                     <i className="fa-solid fa-bolt"></i>
-                    Try Blue Pro for ₹96 — no subscription or expiry
+                    Try Blue Pro for ₹100 — no subscription or expiry
                   </a>
                 )}
               </div>
@@ -631,11 +631,11 @@ export default function ConsolePage() {
                     </div>
                     <h4 className="text-sm font-bold text-gray-200 tracking-tight">Add Blue Credits to continue</h4>
                     <p className="text-xs text-gray-400 max-w-sm mt-1.5 leading-relaxed">
-                      Start with the renewable ₹96 trial or choose the ₹1,440 full-access pack.
+                      Start with the renewable ₹100 trial or choose the ₹1,500 full-access pack.
                     </p>
                     <a href="/blue-pro/checkout?pack=starter" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-xs font-bold text-white">
                       <i className="fa-solid fa-cart-plus"></i>
-                      Buy ₹96 Trial
+                      Buy ₹100 Trial
                     </a>
                   </div>
                 )}

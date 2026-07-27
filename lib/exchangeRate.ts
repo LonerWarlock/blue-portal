@@ -1,4 +1,4 @@
-export const APPROX_USD_TO_INR = 96;
+export const APPROX_USD_TO_INR = 100;
 export const PAYPAL_SUBSCRIPTION_PRICE_USD = 1.99;
 
 export type BlueCreditPackId = 'starter' | 'standard';

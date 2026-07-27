@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     const sessionId = searchParams.get('session_id');
     const token = searchParams.get('token');
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
     const consoleUrl = `${siteUrl}/console`;
 
     if (!sessionId || !token) {
@@ -113,7 +113,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${returnUrl}?payment=success`, 303);
 
   } catch (err: any) {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
     if (err?.message?.includes('ORDER_ALREADY_CAPTURED') && supabaseAdmin) {
       try {
         const { searchParams } = new URL(request.url);
