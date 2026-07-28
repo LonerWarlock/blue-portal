@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { createPaypalOrder } from '@/lib/paypal';
-import { getPackConfig, APPROX_USD_TO_INR } from '@/lib/exchangeRate';
+import { getPackConfig, getCustomPackConfig, APPROX_USD_TO_INR } from '@/lib/exchangeRate';
 
 export async function POST(request: Request) {
   try {
@@ -12,8 +12,10 @@ export async function POST(request: Request) {
     const { data, error } = await supabaseAdmin.auth.getUser(authorization.slice(7).trim());
     if (error || !data.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await request.json() as { returnUrl?: string; packId?: string };
-    const pack = getPackConfig(body.packId);
+    const body = await request.json() as { returnUrl?: string; packId?: string; customCredits?: number };
+    const pack = body.packId === 'custom'
+      ? getCustomPackConfig(body.customCredits ?? 10)
+      : getPackConfig(body.packId);
 
     const { data: account } = await supabaseAdmin.auth.admin.getUserById(data.user.id);
     const email = account.user?.email || '';

@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'crypto';
 import { NextResponse } from 'next/server';
-import { APPROX_USD_TO_INR, getPackConfig } from '@/lib/exchangeRate';
+import { APPROX_USD_TO_INR, getPackConfig, getCustomPackConfig } from '@/lib/exchangeRate';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(request: Request) {
@@ -11,8 +11,10 @@ export async function POST(request: Request) {
     const { data, error } = await supabaseAdmin.auth.getUser(authorization.slice(7).trim());
     if (error || !data.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await request.json() as { returnUrl?: string; packId?: string };
-    const pack = getPackConfig(body.packId);
+    const body = await request.json() as { returnUrl?: string; packId?: string; customCredits?: number };
+    const pack = body.packId === 'custom'
+      ? getCustomPackConfig(body.customCredits ?? 10)
+      : getPackConfig(body.packId);
     const amountINR = pack.priceINR;
     const merchantKey = process.env.PAYU_MERCHANT_KEY || '';
     const salt = process.env.PAYU_MERCHANT_SALT || '';

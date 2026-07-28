@@ -1,7 +1,7 @@
 export const APPROX_USD_TO_INR = 100;
 export const PAYPAL_SUBSCRIPTION_PRICE_USD = 1.99;
 
-export type BlueCreditPackId = 'starter' | 'standard';
+export type BlueCreditPackId = 'starter' | 'standard' | 'custom';
 
 export interface BlueCreditPack {
   id: BlueCreditPackId;
@@ -15,6 +15,9 @@ export interface BlueCreditPack {
 }
 
 export function getPackConfig(packId: string = 'starter'): BlueCreditPack {
+  if (packId === 'custom') {
+    return getCustomPackConfig(10);
+  }
   const multiplier = positiveNumber(process.env.BLUE_CREDIT_MULTIPLIER, 1.5);
   if (packId === 'standard') {
     const priceUSD = positiveNumber(process.env.BLUE_STANDARD_PACK_PRICE_USD, 15);
@@ -45,6 +48,26 @@ export function getPackConfig(packId: string = 'starter'): BlueCreditPack {
 
 export function getPackCatalog(): BlueCreditPack[] {
   return [getPackConfig('starter'), getPackConfig('standard')];
+}
+
+const CUSTOM_CREDIT_MIN = 10;
+const CUSTOM_CREDIT_MAX = 100;
+const CUSTOM_CREDIT_RATE_USD = 1;
+const CUSTOM_CREDIT_RATE_INR = 100;
+
+export function getCustomPackConfig(credits: number): BlueCreditPack {
+  const clamped = Math.max(CUSTOM_CREDIT_MIN, Math.min(CUSTOM_CREDIT_MAX, Math.round(credits)));
+  const multiplier = positiveNumber(process.env.BLUE_CREDIT_MULTIPLIER, 1.5);
+  return {
+    id: 'custom',
+    name: 'Blue Pro Custom',
+    description: `Choose exactly ${clamped} Blue Credits at the standard rate.`,
+    priceUSD: clamped * CUSTOM_CREDIT_RATE_USD,
+    priceINR: clamped * CUSTOM_CREDIT_RATE_INR,
+    credits: clamped,
+    accessTier: 'full',
+    multiplier
+  };
 }
 
 function positiveNumber(value: string | undefined, fallback: number): number {

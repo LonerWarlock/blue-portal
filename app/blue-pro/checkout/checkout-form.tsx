@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { CurrencySelector } from "@/app/components/CurrencySelector";
 
 interface CreditPack {
-  id: "starter" | "standard";
+  id: "starter" | "standard" | "custom";
   name: string;
   description: string;
   priceINR: number;
@@ -20,6 +20,7 @@ export function CheckoutForm() {
   const [error, setError] = useState("");
   const [packs, setPacks] = useState<CreditPack[]>([]);
   const [selectedPackId, setSelectedPackId] = useState<CreditPack["id"]>("starter");
+  const [customCredits, setCustomCredits] = useState(10);
   const [currency, setCurrency] = useState<"INR" | "USD">("INR");
   const [paypalLoaded, setPaypalLoaded] = useState(false);
   const txnidRef = useRef<string>('');
@@ -32,6 +33,10 @@ export function CheckoutForm() {
     priceUSD: 1.00,
     credits: 1
   };
+
+  const activePack = selectedPackId === "custom"
+    ? { ...pack, id: "custom" as const, name: "Blue Pro Custom", credits: customCredits, priceINR: customCredits * 100, priceUSD: customCredits * 1, description: `Custom pack with exactly ${customCredits} Blue Credits.` }
+    : pack;
 
   const [email, setEmail] = useState("");
 
@@ -78,7 +83,7 @@ export function CheckoutForm() {
               "Content-Type": "application/json",
               Authorization: `Bearer ${session.access_token}`
             },
-            body: JSON.stringify({ returnUrl: `${window.location.origin}/console`, packId: selectedPackId })
+            body: JSON.stringify({ returnUrl: `${window.location.origin}/console`, packId: selectedPackId, customCredits: selectedPackId === "custom" ? customCredits : undefined })
           });
           const data = await res.json();
           if (!res.ok || data.error) throw new Error(data.error || "Failed to create PayPal order");
@@ -94,7 +99,7 @@ export function CheckoutForm() {
         },
       }).render("#paypal-button-container-bluepro");
     }
-  }, [currency, paypalLoaded, selectedPackId]);
+  }, [currency, paypalLoaded, selectedPackId, customCredits]);
 
   const handlePayment = async () => {
     setLoading(true);
@@ -112,7 +117,7 @@ export function CheckoutForm() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ returnUrl, packId: selectedPackId })
+        body: JSON.stringify({ returnUrl, packId: selectedPackId, customCredits: selectedPackId === "custom" ? customCredits : undefined })
       });
 
       const hashData = await hashRes.json();
@@ -164,7 +169,7 @@ export function CheckoutForm() {
                 Complete Your Purchase
               </span>
             </h1>
-            <p className="mt-2 text-gray-400">{pack.credits} Blue Credits will be added to your wallet.</p>
+            <p className="mt-2 text-gray-400">{activePack.credits} Blue Credits will be added to your wallet.</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 max-w-4xl mx-auto">
@@ -205,7 +210,38 @@ export function CheckoutForm() {
                           <span className="mt-2 block text-[10px] leading-relaxed text-gray-500">{item.description}</span>
                         </button>
                       ))}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPackId("custom")}
+                        className={`text-left rounded-xl border p-4 transition ${selectedPackId === "custom"
+                          ? "border-purple-400 bg-purple-500/10"
+                          : "border-gray-800 bg-gray-900/30 hover:border-gray-700"}`}
+                      >
+                        <span className="block text-sm font-semibold text-gray-100">Blue Pro Custom</span>
+                        <span className="mt-1 block text-xs text-gray-400">{customCredits} Blue Credits</span>
+                        <span className="mt-2 block text-[10px] leading-relaxed text-gray-500">Choose exactly how many credits you need (10–100).</span>
+                      </button>
                     </div>
+                    {selectedPackId === "custom" && (
+                      <div className="mt-3 flex items-center gap-3">
+                        <label className="text-xs text-gray-400 whitespace-nowrap">Blue Credits:</label>
+                        <input
+                          type="number"
+                          min={10}
+                          max={100}
+                          step={1}
+                          value={customCredits}
+                          onChange={e => {
+                            const v = parseInt(e.target.value, 10);
+                            if (!isNaN(v)) setCustomCredits(Math.max(10, Math.min(100, v)));
+                          }}
+                          className="w-24 px-3 py-2 rounded-xl bg-gray-900/60 border border-gray-800 text-gray-100 text-sm text-center focus:outline-none focus:border-purple-400 transition"
+                        />
+                        <span className="text-[10px] text-gray-500">
+                          {currency === "INR" ? "₹100 per credit" : "$1 per credit"}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="pt-3 border-t border-gray-800/80">
@@ -246,7 +282,7 @@ export function CheckoutForm() {
                       {loading ? (
                         <><i className="fa-solid fa-spinner animate-spin"></i> Redirecting to PayU...</>
                       ) : (
-                        <><i className="fa-solid fa-lock"></i> Pay ₹{(pack.priceINR || pack.priceUSD * 100).toLocaleString("en-IN")} - Add {pack.credits} Blue Credits</>
+                        <><i className="fa-solid fa-lock"></i> Pay ₹{(activePack.priceINR || activePack.priceUSD * 100).toLocaleString("en-IN")} - Add {activePack.credits} Blue Credits</>
                       )}
                     </button>
                   ) : (
@@ -284,12 +320,12 @@ export function CheckoutForm() {
                 <div className="py-4 space-y-3 border-b border-gray-800/80">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Pack</span>
-                    <span className="text-gray-200 font-semibold">{pack.credits} Blue Credits</span>
+                    <span className="text-gray-200 font-semibold">{activePack.credits} Blue Credits</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Price</span>
                     <span className="text-gray-200 font-semibold">
-                      {currency === "INR" ? `₹${(pack.priceINR || pack.priceUSD * 100).toLocaleString("en-IN")}` : `$${pack.priceUSD.toFixed(2)}`}
+                      {currency === "INR" ? `₹${(activePack.priceINR || activePack.priceUSD * 100).toLocaleString("en-IN")}` : `$${activePack.priceUSD.toFixed(2)}`}
                     </span>
                   </div>
                 </div>
