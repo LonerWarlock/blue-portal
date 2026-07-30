@@ -9,8 +9,8 @@ type PaymentResult = 'success' | 'failed' | null;
 const STEPS = ['Leader', 'Team', 'Payment'];
 
 const BRANCHES = [
-  'Computer Science', 'Information Technology', 'Electronics', 'Electrical',
-  'Mechanical', 'Civil', 'Chemical', 'Other',
+  'Computer Science and Engg', 'Artificial Intelligence and Data Science', 'Electronics and Telecommunication Engg', 'Electronics and Computer Science',
+  'Electrical and Computer Engg', 'Mechanical Engg', 'Civil Engg', 'Chemical Engg', 'Instrumentation and Control Engg',
 ];
 
 const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
