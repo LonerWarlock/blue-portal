@@ -278,7 +278,7 @@ export default function HackathonPage() {
               <h1 className="text-2xl font-bold text-gray-800 mb-3">Registration Complete!</h1>
               <p className="text-gray-500 text-sm mb-6">
                 Your team has been successfully registered for <span className="text-blue-500 font-semibold">IGNITE PVPIT 2026</span>.
-                Check your email for confirmation details.
+                
               </p>
               <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 text-left text-xs text-gray-500 space-y-1 mb-6">
                 {resultData && (
