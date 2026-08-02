@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { HACKATHON_FEE_STR } from './config';
+import { HACKATHON_FEE_STR, REGISTRATION_DEADLINE } from './config';
 
 type PaymentResult = 'success' | 'failed' | null;
 
@@ -117,6 +117,15 @@ export default function HackathonPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resultData, setResultData] = useState<{ teamName: string; leaderName: string; email: string } | null>(null);
+  const [isDeadlinePassed, setIsDeadlinePassed] = useState(false);
+
+  useEffect(() => {
+    setIsDeadlinePassed(Date.now() >= REGISTRATION_DEADLINE.getTime());
+    const timer = setInterval(() => {
+      setIsDeadlinePassed(Date.now() >= REGISTRATION_DEADLINE.getTime());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   // On success, read from localStorage to show confirmation
   useEffect(() => {
@@ -315,6 +324,30 @@ export default function HackathonPage() {
               </div>
             </>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- DEADLINE PASSED ----------
+  if (isDeadlinePassed) {
+    return (
+      <div className="min-h-screen bg-[#f8fafb] flex items-center justify-center px-6">
+        <div className="rounded-2xl bg-white border border-gray-200 p-10 max-w-lg w-full text-center shadow-lg">
+          <div className="w-20 h-20 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto mb-6">
+            <i className="fa-solid fa-clock text-3xl text-amber-400"></i>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-3">Registration Closed</h1>
+          <p className="text-gray-500 text-sm mb-6">
+            The registration deadline for <span className="text-blue-500 font-semibold">IGNITE PVPIT 2026</span> has been reached.
+            We are no longer accepting new registrations.
+          </p>
+          <p className="text-xs text-gray-400 mb-6">
+            If you have already registered, your participation is confirmed. For any queries, contact the organizers.
+          </p>
+          <a href="/" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-400 to-green-400 font-semibold text-white text-sm shadow hover:from-blue-500 hover:to-green-500 transition">
+            <i className="fa-solid fa-arrow-left"></i> Go Home
+          </a>
         </div>
       </div>
     );
