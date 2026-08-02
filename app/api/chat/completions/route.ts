@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { authenticateBlueKey, BLUE_CREDIT_MULTIPLIER, releaseUsage, reserveUsage, settleUsage, statusError } from '@/lib/bluePayg';
 import { estimatePromptTokens, getOpenRouterModels, modelsForAccess, openRouterApiKey, price, publicModel, resolveModel } from '@/lib/openrouter';
+import { normalizedUsage, UsageData, UsagePricing } from '@/lib/usageAccounting';
 
 // Standard Node.js Serverless Runtime for full header & streaming compatibility
 export const runtime = 'nodejs';
@@ -8,17 +9,11 @@ export const runtime = 'nodejs';
 const TOP_UP_URL = '/blue-pro/checkout';
 const MAX_REQUEST_BYTES = 2_000_000;
 
-interface UsageData {
-  prompt_tokens?: number;
-  completion_tokens?: number;
-  total_tokens?: number;
-  cost?: number;
-}
-
 export async function POST(request: Request) {
   const traceId = request.headers.get('x-blue-trace-id') || crypto.randomUUID();
   let account: Awaited<ReturnType<typeof authenticateBlueKey>> | undefined;
   let requestId = '';
+  let attemptId = '';
   let reserved = false;
 
   try {
@@ -47,7 +42,7 @@ export async function POST(request: Request) {
     console.log(
       `[Chat API Trace][${traceId}] request.parsed ` +
       `tokenSource=${headerToken ? 'header' : bodyKey ? 'body' : 'url-or-none'} ` +
-      `tokenType=${token.startsWith('blue_') ? 'blue' : token ? 'other' : 'none'} tokenLen=${token.length} ` +
+      `tokenPresent=${Boolean(token)} tokenLen=${token.length} ` +
       `bodyKeyPresent=${Boolean(bodyKey)} bodyKeyLen=${bodyKey.length} model=${String(body.model || 'missing')} ` +
       `messageCount=${Array.isArray(body.messages) ? body.messages.length : 0}`
     );
@@ -62,26 +57,38 @@ export async function POST(request: Request) {
     }
 
     const modelInfo = publicModel(model);
+    const usagePricing = pricingForModel(model);
     const promptTokens = estimatePromptTokens(body.messages, body.tools);
-    const inputCost = promptTokens * price(model.pricing?.prompt);
+    const inputCost = promptTokens * usagePricing.prompt;
     const requestedMaxTokens = boundedInteger(body.max_tokens ?? body.max_completion_tokens, 4096, 256, 16_384);
-    const affordableProviderCost = Math.max(0, account.balance / BLUE_CREDIT_MULTIPLIER / 1.15 - inputCost - price(model.pricing?.request));
-    const outputPrice = price(model.pricing?.completion);
+    const affordableProviderCost = Math.max(0, account.balance / BLUE_CREDIT_MULTIPLIER / 1.15 - inputCost - usagePricing.request);
+    const outputPrice = usagePricing.completion;
     const affordableOutputTokens = outputPrice > 0
       ? Math.floor(affordableProviderCost / outputPrice)
       : requestedMaxTokens;
     const maxTokens = Math.min(requestedMaxTokens, affordableOutputTokens);
 
-    if (account.balance <= 0 || maxTokens < 256) {
+    const estimatedProviderCost = inputCost
+      + maxTokens * outputPrice
+      + usagePricing.request;
+    if ((estimatedProviderCost > 0 && account.balance <= 0) || maxTokens < 256) {
       return paymentRequired(account.balance, account.threshold, traceId);
     }
 
-    const estimatedProviderCost = inputCost
-      + maxTokens * outputPrice
-      + price(model.pricing?.request);
-    const reservationAmount = Math.max(0.0001, estimatedProviderCost * BLUE_CREDIT_MULTIPLIER * 1.15);
-    requestId = crypto.randomUUID();
-    await reserveUsage(account, requestId, model.id, reservationAmount);
+    const reservationAmount = estimatedProviderCost === 0
+      ? 0
+      : estimatedProviderCost * BLUE_CREDIT_MULTIPLIER * 1.15;
+    requestId = validRequestId(request.headers.get('x-blue-request-id')) || crypto.randomUUID();
+    attemptId = crypto.randomUUID();
+    const reservation = await reserveUsage(account, requestId, model.id, reservationAmount);
+    if (!reservation.accepted) {
+      throw statusError(
+        409,
+        reservation.status === 'settled'
+          ? 'This Blue request was already completed and will not be sent upstream twice.'
+          : 'This Blue request is already in progress and will not be sent upstream twice.'
+      );
+    }
     reserved = true;
 
     const upstreamPayload = {
@@ -89,7 +96,7 @@ export async function POST(request: Request) {
       model: model.id,
       max_tokens: maxTokens,
       stream: body.stream !== false,
-      stream_options: undefined
+      stream_options: { include_usage: true }
     };
 
     const providerKey = openRouterApiKey();
@@ -100,7 +107,9 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${providerKey}`,
         'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app',
-        'X-Title': 'Blue AI'
+        'X-Title': 'Blue AI',
+        'X-Blue-Request-ID': requestId,
+        'X-Blue-Attempt-ID': attemptId
       },
       body: JSON.stringify(upstreamPayload),
       signal: request.signal
@@ -110,34 +119,48 @@ export async function POST(request: Request) {
       await releaseUsage(account, requestId);
       reserved = false;
       const providerMessage = await safeProviderMessage(upstream);
-      return NextResponse.json({ error: providerMessage }, { status: upstream.status });
+      return NextResponse.json(
+        { error: providerMessage, request_id: requestId, attempt_id: attemptId },
+        { status: upstream.status, headers: responseHeaders(traceId, requestId, attemptId) }
+      );
     }
 
     if (body.stream === false) {
       const payload = await upstream.json() as Record<string, unknown> & { usage?: UsageData };
-      const usage = normalizedUsage(payload.usage, promptTokens, JSON.stringify(payload.choices || '').length, model);
+      const usage = normalizedUsage(payload.usage, promptTokens, JSON.stringify(payload.choices || '').length, usagePricing);
       const settlement = await settleUsage(account, requestId, usage.cost, usage.promptTokens, usage.completionTokens);
       reserved = false;
       return NextResponse.json({
         ...payload,
         model: modelInfo.id,
-        usage: publicUsage(usage, settlement)
+        usage: publicUsage(usage, settlement, requestId, attemptId)
       }, {
-        headers: { 'X-Blue-Trace-ID': traceId }
+        headers: responseHeaders(traceId, requestId, attemptId)
       });
     }
 
     if (!upstream.body) throw statusError(502, 'OpenRouter returned an empty response stream');
-    return streamingResponse(upstream.body, account, requestId, promptTokens, model, request.signal, traceId);
+    return streamingResponse(
+      upstream.body,
+      account,
+      requestId,
+      attemptId,
+      promptTokens,
+      usagePricing,
+      request.signal,
+      traceId
+    );
   } catch (error) {
     if (reserved && account && requestId) await releaseUsage(account, requestId);
     const status = errorStatus(error);
-    if (status === 402) return paymentRequired(account?.balance || 0, account?.threshold || 0.15, traceId);
+    if (status === 402) {
+      return paymentRequired(account?.balance || 0, account?.threshold || 0.15, traceId, requestId, attemptId);
+    }
     const message = error instanceof SyntaxError ? 'Invalid JSON request body' : errorMessage(error);
     console.error(`[Chat API Trace][${traceId}] request.failed status=${status} message=${message}`);
     return NextResponse.json(
       { error: message, trace_id: traceId },
-      { status, headers: { 'X-Blue-Trace-ID': traceId } }
+      { status, headers: responseHeaders(traceId, requestId, attemptId) }
     );
   }
 }
@@ -146,8 +169,9 @@ function streamingResponse(
   upstream: ReadableStream<Uint8Array>,
   account: Awaited<ReturnType<typeof authenticateBlueKey>>,
   requestId: string,
+  attemptId: string,
   estimatedPromptTokens: number,
-  model: Awaited<ReturnType<typeof getOpenRouterModels>>[number],
+  pricing: UsagePricing,
   signal: AbortSignal,
   traceId: string
 ) {
@@ -162,9 +186,9 @@ function streamingResponse(
   const finalize = () => {
     if (finalized) return finalized;
     finalized = (async () => {
-      const usage = normalizedUsage(providerUsage, estimatedPromptTokens, completionCharacters, model);
+      const usage = normalizedUsage(providerUsage, estimatedPromptTokens, completionCharacters, pricing);
       const settlement = await settleUsage(account, requestId, usage.cost, usage.promptTokens, usage.completionTokens);
-      return publicUsage(usage, settlement);
+      return publicUsage(usage, settlement, requestId, attemptId);
     })();
     return finalized;
   };
@@ -229,42 +253,67 @@ function streamingResponse(
       'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
-      'X-Blue-Trace-ID': traceId
+      'X-Blue-Trace-ID': traceId,
+      'X-Blue-Request-ID': requestId,
+      'X-Blue-Attempt-ID': attemptId
     }
   });
 }
 
-function normalizedUsage(
-  usage: UsageData | undefined,
-  estimatedPromptTokens: number,
-  completionCharacters: number,
-  model: Awaited<ReturnType<typeof getOpenRouterModels>>[number]
-) {
-  const promptTokens = Math.max(0, Number(usage?.prompt_tokens || estimatedPromptTokens));
-  const completionTokens = Math.max(0, Number(usage?.completion_tokens || Math.ceil(completionCharacters / 3)));
-  const reportedCost = Number(usage?.cost);
-  const cost = Number.isFinite(reportedCost) && reportedCost >= 0
-    ? reportedCost
-    : promptTokens * price(model.pricing?.prompt)
-      + completionTokens * price(model.pricing?.completion)
-      + price(model.pricing?.request);
-  return { promptTokens, completionTokens, totalTokens: promptTokens + completionTokens, cost };
-}
-
 function publicUsage(
   usage: ReturnType<typeof normalizedUsage>,
-  settlement: Awaited<ReturnType<typeof settleUsage>>
+  settlement: Awaited<ReturnType<typeof settleUsage>>,
+  requestId: string,
+  attemptId: string
 ) {
   return {
     prompt_tokens: usage.promptTokens,
     completion_tokens: usage.completionTokens,
+    reasoning_tokens: usage.reasoningTokens,
+    cache_read_tokens: usage.cacheReadTokens,
+    cache_write_tokens: usage.cacheWriteTokens,
+    cache_output_tokens: usage.cacheOutputTokens,
     total_tokens: usage.totalTokens,
     cost: usage.cost,
+    cost_source: usage.costSource,
+    provider_reported: usage.providerReported,
+    route: 'openrouter',
+    request_id: requestId,
+    attempt_id: attemptId,
     blue_credits_used: settlement.charged,
     blue_credits_remaining: settlement.remaining,
     blue_credit_threshold: settlement.threshold,
     blue_credit_warning: settlement.low,
     blue_request_id: settlement.requestId
+  };
+}
+
+function pricingForModel(model: Awaited<ReturnType<typeof getOpenRouterModels>>[number]): UsagePricing {
+  const pricing = {
+    prompt: price(model.pricing?.prompt),
+    completion: price(model.pricing?.completion),
+    request: price(model.pricing?.request),
+    cacheRead: price(model.pricing?.input_cache_read),
+    cacheWrite: price(model.pricing?.input_cache_write),
+    cacheOutput: price(model.pricing?.output_cache_read),
+    reasoning: price(model.pricing?.internal_reasoning)
+  };
+  return {
+    ...pricing,
+    free: Object.values(pricing).every(value => value === 0)
+  };
+}
+
+function validRequestId(value: string | null): string {
+  const clean = String(value || '').trim();
+  return /^[A-Za-z0-9][A-Za-z0-9_.:-]{7,127}$/.test(clean) ? clean : '';
+}
+
+function responseHeaders(traceId: string, requestId?: string, attemptId?: string): Record<string, string> {
+  return {
+    'X-Blue-Trace-ID': traceId,
+    ...(requestId ? { 'X-Blue-Request-ID': requestId } : {}),
+    ...(attemptId ? { 'X-Blue-Attempt-ID': attemptId } : {})
   };
 }
 
@@ -333,7 +382,13 @@ async function safeProviderMessage(response: Response): Promise<string> {
   }
 }
 
-function paymentRequired(balance: number, threshold: number, traceId = 'untracked') {
+function paymentRequired(
+  balance: number,
+  threshold: number,
+  traceId = 'untracked',
+  requestId = '',
+  attemptId = ''
+) {
   return NextResponse.json({
     error: 'Your Blue Credits are exhausted. Add credits to continue.',
     code: 'blue_credits_exhausted',
@@ -341,7 +396,7 @@ function paymentRequired(balance: number, threshold: number, traceId = 'untracke
     blue_credit_threshold: threshold,
     renewal_url: TOP_UP_URL,
     trace_id: traceId
-  }, { status: 402, headers: { 'X-Blue-Trace-ID': traceId } });
+  }, { status: 402, headers: responseHeaders(traceId, requestId, attemptId) });
 }
 
 function errorStatus(error: unknown): number {

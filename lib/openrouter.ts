@@ -15,6 +15,7 @@ export interface OpenRouterModel {
     internal_reasoning?: string;
     input_cache_read?: string;
     input_cache_write?: string;
+    output_cache_read?: string;
   };
   supported_parameters?: string[];
   architecture?: Record<string, unknown>;
@@ -88,19 +89,19 @@ export function publicModel(model: OpenRouterModel): BlueModel {
 }
 
 export function modelsForAccess(models: OpenRouterModel[], accessTier: string): OpenRouterModel[] {
-  const paid = models.filter(model => price(model.pricing?.prompt) > 0 || price(model.pricing?.completion) > 0);
-  if (accessTier === 'full') return paid;
-  return paid.filter(model => TRIAL_MODEL_IDS.has(model.id));
+  if (accessTier === 'full') return models;
+  return models.filter(model =>
+    TRIAL_MODEL_IDS.has(model.id) ||
+    (price(model.pricing?.prompt) === 0 && price(model.pricing?.completion) === 0)
+  );
 }
 
 export function resolveModel(models: OpenRouterModel[], requested: string): OpenRouterModel | undefined {
-  const clean = String(requested || '').trim();
-  if (!clean) return undefined;
-  const exact = models.find(model => model.id === clean);
-  if (exact) return exact;
-  const suffix = clean.includes('/') ? clean : `/${clean}`;
-  const matches = models.filter(model => model.id.endsWith(suffix));
-  return matches.length === 1 ? matches[0] : undefined;
+    const clean = String(requested || '').trim();
+    if (!clean) return undefined;
+    // The gateway never silently substitutes or expands a model alias. Clients
+    // must select an exact identifier returned by the Blue model catalogue.
+    return models.find(model => model.id === clean);
 }
 
 export function estimatePromptTokens(messages: unknown, tools: unknown): number {

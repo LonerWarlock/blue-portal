@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isLowBalance, lowBalanceThreshold } from '@/lib/openrouter';
 
-export const BLUE_CREDIT_MULTIPLIER = Math.max(1, Number(process.env.BLUE_CREDIT_MULTIPLIER || 1.65));
+export const BLUE_CREDIT_MULTIPLIER = Math.max(1, Number(process.env.BLUE_CREDIT_MULTIPLIER || 1.5));
 
 export function getBearerToken(request: Request): string {
   let authorization = '';
@@ -38,6 +38,15 @@ export interface BillingSettlement {
   remaining: number;
   threshold: number;
   low: boolean;
+}
+
+export interface BillingReservation {
+  requestId: string;
+  reserved: number;
+  remaining: number;
+  status: 'pending' | 'settled' | 'released';
+  accepted: boolean;
+  reactivated: boolean;
 }
 
 export async function authenticateBlueKey(clientKey: string): Promise<BluePaygAccount> {
@@ -91,7 +100,12 @@ export async function getBluePaygAccount(userId: string): Promise<BluePaygAccoun
   };
 }
 
-export async function reserveUsage(account: BluePaygAccount, requestId: string, model: string, amount: number): Promise<number> {
+export async function reserveUsage(
+  account: BluePaygAccount,
+  requestId: string,
+  model: string,
+  amount: number
+): Promise<BillingReservation> {
   if (!supabaseAdmin) throw statusError(500, 'Supabase admin is not configured');
   const { data, error } = await supabaseAdmin.rpc('reserve_blue_credits', {
     user_id_param: account.userId,
@@ -103,7 +117,15 @@ export async function reserveUsage(account: BluePaygAccount, requestId: string, 
     if (/insufficient/i.test(error.message || '')) throw statusError(402, 'Your Blue Credits are too low for this request');
     throw statusError(500, `Could not reserve Blue Credits: ${error.message}`);
   }
-  return Math.max(0, Number(data?.remaining || 0));
+  const status = data?.status === 'settled' || data?.status === 'released' ? data.status : 'pending';
+  return {
+    requestId: String(data?.request_id || requestId),
+    reserved: Math.max(0, Number(data?.reserved || 0)),
+    remaining: Math.max(0, Number(data?.remaining || 0)),
+    status,
+    accepted: data?.accepted === true,
+    reactivated: data?.reactivated === true
+  };
 }
 
 export async function settleUsage(
