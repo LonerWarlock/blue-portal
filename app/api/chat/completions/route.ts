@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateBlueKey, BLUE_CREDIT_MULTIPLIER, releaseUsage, reserveUsage, settleUsage, statusError } from '@/lib/bluePayg';
+import { isBlueGatewayCancellationRequested, registerBlueGatewayRequest, unregisterBlueGatewayRequest } from '@/lib/blueRequestCancellation';
 import { estimatePromptTokens, getOpenRouterModels, modelsForAccess, openRouterApiKey, price, publicModel, resolveModel } from '@/lib/openrouter';
 import { normalizedUsage, UsageData, UsagePricing } from '@/lib/usageAccounting';
 
@@ -15,6 +16,11 @@ export async function POST(request: Request) {
   let requestId = '';
   let attemptId = '';
   let reserved = false;
+  let activeRequestRegistered = false;
+  let streamingResponseOwnsRequest = false;
+  const upstreamAbortController = new AbortController();
+  const abortUpstreamOnDisconnect = () => upstreamAbortController.abort('Blue client disconnected');
+  request.signal.addEventListener('abort', abortUpstreamOnDisconnect, { once: true });
 
   try {
     const authorization = request.headers.get('authorization') || '';
@@ -90,6 +96,17 @@ export async function POST(request: Request) {
       );
     }
     reserved = true;
+    registerBlueGatewayRequest(requestId, account, upstreamAbortController);
+    activeRequestRegistered = true;
+
+    if (await isBlueGatewayCancellationRequested(account, requestId)) {
+      await releaseUsage(account, requestId);
+      reserved = false;
+      return NextResponse.json(
+        { error: 'This Blue request was cancelled before it reached the provider.', request_id: requestId },
+        { status: 499, headers: responseHeaders(traceId, requestId, attemptId) }
+      );
+    }
 
     const upstreamPayload = {
       ...body,
@@ -112,7 +129,7 @@ export async function POST(request: Request) {
         'X-Blue-Attempt-ID': attemptId
       },
       body: JSON.stringify(upstreamPayload),
-      signal: request.signal
+      signal: upstreamAbortController.signal
     });
 
     if (!upstream.ok) {
@@ -140,6 +157,7 @@ export async function POST(request: Request) {
     }
 
     if (!upstream.body) throw statusError(502, 'OpenRouter returned an empty response stream');
+    streamingResponseOwnsRequest = true;
     return streamingResponse(
       upstream.body,
       account,
@@ -147,8 +165,13 @@ export async function POST(request: Request) {
       attemptId,
       promptTokens,
       usagePricing,
-      request.signal,
-      traceId
+      upstreamAbortController.signal,
+      traceId,
+      () => {
+        unregisterBlueGatewayRequest(requestId);
+        request.signal.removeEventListener('abort', abortUpstreamOnDisconnect);
+      },
+      () => upstreamAbortController.abort('Blue task cancelled by the user')
     );
   } catch (error) {
     if (reserved && account && requestId) await releaseUsage(account, requestId);
@@ -162,6 +185,13 @@ export async function POST(request: Request) {
       { error: message, trace_id: traceId },
       { status, headers: responseHeaders(traceId, requestId, attemptId) }
     );
+  } finally {
+    if (activeRequestRegistered && !streamingResponseOwnsRequest) {
+      unregisterBlueGatewayRequest(requestId);
+    }
+    if (!streamingResponseOwnsRequest) {
+      request.signal.removeEventListener('abort', abortUpstreamOnDisconnect);
+    }
   }
 }
 
@@ -173,7 +203,9 @@ function streamingResponse(
   estimatedPromptTokens: number,
   pricing: UsagePricing,
   signal: AbortSignal,
-  traceId: string
+  traceId: string,
+  onClosed: () => void,
+  cancelUpstream: () => void
 ) {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
@@ -182,6 +214,26 @@ function streamingResponse(
   let completionCharacters = 0;
   let providerUsage: UsageData | undefined;
   let finalized: Promise<ReturnType<typeof publicUsage>> | undefined;
+  let cancellationCheck: ReturnType<typeof setInterval> | undefined;
+  let closed = false;
+
+  const cleanup = () => {
+    if (closed) return;
+    closed = true;
+    if (cancellationCheck) clearInterval(cancellationCheck);
+    signal.removeEventListener('abort', abort);
+    onClosed();
+  };
+  const abort = () => void reader.cancel('Blue client disconnected').finally(() => finalize().catch(error => {
+    console.error('[Blue PAYG] Failed to settle cancelled stream:', errorMessage(error));
+  }));
+  const checkCancellation = () => {
+    void isBlueGatewayCancellationRequested(account, requestId).then(cancelled => {
+      if (!cancelled || closed) return;
+      cancelUpstream();
+      void reader.cancel('Blue task cancelled by the user');
+    });
+  };
 
   const finalize = () => {
     if (finalized) return finalized;
@@ -195,10 +247,9 @@ function streamingResponse(
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const abort = () => void reader.cancel('Client disconnected').finally(() => finalize().catch(error => {
-        console.error('[Blue PAYG] Failed to settle cancelled stream:', errorMessage(error));
-      }));
       signal.addEventListener('abort', abort, { once: true });
+      cancellationCheck = setInterval(checkCancellation, 1000);
+      checkCancellation();
 
       try {
         while (true) {
@@ -237,13 +288,14 @@ function streamingResponse(
         }
         if (!signal.aborted) controller.error(error);
       } finally {
-        signal.removeEventListener('abort', abort);
         reader.releaseLock();
+        cleanup();
       }
     },
     async cancel(reason) {
       await reader.cancel(reason);
       await finalize();
+      cleanup();
     }
   });
 
