@@ -21,13 +21,25 @@ export async function POST(request: Request) {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes
 
     // 2. Save OTP to public.otp_codes table
-    const { error: dbError } = await supabaseAdmin
+    const cleanEmail = email.trim().toLowerCase();
+    let { error: dbError } = await supabaseAdmin
       .from('otp_codes')
-      .upsert({ email: email.trim().toLowerCase(), code, expires_at: expiresAt }, { onConflict: 'email' });
+      .upsert({ email: cleanEmail, code, expires_at: expiresAt }, { onConflict: 'email' });
+
+    if (dbError) {
+      // Fallback: Delete existing code if onConflict constraint fails, then insert
+      await supabaseAdmin.from('otp_codes').delete().eq('email', cleanEmail);
+      const { error: insertError } = await supabaseAdmin
+        .from('otp_codes')
+        .insert({ email: cleanEmail, code, expires_at: expiresAt });
+      dbError = insertError;
+    }
 
     if (dbError) {
       console.error('Database error storing OTP:', dbError);
-      return NextResponse.json({ error: 'Failed to store verification code' }, { status: 500 });
+      return NextResponse.json({ 
+        error: `Failed to store verification code: ${dbError.message || dbError.details || JSON.stringify(dbError)}` 
+      }, { status: 500 });
     }
 
     // 3. Configure Nodemailer with .env.local SMTP credentials

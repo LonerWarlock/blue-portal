@@ -11,10 +11,10 @@ export async function GET(request: Request) {
 
     const authorization = request.headers.get('authorization') || '';
     const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
-    if (!token) return NextResponse.json({ error: 'Unauthorized: Missing token' }, { status: 401 });
+    if (!token) return NextResponse.json({ plan: 'lite', is_pro: false, discount: 0 });
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
     if (authError || !authData.user) {
-      return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
+      return NextResponse.json({ plan: 'lite', is_pro: false, discount: 0 });
     }
     const userId = authData.user.id;
 
