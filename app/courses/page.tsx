@@ -255,14 +255,9 @@ export default function CoursesPage() {
                   All bootcamp updates, session links, and materials will be shared in the WhatsApp group. You must join to stay updated.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <a href="/courses" className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-violet-400 to-purple-400 font-semibold text-white text-sm shadow hover:from-violet-500 hover:to-purple-500 transition">
-                  <i className="fa-solid fa-arrow-left"></i> Register Another Participant
-                </a>
-                <a href="https://chat.whatsapp.com/CIdlgkTxklS7I3kZ6RqNcg" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-green-300 bg-green-50 text-green-700 font-semibold text-sm hover:bg-green-100 transition">
-                  <i className="fa-brands fa-whatsapp"></i> Join WhatsApp Group
-                </a>
-              </div>
+              <a href="https://chat.whatsapp.com/CIdlgkTxklS7I3kZ6RqNcg" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-[#25D366] text-white font-semibold text-sm shadow hover:bg-[#20bd5a] transition">
+                <i className="fa-brands fa-whatsapp text-lg"></i> Join WhatsApp Group
+              </a>
             </>
           ) : (
             <>
