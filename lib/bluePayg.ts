@@ -1,7 +1,10 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isLowBalance, lowBalanceThreshold } from '@/lib/openrouter';
+import { configuredBlueCreditMultiplier } from '@/lib/blueCreditPolicy';
 
-export const BLUE_CREDIT_MULTIPLIER = Math.max(1, Number(process.env.BLUE_CREDIT_MULTIPLIER || 1.5));
+export const BLUE_CREDIT_MULTIPLIER = configuredBlueCreditMultiplier(
+  process.env.BLUE_CREDIT_MULTIPLIER
+);
 
 export function getBearerToken(request: Request): string {
   let authorization = '';

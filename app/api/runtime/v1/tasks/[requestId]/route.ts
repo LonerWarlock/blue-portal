@@ -29,7 +29,11 @@ export async function DELETE(request: Request, context: { params: { requestId: s
       request.headers.get('x-blue-device-id') || '',
       'stopped'
     );
-    return NextResponse.json(result, { headers: noStoreHeaders() });
+    const pending = result.state === 'stopping';
+    return NextResponse.json(result, {
+      status: pending ? 202 : 200,
+      headers: noStoreHeaders(pending ? result.retry_after_seconds : undefined)
+    });
   } catch (error) {
     return runtimeError(error, 'stop');
   }
@@ -42,6 +46,10 @@ function runtimeError(error: unknown, action: string) {
   return NextResponse.json({ error: message }, { status, headers: noStoreHeaders() });
 }
 
-function noStoreHeaders(): Record<string, string> {
-  return { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' };
+function noStoreHeaders(retryAfterSeconds?: number): Record<string, string> {
+  return {
+    'Cache-Control': 'no-store, max-age=0',
+    Pragma: 'no-cache',
+    ...(retryAfterSeconds ? { 'Retry-After': String(retryAfterSeconds) } : {})
+  };
 }

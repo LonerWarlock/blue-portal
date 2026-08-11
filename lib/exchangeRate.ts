@@ -1,3 +1,5 @@
+import { configuredBlueCreditMultiplier } from '@/lib/blueCreditPolicy';
+
 export const APPROX_USD_TO_INR = 100;
 export const PAYPAL_SUBSCRIPTION_PRICE_USD = 1.99;
 
@@ -18,7 +20,7 @@ export function getPackConfig(packId: string = 'starter'): BlueCreditPack {
   if (packId === 'custom') {
     return getCustomPackConfig(10);
   }
-  const multiplier = positiveNumber(process.env.BLUE_CREDIT_MULTIPLIER, 1.5);
+  const multiplier = configuredBlueCreditMultiplier(process.env.BLUE_CREDIT_MULTIPLIER);
   if (packId === 'standard') {
     const priceUSD = positiveNumber(process.env.BLUE_STANDARD_PACK_PRICE_USD, 15);
     return {
@@ -57,7 +59,7 @@ const CUSTOM_CREDIT_RATE_INR = 100;
 
 export function getCustomPackConfig(credits: number): BlueCreditPack {
   const clamped = Math.max(CUSTOM_CREDIT_MIN, Math.min(CUSTOM_CREDIT_MAX, Math.round(credits)));
-  const multiplier = positiveNumber(process.env.BLUE_CREDIT_MULTIPLIER, 1.5);
+  const multiplier = configuredBlueCreditMultiplier(process.env.BLUE_CREDIT_MULTIPLIER);
   return {
     id: 'custom',
     name: 'Blue Pro Custom',

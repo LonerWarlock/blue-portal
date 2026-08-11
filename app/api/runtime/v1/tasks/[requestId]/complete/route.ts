@@ -23,7 +23,11 @@ export async function POST(request: Request, context: { params: { requestId: str
       rawOutcome as 'completed' | 'failed' | 'stopped' | 'expired',
       usage
     );
-    return NextResponse.json(result, { headers: noStoreHeaders() });
+    const pending = result.state === 'stopping';
+    return NextResponse.json(result, {
+      status: pending ? 202 : 200,
+      headers: noStoreHeaders(pending ? result.retry_after_seconds : undefined)
+    });
   } catch (error) {
     const status = Math.max(400, Math.min(599, Number((error as { status?: number })?.status || 500)));
     const message = publicBlueRuntimeError(error, 'Blue runtime completion failed');
@@ -43,6 +47,10 @@ async function boundedJson(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
-function noStoreHeaders(): Record<string, string> {
-  return { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' };
+function noStoreHeaders(retryAfterSeconds?: number): Record<string, string> {
+  return {
+    'Cache-Control': 'no-store, max-age=0',
+    Pragma: 'no-cache',
+    ...(retryAfterSeconds ? { 'Retry-After': String(retryAfterSeconds) } : {})
+  };
 }

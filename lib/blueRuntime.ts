@@ -11,6 +11,13 @@ import {
   updateManagedKey
 } from '@/lib/openrouterManagement';
 import { getOpenRouterModels, modelsForAccess, price, publicModel, resolveModel } from '@/lib/openrouter';
+import {
+  decideRuntimeSettlement,
+  DEFAULT_USAGE_OBSERVATION_INTERVAL_MS,
+  DEFAULT_USAGE_SETTLEMENT_GRACE_MS,
+  DEFAULT_ZERO_USAGE_SETTLEMENT_GRACE_MS,
+  nextStableUsageObservation
+} from '@/lib/runtimeSettlement';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export const BLUE_RUNTIME_NORMAL_ALLOWANCE = 0.20;
@@ -22,6 +29,18 @@ export const BLUE_RUNTIME_ROTATION_WINDOW_MS = 5 * 60 * 1000;
 const MIN_PAID_ALLOWANCE = 0.01;
 const FREE_PROVIDER_CEILING = 0.001;
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+const USAGE_SETTLEMENT_GRACE_MS = positiveDuration(
+  process.env.BLUE_RUNTIME_USAGE_SETTLEMENT_GRACE_MS,
+  DEFAULT_USAGE_SETTLEMENT_GRACE_MS
+);
+const ZERO_USAGE_SETTLEMENT_GRACE_MS = positiveDuration(
+  process.env.BLUE_RUNTIME_ZERO_USAGE_SETTLEMENT_GRACE_MS,
+  DEFAULT_ZERO_USAGE_SETTLEMENT_GRACE_MS
+);
+const USAGE_OBSERVATION_INTERVAL_MS = positiveDuration(
+  process.env.BLUE_RUNTIME_USAGE_OBSERVATION_INTERVAL_MS,
+  DEFAULT_USAGE_OBSERVATION_INTERVAL_MS
+);
 
 type RuntimeMode = 'normal' | 'ui_max';
 type RuntimeTaskState = 'provisioning' | 'active' | 'stopping' | 'completed' | 'failed' | 'expired';
@@ -42,6 +61,10 @@ interface RuntimeTaskRow {
   provider_cost: number | string;
   prompt_tokens: number | string;
   completion_tokens: number | string;
+  client_provider_cost_hint: number | string;
+  settlement_requested_at: string | null;
+  settlement_next_attempt_at: string | null;
+  settlement_attempts: number | string;
   terminal_reason: string | null;
   expires_at: string;
   created_at: string;
@@ -61,10 +84,14 @@ interface RuntimeCredentialRow {
   provider_limit: number | string;
   provider_usage_start: number | string;
   provider_usage_final: number | string | null;
+  usage_observed_at: string | null;
+  usage_stable_observations: number | string;
   state: 'provisioning' | 'active' | 'disabled' | 'deleted' | 'failed';
   expires_at: string;
   created_at: string;
   updated_at: string;
+  disabled_at: string | null;
+  deleted_at: string | null;
 }
 
 export interface BlueRuntimeAdmissionInput {
@@ -107,7 +134,7 @@ export interface BlueRuntimeAdmission {
 
 export interface BlueRuntimeSettlement {
   request_id: string;
-  state: RuntimeTaskState;
+  state: 'completed' | 'failed' | 'expired';
   reserved_blue_credits: number;
   charged_blue_credits: number;
   refunded_blue_credits: number;
@@ -116,6 +143,18 @@ export interface BlueRuntimeSettlement {
   prompt_tokens: number;
   completion_tokens: number;
 }
+
+export interface BlueRuntimeSettlementPending {
+  request_id: string;
+  state: 'stopping';
+  settlement_pending: true;
+  reserved_blue_credits: number;
+  remaining_blue_credits: number;
+  provisional_provider_cost: number;
+  retry_after_seconds: number;
+}
+
+export type BlueRuntimeFinalization = BlueRuntimeSettlement | BlueRuntimeSettlementPending;
 
 export interface RuntimeClientUsage {
   prompt_tokens?: number;
@@ -251,7 +290,7 @@ export async function getBlueRuntimeTask(
   if (!model) throw statusError(503, 'The selected Blue model is no longer available');
   let active = await getActiveCredential(requestId);
   if (active?.state === 'active' && Date.parse(active.expires_at) - Date.now() <= BLUE_RUNTIME_ROTATION_WINDOW_MS) {
-    await disableAndMeasureCredential(active);
+    await disableAndObserveCredential(active);
     await extendRuntimeExpiry(task.request_id);
     active = undefined;
   }
@@ -329,7 +368,7 @@ export async function completeBlueRuntimeTask(
   deviceId: string,
   outcome: 'completed' | 'failed' | 'stopped' | 'expired',
   clientUsage: RuntimeClientUsage = {}
-): Promise<BlueRuntimeSettlement> {
+): Promise<BlueRuntimeFinalization> {
   const task = await requireTask(account.userId, requestId);
   if (task.device_hash !== sha256(deviceId)) throw statusError(403, 'This Blue runtime belongs to another device');
   return settleRuntimeTask(task, outcome, clientUsage);
@@ -338,14 +377,14 @@ export async function completeBlueRuntimeTask(
 export async function reconcileBlueRuntimeTasks(options: {
   userId?: string;
   limit?: number;
-} = {}): Promise<{ inspected: number; settled: number; failed: number }> {
-  if (!supabaseAdmin) return { inspected: 0, settled: 0, failed: 0 };
+} = {}): Promise<{ inspected: number; settled: number; pending: number; failed: number }> {
+  if (!supabaseAdmin) return { inspected: 0, settled: 0, pending: 0, failed: 0 };
   const limit = Math.max(1, Math.min(250, options.limit || 100));
   let stoppingQuery = supabaseAdmin
     .from('blue_runtime_tasks')
     .select('*')
     .eq('state', 'stopping')
-    .order('updated_at', { ascending: true })
+    .order('settlement_next_attempt_at', { ascending: true, nullsFirst: true })
     .limit(limit);
   let expiredQuery = supabaseAdmin
     .from('blue_runtime_tasks')
@@ -363,21 +402,33 @@ export async function reconcileBlueRuntimeTasks(options: {
     throw statusError(500, `Could not reconcile Blue runtime tasks: ${stopping.error?.message || expired.error?.message}`);
   }
   const byId = new Map<string, RuntimeTaskRow>();
-  for (const task of [...(stopping.data || []), ...(expired.data || [])] as RuntimeTaskRow[]) {
+  const now = Date.now();
+  const readyStoppingTasks = (stopping.data || []).filter(task =>
+    !task.settlement_next_attempt_at
+    || Date.parse(String(task.settlement_next_attempt_at)) <= now
+  );
+  for (const task of [...readyStoppingTasks, ...(expired.data || [])] as RuntimeTaskRow[]) {
     byId.set(task.request_id, task);
   }
   const candidates = Array.from(byId.values()).slice(0, limit);
   let settled = 0;
+  let pending = 0;
   let failed = 0;
   for (const task of candidates) {
     try {
-      await settleRuntimeTask(task, task.state === 'stopping' ? 'stopped' : 'expired', {});
-      settled += 1;
+      const persistedOutcome = runtimeOutcome(task.terminal_reason);
+      const outcome = task.state === 'stopping'
+        ? persistedOutcome || 'failed'
+        : 'expired';
+      const result = await settleRuntimeTask(task, outcome, {});
+      if (result.state === 'stopping') pending += 1;
+      else settled += 1;
     } catch {
       failed += 1;
     }
   }
-  return { inspected: candidates.length, settled, failed };
+  await cleanupDisabledCredentials(limit).catch(() => 0);
+  return { inspected: candidates.length, settled, pending, failed };
 }
 
 export async function blockedRuntimeModels(): Promise<Set<string>> {
@@ -390,16 +441,44 @@ async function settleRuntimeTask(
   initialTask: RuntimeTaskRow,
   outcome: 'completed' | 'failed' | 'stopped' | 'expired',
   clientUsage: RuntimeClientUsage
-): Promise<BlueRuntimeSettlement> {
+): Promise<BlueRuntimeFinalization> {
   assertConfigured();
   let task = await requireTask(initialTask.user_id, initialTask.request_id);
   if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(task.user_id));
 
-  await supabaseAdmin!.from('blue_runtime_tasks').update({
+  const now = new Date();
+  const requestedAt = task.settlement_requested_at || now.toISOString();
+  const effectiveOutcome = task.state === 'stopping'
+    ? runtimeOutcome(task.terminal_reason) || outcome
+    : outcome;
+  const promptTokens = Math.max(Number(task.prompt_tokens || 0), boundedUsage(clientUsage.prompt_tokens));
+  const completionTokens = Math.max(Number(task.completion_tokens || 0), boundedUsage(clientUsage.completion_tokens));
+  const clientProviderCostHint = Math.max(
+    Number(task.client_provider_cost_hint || 0),
+    boundedProviderCost(clientUsage.provider_cost)
+  );
+  const { error: stoppingError } = await supabaseAdmin!.from('blue_runtime_tasks').update({
     state: 'stopping',
-    terminal_reason: outcome,
-    updated_at: new Date().toISOString()
+    terminal_reason: effectiveOutcome,
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    client_provider_cost_hint: clientProviderCostHint,
+    settlement_requested_at: requestedAt,
+    settlement_next_attempt_at: null,
+    settlement_attempts: Number(task.settlement_attempts || 0) + 1,
+    updated_at: now.toISOString()
   }).eq('request_id', task.request_id).in('state', ['provisioning', 'active', 'stopping']);
+  if (stoppingError) throw statusError(500, `Could not persist Blue settlement state: ${stoppingError.message}`);
+  task = {
+    ...task,
+    state: 'stopping',
+    terminal_reason: effectiveOutcome,
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    client_provider_cost_hint: clientProviderCostHint,
+    settlement_requested_at: requestedAt,
+    settlement_attempts: Number(task.settlement_attempts || 0) + 1
+  };
 
   const { data: rows, error } = await supabaseAdmin!
     .from('blue_runtime_credentials')
@@ -410,8 +489,8 @@ async function settleRuntimeTask(
   const credentials = (rows || []) as RuntimeCredentialRow[];
 
   for (const credential of credentials) {
-    if (credential.key_hash && (credential.state === 'active' || credential.state === 'provisioning')) {
-      await disableAndMeasureCredential(credential);
+    if (credential.key_hash && ['active', 'provisioning', 'disabled'].includes(credential.state)) {
+      await disableAndObserveCredential(credential);
     } else if (!credential.key_hash && credential.state === 'provisioning') {
       await supabaseAdmin!.from('blue_runtime_credentials').update({
         state: 'failed', encrypted_key: null, encryption_iv: null, encryption_tag: null,
@@ -422,14 +501,45 @@ async function settleRuntimeTask(
 
   const { data: measuredRows, error: measuredError } = await supabaseAdmin!
     .from('blue_runtime_credentials')
-    .select('provider_usage_start, provider_usage_final')
+    .select('id, request_id, key_hash, state, provider_usage_start, provider_usage_final, usage_observed_at, usage_stable_observations, provider_limit, created_at, updated_at, expires_at, disabled_at, deleted_at')
     .eq('request_id', task.request_id);
   if (measuredError) throw statusError(500, `Could not verify Blue runtime usage: ${measuredError.message}`);
-  const providerCost = roundProvider((measuredRows || []).reduce((total, row) => {
-    const start = Math.max(0, Number(row.provider_usage_start || 0));
-    const end = Math.max(start, Number(row.provider_usage_final ?? start));
-    return total + (end - start);
-  }, 0));
+  const measuredCredentials = (measuredRows || []) as RuntimeCredentialRow[];
+  const decision = decideRuntimeSettlement({
+    requestedAt: Date.parse(requestedAt),
+    now: Date.now(),
+    usageGraceMs: USAGE_SETTLEMENT_GRACE_MS,
+    zeroUsageGraceMs: ZERO_USAGE_SETTLEMENT_GRACE_MS,
+    credentials: measuredCredentials.map(credential => ({
+      keyHash: credential.key_hash,
+      state: credential.state,
+      usageStart: Number(credential.provider_usage_start || 0),
+      usageObserved: credential.provider_usage_final === null
+        ? null
+        : Number(credential.provider_usage_final),
+      stableObservations: Number(credential.usage_stable_observations || 0)
+    }))
+  });
+
+  if (!decision.ready) {
+    const nextAttemptAt = new Date(Date.now() + decision.retryAfterSeconds * 1000).toISOString();
+    const { error: pendingError } = await supabaseAdmin!.from('blue_runtime_tasks').update({
+      settlement_next_attempt_at: nextAttemptAt,
+      updated_at: new Date().toISOString()
+    }).eq('request_id', task.request_id).eq('state', 'stopping');
+    if (pendingError) throw statusError(500, `Could not persist Blue settlement retry: ${pendingError.message}`);
+    return {
+      request_id: task.request_id,
+      state: 'stopping',
+      settlement_pending: true,
+      reserved_blue_credits: Number(task.reserved_blue_credits),
+      remaining_blue_credits: await walletBalance(task.user_id),
+      provisional_provider_cost: decision.providerCost,
+      retry_after_seconds: decision.retryAfterSeconds
+    };
+  }
+
+  const providerCost = decision.providerCost;
 
   if (task.is_free && providerCost > 0) {
     await supabaseAdmin!.from('blue_runtime_model_blocks').upsert({
@@ -440,8 +550,6 @@ async function settleRuntimeTask(
   }
 
   const billingAccount = await loadBillingAccount(task.user_id, 0.15, true);
-  const promptTokens = boundedUsage(clientUsage.prompt_tokens);
-  const completionTokens = boundedUsage(clientUsage.completion_tokens);
   const settlement = await settleUsage(
     billingAccount,
     task.request_id,
@@ -449,10 +557,10 @@ async function settleRuntimeTask(
     promptTokens,
     completionTokens
   );
-  const terminalState: RuntimeTaskState = outcome === 'completed'
+  const terminalState: RuntimeTaskState = effectiveOutcome === 'completed'
     ? 'completed'
-    : outcome === 'expired' ? 'expired' : 'failed';
-  const now = new Date().toISOString();
+    : effectiveOutcome === 'expired' ? 'expired' : 'failed';
+  const finishedAt = new Date().toISOString();
   const { error: finalError } = await supabaseAdmin!.from('blue_runtime_tasks').update({
     state: terminalState,
     provider_cost: providerCost,
@@ -460,11 +568,13 @@ async function settleRuntimeTask(
     balance_after: settlement.remaining,
     prompt_tokens: promptTokens,
     completion_tokens: completionTokens,
-    terminal_reason: outcome,
-    updated_at: now,
-    finished_at: now
+    terminal_reason: effectiveOutcome,
+    settlement_next_attempt_at: null,
+    updated_at: finishedAt,
+    finished_at: finishedAt
   }).eq('request_id', task.request_id).eq('user_id', task.user_id);
   if (finalError) throw statusError(500, `Could not finalize Blue runtime task: ${finalError.message}`);
+  await Promise.all(measuredCredentials.map(credential => deleteSettledCredential(credential)));
   task = { ...task, state: terminalState, provider_cost: providerCost, prompt_tokens: promptTokens, completion_tokens: completionTokens };
   return {
     request_id: task.request_id,
@@ -479,41 +589,86 @@ async function settleRuntimeTask(
   };
 }
 
-async function disableAndMeasureCredential(credential: RuntimeCredentialRow): Promise<void> {
+async function disableAndObserveCredential(credential: RuntimeCredentialRow): Promise<void> {
   if (!credential.key_hash) return;
-  let usage = Math.max(0, Number(credential.provider_usage_start || 0));
+  let usage = Math.max(
+    Number(credential.provider_usage_start || 0),
+    Number(credential.provider_usage_final ?? credential.provider_usage_start ?? 0)
+  );
   try {
-    await updateManagedKey(credential.key_hash, { disabled: true });
-    for (const delay of [0, 500, 1_250]) {
-      if (delay) await new Promise(resolve => setTimeout(resolve, delay));
-      const current = await getManagedKey(credential.key_hash);
-      usage = Math.max(usage, Number(current.usage || 0));
-    }
+    const current = credential.state === 'disabled'
+      ? await getManagedKey(credential.key_hash)
+      : await updateManagedKey(credential.key_hash, { disabled: true });
+    usage = Math.max(usage, Number(current.usage || 0));
   } catch (error) {
     throw statusError(502, `Blue could not verify provider usage yet: ${safeMessage(error)}`);
   }
 
-  const now = new Date().toISOString();
+  const observedAt = Date.now();
+  const observation = nextStableUsageObservation({
+    previousUsage: credential.provider_usage_final === null
+      ? null
+      : Number(credential.provider_usage_final),
+    previousStableObservations: Number(credential.usage_stable_observations || 0),
+    previousObservedAt: credential.usage_observed_at
+      ? Date.parse(credential.usage_observed_at)
+      : null,
+    observedUsage: usage,
+    now: observedAt,
+    minimumIntervalMs: USAGE_OBSERVATION_INTERVAL_MS
+  });
+  const observedAtIso = new Date(observedAt).toISOString();
   const { error } = await supabaseAdmin!.from('blue_runtime_credentials').update({
     state: 'disabled',
-    provider_usage_final: usage,
+    provider_usage_final: observation.usage,
+    usage_observed_at: observedAtIso,
+    usage_stable_observations: observation.stableObservations,
     encrypted_key: null,
     encryption_iv: null,
     encryption_tag: null,
     encryption_version: null,
-    disabled_at: now,
-    updated_at: now
+    disabled_at: credential.disabled_at || observedAtIso,
+    updated_at: observedAtIso
   }).eq('id', credential.id);
   if (error) throw statusError(500, `Could not persist provider revocation: ${error.message}`);
+}
 
+async function deleteSettledCredential(credential: RuntimeCredentialRow): Promise<void> {
+  if (!credential.key_hash || credential.state === 'deleted') return;
   try {
     await deleteManagedKey(credential.key_hash);
     await supabaseAdmin!.from('blue_runtime_credentials').update({
       state: 'deleted', deleted_at: new Date().toISOString(), updated_at: new Date().toISOString()
     }).eq('id', credential.id);
   } catch {
-    // The key is disabled and unusable. Reconciliation may retry deletion later.
+    // The key is already disabled and unusable. A later cleanup may retry deletion.
   }
+}
+
+async function cleanupDisabledCredentials(limit: number): Promise<number> {
+  const { data: credentials, error } = await supabaseAdmin!
+    .from('blue_runtime_credentials')
+    .select('*')
+    .eq('state', 'disabled')
+    .order('updated_at', { ascending: true })
+    .limit(Math.max(1, Math.min(250, limit)));
+  if (error || !credentials?.length) return 0;
+  const requestIds = Array.from(new Set(credentials.map(row => String(row.request_id))));
+  const { data: tasks, error: taskError } = await supabaseAdmin!
+    .from('blue_runtime_tasks')
+    .select('request_id, state')
+    .in('request_id', requestIds);
+  if (taskError) return 0;
+  const terminal = new Set((tasks || [])
+    .filter(task => isTerminal(task.state as RuntimeTaskState))
+    .map(task => String(task.request_id)));
+  let deleted = 0;
+  for (const credential of credentials as RuntimeCredentialRow[]) {
+    if (!terminal.has(credential.request_id)) continue;
+    await deleteSettledCredential(credential);
+    deleted += 1;
+  }
+  return deleted;
 }
 
 async function activeOrProvision(task: RuntimeTaskRow): Promise<BlueRuntimeCredential | undefined> {
@@ -770,7 +925,7 @@ function existingSettlement(task: RuntimeTaskRow, remaining: number): BlueRuntim
   const charged = Math.max(0, Number(task.charged_blue_credits || 0));
   return {
     request_id: task.request_id,
-    state: task.state,
+    state: task.state === 'completed' || task.state === 'expired' ? task.state : 'failed',
     reserved_blue_credits: Number(task.reserved_blue_credits),
     charged_blue_credits: charged,
     refunded_blue_credits: Math.max(0, roundCredits(Number(task.reserved_blue_credits) - charged)),
@@ -869,6 +1024,23 @@ function finitePositive(value: unknown): boolean {
 function boundedUsage(value: unknown): number {
   const parsed = Number(value || 0);
   return Number.isFinite(parsed) ? Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.round(parsed))) : 0;
+}
+
+function boundedProviderCost(value: unknown): number {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? roundProvider(Math.max(0, parsed)) : 0;
+}
+
+function positiveDuration(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : fallback;
+}
+
+function runtimeOutcome(value: unknown): 'completed' | 'failed' | 'stopped' | 'expired' | undefined {
+  const outcome = String(value || '');
+  return outcome === 'completed' || outcome === 'failed' || outcome === 'stopped' || outcome === 'expired'
+    ? outcome
+    : undefined;
 }
 
 function roundCredits(value: number): number {
