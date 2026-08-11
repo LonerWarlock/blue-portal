@@ -108,18 +108,33 @@ export async function deleteManagedKey(hash: string): Promise<void> {
 }
 
 export async function createModelGuardrail(model: string): Promise<string> {
+  const canonicalModel = requireCanonicalModelSlug(model);
   const payload = await managementRequest<{ data: { id: string } }>('/guardrails', {
     method: 'POST',
     body: JSON.stringify({
-      name: `Blue model ${model}`.slice(0, 200),
+      name: `Blue model ${canonicalModel}`.slice(0, 200),
       description: 'Blue runtime exact-model credential guardrail.',
-      allowed_models: [model],
+      allowed_models: [canonicalModel],
       allowed_providers: null,
       workspace_id: openRouterWorkspaceId()
     })
   });
   if (!payload.data?.id) throw new Error('OpenRouter did not return a guardrail ID');
   return payload.data.id;
+}
+
+function requireCanonicalModelSlug(value: string): string {
+  const model = String(value || '').trim();
+  if (
+    model.length <= 2 ||
+    model.length > 200 ||
+    !model.includes('/') ||
+    model.startsWith('~') ||
+    /\s/.test(model)
+  ) {
+    throw new Error('Blue model catalogue did not provide a canonical model identifier');
+  }
+  return model;
 }
 
 export async function assignKeyGuardrail(guardrailId: string, keyHash: string): Promise<void> {

@@ -549,7 +549,9 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
   const placeholder = inserted as RuntimeCredentialRow;
   let keyHash = '';
   try {
-    const guardrailId = await ensureModelGuardrail(task.model);
+    const providerModel = resolveModel(await getOpenRouterModels(), task.model);
+    if (!providerModel) throw new Error('The selected Blue model is no longer available');
+    const guardrailId = await ensureModelGuardrail(providerModel.id);
     const created = await createManagedKey({
       name: `Blue ${task.request_id}`.slice(0, 200),
       limit: providerLimit,
@@ -583,7 +585,12 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     await supabaseAdmin!.from('billing_reservations').update({
       expires_at: new Date(Date.parse(expiresAt) + 10 * 60 * 1000).toISOString()
     }).eq('request_id', task.request_id).eq('status', 'pending');
-    return { token: created.key, expires_at: expiresAt, base_url: OPENROUTER_BASE_URL, model: task.model };
+    return {
+      token: created.key,
+      expires_at: expiresAt,
+      base_url: OPENROUTER_BASE_URL,
+      model: providerModel.id
+    };
   } catch (error) {
     if (keyHash) {
       try { await updateManagedKey(keyHash, { disabled: true }); } catch {}
@@ -735,7 +742,7 @@ function admissionPayload(
   remaining: number,
   model: ReturnType<typeof resolveModel> extends infer _T ? NonNullable<Awaited<ReturnType<typeof getOpenRouterModels>>[number]> : never
 ): BlueRuntimeAdmission {
-  if (credential) credential.model = task.model;
+  if (credential) credential.model = model.id;
   return {
     request_id: task.request_id,
     state: credential ? 'active' : task.state,

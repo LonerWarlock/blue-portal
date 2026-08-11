@@ -3,6 +3,9 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 
 export interface OpenRouterModel {
   id: string;
+  canonical_slug?: string;
+  /** Internal compatibility identifiers returned by older catalogue responses. */
+  aliases?: string[];
   name?: string;
   description?: string;
   context_length?: number;
@@ -65,19 +68,77 @@ export async function getOpenRouterModels(): Promise<OpenRouterModel[]> {
   if (!response.ok) throw new Error(`OpenRouter models request failed (${response.status})`);
 
   const payload = await response.json() as { data?: OpenRouterModel[] };
-  const models = Array.isArray(payload.data) ? payload.data : [];
+  const models = normalizeOpenRouterModels(Array.isArray(payload.data) ? payload.data : []);
   if (models.length === 0) throw new Error('OpenRouter returned an empty model catalog');
   cache = { loadedAt: Date.now(), models };
   return models;
 }
 
+/**
+ * Provider catalogues can expose moving aliases in `id` (for example
+ * `~vendor/model-latest`). Exact-model guardrails accept the permanent
+ * `canonical_slug`, so Blue normalizes the catalogue before it is consumed.
+ */
+export function normalizeOpenRouterModels(models: OpenRouterModel[]): OpenRouterModel[] {
+  const normalized = new Map<string, OpenRouterModel>();
+
+  for (const raw of models) {
+    const canonical = canonicalModelId(raw);
+    if (!canonical) continue;
+
+    const rawId = String(raw.id || '').trim();
+    const aliases = new Set<string>([
+      ...(raw.aliases || []).map(value => String(value || '').trim()),
+      rawId
+    ].filter(value => value && value !== canonical));
+    const existing = normalized.get(canonical);
+    for (const alias of existing?.aliases || []) aliases.add(alias);
+
+    // If both entries exist, prefer the permanent record's metadata. The old
+    // alias remains accepted only for restoring a previously saved selection.
+    if (!existing || rawId === canonical) {
+      normalized.set(canonical, {
+        ...(existing || {}),
+        ...raw,
+        id: canonical,
+        canonical_slug: canonical,
+        aliases: Array.from(aliases)
+      });
+    } else {
+      normalized.set(canonical, { ...existing, aliases: Array.from(aliases) });
+    }
+  }
+
+  return Array.from(normalized.values());
+}
+
+export function canonicalModelId(
+  model: Pick<OpenRouterModel, 'id' | 'canonical_slug'>
+): string | undefined {
+  const permanent = String(model.canonical_slug || '').trim();
+  if (isProviderModelSlug(permanent)) return permanent;
+  const id = String(model.id || '').trim();
+  return isProviderModelSlug(id) ? id : undefined;
+}
+
+export function isProviderModelSlug(value: unknown): value is string {
+  const model = String(value || '').trim();
+  return model.length > 2
+    && model.length <= 200
+    && model.includes('/')
+    && !model.startsWith('~')
+    && !/\s/.test(model);
+}
+
 export function publicModel(model: OpenRouterModel): BlueModel {
+  const modelId = canonicalModelId(model);
+  if (!modelId) throw new Error('Blue model catalogue contains an invalid model identifier');
   const inputPerToken = price(model.pricing?.prompt);
   const outputPerToken = price(model.pricing?.completion);
   return {
-    id: model.id,
-    upstreamModel: model.id,
-    displayName: model.name || model.id.split('/').at(-1) || model.id,
+    id: modelId,
+    upstreamModel: modelId,
+    displayName: model.name || modelId.split('/').at(-1) || modelId,
     description: publicBlueDescription(model.description),
     isFree: inputPerToken === 0 && outputPerToken === 0,
     inputPrice: (inputPerToken * 1_000_000).toFixed(6),
@@ -100,7 +161,7 @@ function publicBlueDescription(value: unknown): string {
 export function modelsForAccess(models: OpenRouterModel[], accessTier: string): OpenRouterModel[] {
   if (accessTier === 'full') return models;
   return models.filter(model =>
-    TRIAL_MODEL_IDS.has(model.id) ||
+    TRIAL_MODEL_IDS.has(canonicalModelId(model) || '') ||
     (price(model.pricing?.prompt) === 0 && price(model.pricing?.completion) === 0)
   );
 }
@@ -108,9 +169,12 @@ export function modelsForAccess(models: OpenRouterModel[], accessTier: string): 
 export function resolveModel(models: OpenRouterModel[], requested: string): OpenRouterModel | undefined {
     const clean = String(requested || '').trim();
     if (!clean) return undefined;
-    // The gateway never silently substitutes or expands a model alias. Clients
-    // must select an exact identifier returned by the Blue model catalogue.
-    return models.find(model => model.id === clean);
+    // Permanent identifiers are authoritative. Aliases are accepted only to
+    // migrate a model selection saved from an older catalogue response.
+    return models.find(model =>
+      canonicalModelId(model) === clean ||
+      (model.aliases || []).includes(clean)
+    );
 }
 
 export function estimatePromptTokens(messages: unknown, tools: unknown): number {
