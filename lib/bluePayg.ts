@@ -173,4 +173,3 @@ export function statusError(status: number, message: string): Error & { status: 
   error.status = status;
   return error;
 }
-
