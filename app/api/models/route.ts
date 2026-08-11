@@ -2,13 +2,17 @@ import { NextResponse } from 'next/server';
 import { authenticateBlueKey, getBluePaygAccount, statusError } from '@/lib/bluePayg';
 import { getOpenRouterModels, modelsForAccess, publicModel } from '@/lib/openrouter';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { blockedRuntimeModels, reconcileBlueRuntimeTasks } from '@/lib/blueRuntime';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
     if (new URL(request.url).searchParams.get('catalog') === 'public') {
+      const blocked = await blockedRuntimeModels();
       const models = modelsForAccess(await getOpenRouterModels(), 'full')
+        .filter(model => !blocked.has(model.id))
         .map(publicModel)
         .sort((left, right) => left.displayName.localeCompare(right.displayName));
       return NextResponse.json({ models, access_tier: 'catalog' });
@@ -19,10 +23,14 @@ export async function GET(request: Request) {
     const token = authorization.slice(7).trim();
     if (!token) throw statusError(401, 'Unauthorized: Empty token');
 
-    const account = token.startsWith('blue_')
+    let account = token.startsWith('blue_')
       ? await authenticateBlueKey(token)
       : await accountFromSession(token);
+    await reconcileBlueRuntimeTasks({ userId: account.userId, limit: 20 });
+    account = await getBluePaygAccount(account.userId);
+    const blocked = await blockedRuntimeModels();
     const models = modelsForAccess(await getOpenRouterModels(), account.accessTier)
+      .filter(model => !blocked.has(model.id))
       .map(publicModel)
       .sort((left, right) => left.displayName.localeCompare(right.displayName));
 
