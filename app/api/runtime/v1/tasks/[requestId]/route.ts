@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateBlueKey, getBearerToken } from '@/lib/bluePayg';
-import { completeBlueRuntimeTask, getBlueRuntimeTask } from '@/lib/blueRuntime';
+import { completeBlueRuntimeTask, getBlueRuntimeTask, publicBlueRuntimeError } from '@/lib/blueRuntime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,7 +37,7 @@ export async function DELETE(request: Request, context: { params: { requestId: s
 
 function runtimeError(error: unknown, action: string) {
   const status = Math.max(400, Math.min(599, Number((error as { status?: number })?.status || 500)));
-  const message = error instanceof Error ? error.message : `Blue runtime ${action} failed`;
+  const message = publicBlueRuntimeError(error, `Blue runtime ${action} failed`);
   if (status >= 500) console.error(`[Blue Runtime] ${action} failed:`, message);
   return NextResponse.json({ error: message }, { status, headers: noStoreHeaders() });
 }
@@ -45,4 +45,3 @@ function runtimeError(error: unknown, action: string) {
 function noStoreHeaders(): Record<string, string> {
   return { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' };
 }
-

@@ -807,9 +807,18 @@ function validateAdmissionInput(input: BlueRuntimeAdmissionInput): void {
 
 function assertConfigured(): void {
   if (!supabaseAdmin) throw statusError(500, 'Supabase admin is not configured');
-  if (!process.env.OPENROUTER_MANAGEMENT_API_KEY) throw statusError(500, 'OpenRouter runtime management is not configured');
-  if (!process.env.OPENROUTER_WORKSPACE_ID) throw statusError(500, 'OpenRouter workspace is not configured');
+  if (!process.env.OPENROUTER_MANAGEMENT_API_KEY) throw statusError(500, 'Blue model runtime is not configured');
+  if (!process.env.OPENROUTER_WORKSPACE_ID) throw statusError(500, 'Blue model workspace is not configured');
   if (!process.env.BLUE_RUNTIME_TOKEN_ENCRYPTION_KEY) throw statusError(500, 'Blue runtime token encryption is not configured');
+}
+
+export function publicBlueRuntimeError(error: unknown, fallback = 'Blue runtime request failed'): string {
+  const message = error instanceof Error ? error.message : fallback;
+  return String(message || fallback)
+    .replace(/https?:\/\/openrouter\.ai\/[^\s"'<>)]*/gi, 'Blue model service')
+    .replace(/\bOpenRouter\b/gi, 'Blue')
+    .replace(/\bopenrouter\b/gi, 'blue')
+    .slice(0, 500);
 }
 
 function mapDatabaseError(message: string): Error & { status: number } {

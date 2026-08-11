@@ -78,7 +78,7 @@ export function publicModel(model: OpenRouterModel): BlueModel {
     id: model.id,
     upstreamModel: model.id,
     displayName: model.name || model.id.split('/').at(-1) || model.id,
-    description: model.description || 'Available through the Blue OpenRouter gateway.',
+    description: publicBlueDescription(model.description),
     isFree: inputPerToken === 0 && outputPerToken === 0,
     inputPrice: (inputPerToken * 1_000_000).toFixed(6),
     outputPrice: (outputPerToken * 1_000_000).toFixed(6),
@@ -86,6 +86,15 @@ export function publicModel(model: OpenRouterModel): BlueModel {
     supportedParameters: model.supported_parameters || [],
     highConsumption: inputPerToken >= 0.000001 || outputPerToken >= 0.000004
   };
+}
+
+function publicBlueDescription(value: unknown): string {
+  const description = String(value || 'Available through Blue.')
+    .replace(/https?:\/\/openrouter\.ai\/[^\s"'<>)]*/gi, 'Blue')
+    .replace(/\bOpenRouter\b/gi, 'Blue')
+    .replace(/\bopenrouter\b/gi, 'Blue')
+    .trim();
+  return description || 'Available through Blue.';
 }
 
 export function modelsForAccess(models: OpenRouterModel[], accessTier: string): OpenRouterModel[] {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateBlueKey, getBearerToken, statusError } from '@/lib/bluePayg';
-import { admitBlueRuntimeTask, assertBlueRuntimeAdmissionEnabled } from '@/lib/blueRuntime';
+import { admitBlueRuntimeTask, assertBlueRuntimeAdmissionEnabled, publicBlueRuntimeError } from '@/lib/blueRuntime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,7 +49,7 @@ async function boundedJson(request: Request): Promise<Record<string, unknown>> {
 
 function runtimeError(error: unknown) {
   const status = Math.max(400, Math.min(599, Number((error as { status?: number })?.status || 500)));
-  const message = error instanceof Error ? error.message : 'Blue runtime admission failed';
+  const message = publicBlueRuntimeError(error, 'Blue runtime admission failed');
   if (status >= 500) console.error('[Blue Runtime] Admission failed:', message);
   return NextResponse.json({ error: message }, { status, headers: noStoreHeaders() });
 }

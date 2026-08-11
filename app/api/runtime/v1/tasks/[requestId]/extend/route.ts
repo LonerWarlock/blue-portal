@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateBlueKey, getBearerToken } from '@/lib/bluePayg';
-import { extendBlueRuntimeTask } from '@/lib/blueRuntime';
+import { extendBlueRuntimeTask, publicBlueRuntimeError } from '@/lib/blueRuntime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ export async function POST(request: Request, context: { params: { requestId: str
     });
   } catch (error) {
     const status = Math.max(400, Math.min(599, Number((error as { status?: number })?.status || 500)));
-    const message = error instanceof Error ? error.message : 'Blue runtime extension failed';
+    const message = publicBlueRuntimeError(error, 'Blue runtime extension failed');
     if (status >= 500) console.error('[Blue Runtime] Extension failed:', message);
     return NextResponse.json({ error: message }, { status, headers: noStoreHeaders() });
   }

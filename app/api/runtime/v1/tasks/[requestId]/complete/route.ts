@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateBlueKey, getBearerToken, statusError } from '@/lib/bluePayg';
-import { completeBlueRuntimeTask, RuntimeClientUsage } from '@/lib/blueRuntime';
+import { completeBlueRuntimeTask, publicBlueRuntimeError, RuntimeClientUsage } from '@/lib/blueRuntime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,7 +26,7 @@ export async function POST(request: Request, context: { params: { requestId: str
     return NextResponse.json(result, { headers: noStoreHeaders() });
   } catch (error) {
     const status = Math.max(400, Math.min(599, Number((error as { status?: number })?.status || 500)));
-    const message = error instanceof Error ? error.message : 'Blue runtime completion failed';
+    const message = publicBlueRuntimeError(error, 'Blue runtime completion failed');
     if (status >= 500) console.error('[Blue Runtime] Completion failed:', message);
     return NextResponse.json({ error: message }, { status, headers: noStoreHeaders() });
   }
@@ -46,4 +46,3 @@ async function boundedJson(request: Request): Promise<Record<string, unknown>> {
 function noStoreHeaders(): Record<string, string> {
   return { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' };
 }
-

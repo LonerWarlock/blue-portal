@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { statusError } from '@/lib/bluePayg';
-import { reconcileBlueRuntimeTasks } from '@/lib/blueRuntime';
+import { publicBlueRuntimeError, reconcileBlueRuntimeTasks } from '@/lib/blueRuntime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,9 +23,8 @@ async function run(request: Request) {
     return NextResponse.json({ ok: true, ...result }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     const status = Math.max(400, Math.min(599, Number((error as { status?: number })?.status || 500)));
-    const message = error instanceof Error ? error.message : 'Blue runtime reconciliation failed';
+    const message = publicBlueRuntimeError(error, 'Blue runtime reconciliation failed');
     if (status >= 500) console.error('[Blue Runtime] Reconciliation failed:', message);
     return NextResponse.json({ error: message }, { status });
   }
 }
-
