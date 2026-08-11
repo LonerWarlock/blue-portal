@@ -12,6 +12,7 @@ const TIER_BADGE_COLORS: Record<string, string> = {
 };
 
 const MODEL_CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
+const BLUE_WALLET_REFRESH_INTERVAL_MS = 30 * 1000;
 const MODEL_CATALOG_SESSION_KEY = 'blue.modelCatalog.v1';
 let modelCatalogCache: any[] = [];
 let modelCatalogLoadedAt = 0;
@@ -187,7 +188,10 @@ export default function ConsolePage() {
         fetch('/api/user/wallet', { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch('/api/blue-pro/pack-config'),
         fetch(`/api/user/subscription?email=${encodeURIComponent(session.user.email || '')}`),
-        fetch('/api/blue-pro/wallet', { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch('/api/blue-pro/wallet', {
+          headers: { 'Authorization': `Bearer ${token}` },
+          cache: 'no-store'
+        })
       ]);
 
       if (walletRes.ok) {
@@ -244,6 +248,52 @@ export default function ConsolePage() {
       console.error("Error loading user data:", err);
     }
   };
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let disposed = false;
+    let refreshInFlight = false;
+
+    const refreshBlueWallet = async () => {
+      if (disposed || refreshInFlight || document.visibilityState === 'hidden') return;
+      refreshInFlight = true;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || disposed) return;
+
+        const response = await fetch(`/api/blue-pro/wallet?t=${Date.now()}`, {
+          headers: { 'Authorization': `Bearer ${session.access_token}` },
+          cache: 'no-store'
+        });
+        if (!response.ok || disposed) return;
+
+        const wallet = await response.json();
+        if (!wallet.eligible || wallet.account_type !== 'pro_payg') return;
+        setProWallet(wallet);
+        setHasBlueCredits(Number(wallet.blue_credits || 0) > 0);
+      } catch (error) {
+        console.error('Error refreshing Blue Credits:', error);
+      } finally {
+        refreshInFlight = false;
+      }
+    };
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshBlueWallet();
+    };
+
+    const interval = window.setInterval(() => void refreshBlueWallet(), BLUE_WALLET_REFRESH_INTERVAL_MS);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [user?.id]);
 
   const handleGoogleLogin = async () => {
     setAuthError("");
