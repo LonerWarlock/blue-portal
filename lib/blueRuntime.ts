@@ -189,6 +189,9 @@ export async function admitBlueRuntimeTask(
   }
 
   const task = await getTaskForUser(refreshedAccount.userId, input.requestId);
+  if (!task && data?.accepted === false) {
+    throw statusError(409, 'Blue could not safely recover this task admission. Start a new task; no additional credits were reserved.');
+  }
   if (!task) throw statusError(500, 'Blue runtime admission was not persisted');
   const remaining = Number(data?.remaining ?? (await walletBalance(refreshedAccount.userId)));
   if (isTerminal(task.state)) {
