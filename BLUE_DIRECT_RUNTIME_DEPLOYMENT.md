@@ -43,8 +43,13 @@ legacy proxy.
 
 ## Operational checks
 
-- Schedule `/api/cron/blue-runtime-reconcile` every five minutes with
-  `Authorization: Bearer <CRON_SECRET>`.
+- On Vercel Hobby, schedule `/api/cron/blue-runtime-reconcile` once per day
+  (`0 3 * * *`). Admission, model-catalog, and wallet requests also reconcile
+  the current user's abandoned tasks lazily, so active users do not wait for
+  the daily sweep.
+- When the project moves to Vercel Pro, change the schedule back to every five
+  minutes (`*/5 * * * *`) for tighter unattended-expiry cleanup. Vercel sends
+  `Authorization: Bearer <CRON_SECRET>` when `CRON_SECRET` is configured.
 - Alert on credential provisioning failures, reconciliation backlog over five
   minutes, OpenRouter management 429s, non-zero cost from a catalogued free
   model, duplicate-admission conflicts, and settlement failures.
