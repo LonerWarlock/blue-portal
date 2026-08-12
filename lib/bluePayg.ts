@@ -78,6 +78,17 @@ export async function authenticateBlueKey(clientKey: string): Promise<BluePaygAc
 export async function getBluePaygAccount(userId: string): Promise<BluePaygAccount> {
   if (!supabaseAdmin) throw statusError(500, 'Supabase admin is not configured');
 
+  // A wallet read is also a safe reconciliation boundary. Interrupted legacy
+  // requests can leave expired reservations behind; this database function is
+  // atomic and idempotent, so no reservation can be refunded twice.
+  const { error: releaseError } = await supabaseAdmin.rpc('release_expired_blue_credit_reservations', {
+    user_id_param: userId
+  });
+  if (releaseError) {
+    console.error('[Blue PAYG] Failed to reconcile expired reservations:', releaseError.message);
+    throw statusError(500, 'Failed to reconcile Blue Credits');
+  }
+
   const [{ data: wallet, error: walletError }, { data: profile, error: profileError }] = await Promise.all([
     supabaseAdmin.from('wallets').select('account_type, blue_credits').eq('user_id', userId).maybeSingle(),
     supabaseAdmin.from('blue_profiles')
