@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import { authenticateBlueKey, BLUE_CREDIT_MULTIPLIER, releaseUsage, reserveUsage, settleUsage, statusError } from '@/lib/bluePayg';
-import { isBlueGatewayCancellationRequested, registerBlueGatewayRequest, unregisterBlueGatewayRequest } from '@/lib/blueRequestCancellation';
+import {
+  isBlueGatewayCancellationRequested,
+  isBlueGatewayClientCancellationRequested,
+  registerBlueGatewayClientRequest,
+  registerBlueGatewayRequest,
+  unregisterBlueGatewayClientRequest,
+  unregisterBlueGatewayRequest
+} from '@/lib/blueRequestCancellation';
 import { estimatePromptTokens, getOpenRouterModels, modelsForAccess, openRouterApiKey, price, publicModel, resolveModel } from '@/lib/openrouter';
 import { normalizedUsage, UsageData, UsagePricing } from '@/lib/usageAccounting';
 
@@ -17,7 +24,9 @@ export async function POST(request: Request) {
   let attemptId = '';
   let reserved = false;
   let activeRequestRegistered = false;
+  let clientRequestRegistered = false;
   let streamingResponseOwnsRequest = false;
+  const clientInstanceId = validClientInstanceId(request.headers.get('x-blue-client-instance'));
   const upstreamAbortController = new AbortController();
   const abortUpstreamOnDisconnect = () => upstreamAbortController.abort('Blue client disconnected');
   request.signal.addEventListener('abort', abortUpstreamOnDisconnect, { once: true });
@@ -53,6 +62,19 @@ export async function POST(request: Request) {
       `messageCount=${Array.isArray(body.messages) ? body.messages.length : 0}`
     );
     account = await authenticateBlueKey(token);
+
+    // Stop can arrive while this serverless instance is still parsing or
+    // authenticating the request. The short-lived process marker closes that
+    // race without reserving credits or calling the model provider.
+    if (
+      clientInstanceId &&
+      await isBlueGatewayClientCancellationRequested(account, clientInstanceId)
+    ) {
+      return NextResponse.json(
+        { error: 'This Blue task was stopped by the user.' },
+        { status: 499, headers: responseHeaders(traceId) }
+      );
+    }
 
     const availableModels = modelsForAccess(await getOpenRouterModels(), account.accessTier);
     const model = resolveModel(availableModels, String(body.model || ''));
@@ -96,10 +118,20 @@ export async function POST(request: Request) {
       );
     }
     reserved = true;
-    registerBlueGatewayRequest(requestId, account, upstreamAbortController);
+    if (clientInstanceId) {
+      clientRequestRegistered = await registerBlueGatewayClientRequest(
+        account,
+        requestId,
+        clientInstanceId
+      );
+    }
+    registerBlueGatewayRequest(requestId, account, upstreamAbortController, clientInstanceId);
     activeRequestRegistered = true;
 
-    if (await isBlueGatewayCancellationRequested(account, requestId)) {
+    if (
+      await isBlueGatewayCancellationRequested(account, requestId) ||
+      (clientInstanceId && await isBlueGatewayClientCancellationRequested(account, clientInstanceId))
+    ) {
       await releaseUsage(account, requestId);
       reserved = false;
       return NextResponse.json(
@@ -169,6 +201,7 @@ export async function POST(request: Request) {
       traceId,
       () => {
         unregisterBlueGatewayRequest(requestId);
+        if (clientRequestRegistered) void unregisterBlueGatewayClientRequest(requestId);
         request.signal.removeEventListener('abort', abortUpstreamOnDisconnect);
       },
       () => upstreamAbortController.abort('Blue task cancelled by the user')
@@ -189,10 +222,18 @@ export async function POST(request: Request) {
     if (activeRequestRegistered && !streamingResponseOwnsRequest) {
       unregisterBlueGatewayRequest(requestId);
     }
+    if (clientRequestRegistered && !streamingResponseOwnsRequest) {
+      await unregisterBlueGatewayClientRequest(requestId);
+    }
     if (!streamingResponseOwnsRequest) {
       request.signal.removeEventListener('abort', abortUpstreamOnDisconnect);
     }
   }
+}
+
+function validClientInstanceId(value: string | null): string {
+  const candidate = String(value || '').trim();
+  return /^[A-Za-z0-9][A-Za-z0-9_.:-]{7,127}$/.test(candidate) ? candidate : '';
 }
 
 function streamingResponse(
