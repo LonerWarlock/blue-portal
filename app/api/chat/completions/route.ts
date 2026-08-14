@@ -205,6 +205,7 @@ export async function POST(request: Request) {
       account,
       requestId,
       attemptId,
+      modelInfo.id,
       promptTokens,
       usagePricing,
       upstreamAbortController.signal,
@@ -251,6 +252,7 @@ function streamingResponse(
   account: Awaited<ReturnType<typeof authenticateBlueKey>>,
   requestId: string,
   attemptId: string,
+  model: string,
   estimatedPromptTokens: number,
   pricing: UsagePricing,
   signal: AbortSignal,
@@ -319,6 +321,14 @@ function streamingResponse(
               if (payload?.usage) {
                 providerUsage = payload.usage as UsageData;
                 forward = false;
+                // Some compatible providers attach usage to the same frame as
+                // a finish choice. Preserve that choice while withholding the
+                // provider's un-settled usage; Blue emits one authoritative
+                // standards-compatible usage frame after settlement below.
+                if (Array.isArray(payload.choices) && payload.choices.length > 0) {
+                  const { usage: _providerUsage, ...choicePayload } = payload;
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(choicePayload)}\n`));
+                }
               }
               const content = payload?.choices?.[0]?.delta?.content;
               if (typeof content === 'string') completionCharacters += content.length;
@@ -328,7 +338,17 @@ function streamingResponse(
         }
 
         const usage = await finalize();
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'blue.usage', usage })}\n\n`));
+        // Remain strictly OpenAI-compatible. OpenCode validates every `data:`
+        // frame before exposing it to Blue, so private top-level event shapes
+        // are forbidden. Blue metadata lives inside the standard usage object.
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          id: `chatcmpl-${requestId}`,
+          object: 'chat.completion.chunk',
+          created: Math.floor(Date.now() / 1000),
+          model,
+          choices: [],
+          usage
+        })}\n\n`));
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
       } catch (error) {
@@ -380,7 +400,9 @@ function publicUsage(
     cost: usage.cost,
     cost_source: usage.costSource,
     provider_reported: usage.providerReported,
-    route: 'openrouter',
+    // Public clients see Blue as the provider. The internal upstream route is
+    // an implementation detail and belongs only in server-side telemetry.
+    route: 'blue',
     request_id: requestId,
     attempt_id: attemptId,
     blue_credits_used: settlement.charged,
