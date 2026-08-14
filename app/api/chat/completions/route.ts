@@ -106,10 +106,20 @@ export async function POST(request: Request) {
     const reservationAmount = estimatedProviderCost === 0
       ? 0
       : estimatedProviderCost * BLUE_CREDIT_MULTIPLIER * 1.15;
-    requestId = validRequestId(request.headers.get('x-blue-request-id')) || crypto.randomUUID();
+    const suppliedRequestId = validRequestId(request.headers.get('x-blue-request-id'));
+    requestId = suppliedRequestId || crypto.randomUUID();
     attemptId = crypto.randomUUID();
     const reservation = await reserveUsage(account, requestId, model.id, reservationAmount);
-    if (!reservation.accepted) {
+    // Migration 007 added an explicit `accepted` decision. During a rolling
+    // code/database deployment, the legacy RPC omits it even after it has
+    // successfully inserted a brand-new gateway-generated UUID. Accept only
+    // that provably fresh case; client-supplied IDs still require an explicit
+    // idempotency decision and can never be replayed upstream blindly.
+    const legacyFreshReservation = !suppliedRequestId
+      && !reservation.decisionExplicit
+      && reservation.requestId === requestId
+      && reservation.status === 'pending';
+    if (!reservation.accepted && !legacyFreshReservation) {
       throw statusError(
         409,
         reservation.status === 'settled'

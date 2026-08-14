@@ -50,6 +50,8 @@ export interface BillingReservation {
   status: 'pending' | 'settled' | 'released';
   accepted: boolean;
   reactivated: boolean;
+  /** False only while the Portal is temporarily running against the legacy RPC contract. */
+  decisionExplicit: boolean;
 }
 
 export async function authenticateBlueKey(clientKey: string): Promise<BluePaygAccount> {
@@ -132,13 +134,15 @@ export async function reserveUsage(
     throw statusError(500, `Could not reserve Blue Credits: ${error.message}`);
   }
   const status = data?.status === 'settled' || data?.status === 'released' ? data.status : 'pending';
+  const decisionExplicit = typeof data?.accepted === 'boolean';
   return {
     requestId: String(data?.request_id || requestId),
     reserved: Math.max(0, Number(data?.reserved || 0)),
     remaining: Math.max(0, Number(data?.remaining || 0)),
     status,
     accepted: data?.accepted === true,
-    reactivated: data?.reactivated === true
+    reactivated: data?.reactivated === true,
+    decisionExplicit
   };
 }
 

@@ -110,24 +110,36 @@ export async function requestBlueGatewayClientCancellation(
 ): Promise<{ accepted: boolean; cancelledCount: number }> {
   if (!supabaseAdmin) throw statusError(500, 'Supabase admin is not configured');
   if (!CLIENT_INSTANCE_ID.test(clientInstanceId)) throw statusError(400, 'Invalid Blue client instance ID');
-  const { data, error } = await supabaseAdmin.rpc('cancel_blue_gateway_client_requests', {
-    user_id_param: account.userId,
-    client_instance_id_param: clientInstanceId
-  });
-  if (error) throw statusError(500, `Could not cancel active Blue request: ${error.message}`);
 
+  // Abort same-instance work first. Database cancellation below is what makes
+  // this durable across Vercel instances, but a schema rollout must never turn
+  // the user's local Stop into a visible 500 response.
+  let localCancelledCount = 0;
   activeRequests.forEach(active => {
     if (
       active.userId === account.userId &&
       active.clientInstanceId === clientInstanceId
     ) {
+      localCancelledCount += 1;
       active.abort();
     }
   });
 
+  const { data, error } = await supabaseAdmin.rpc('cancel_blue_gateway_client_requests', {
+    user_id_param: account.userId,
+    client_instance_id_param: clientInstanceId
+  });
+  if (error) {
+    if (/does not exist|function .* not found|schema cache|relation .* not found/i.test(error.message || '')) {
+      console.warn('[Blue Gateway] Durable client Stop schema is not available yet; local cancellation completed.');
+      return { accepted: true, cancelledCount: localCancelledCount };
+    }
+    throw statusError(500, `Could not cancel active Blue request: ${error.message}`);
+  }
+
   return {
     accepted: data?.accepted !== false,
-    cancelledCount: Math.max(0, Number(data?.cancelled_count || 0))
+    cancelledCount: Math.max(localCancelledCount, Number(data?.cancelled_count || 0))
   };
 }
 
