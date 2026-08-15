@@ -199,7 +199,7 @@ export async function POST(req: Request) {
                   <p style="color:#475569;">We will reach out to you shortly with the detailed schedule, live session links, and program materials.</p>
                   <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:20px 0;">
                     <p style="margin:0;color:#166534;"><strong>Join the WhatsApp Group for updates:</strong></p>
-                    <p style="margin:4px 0 0;"><a href="https://chat.whatsapp.com/CIdlgkTxklS7I3kZ6RqNcg" style="color:#2563eb;">Click here to join</a></p>
+                    <p style="margin:4px 0 0;"><a href="https://chat.whatsapp.com/KqjIjm2YhlkJNKZR6ObCoE" style="color:#2563eb;">Click here to join</a></p>
                   </div>
                   <p style="color:#475569;">For queries: Om Karande (+91 93226 11145) | Soham Phatak (+91 74987 87848)</p>
                   <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">

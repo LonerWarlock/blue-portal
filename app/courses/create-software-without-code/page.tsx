@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 
 type PaymentResult = 'success' | 'failed' | null;
 
-const COURSE_FEE = 1; // 1 Rs for testing payment and database insertion
+const COURSE_FEE = 2000;
 const COURSE_FEE_STR = `\u20B9${COURSE_FEE.toLocaleString('en-IN')}`;
 
 const DEGREES = [
@@ -186,7 +186,7 @@ export default function NoCodeCoursePage() {
           sessionId,
           formData: form,
           productName: 'Create Softwares Without Writing A Single Line Of Code',
-          customAmount: 1,
+          customAmount: 2000,
           redirectPath: '/courses/create-software-without-code',
         }),
       });
@@ -269,7 +269,7 @@ export default function NoCodeCoursePage() {
                   All session links, prompt blueprints, and workshop resources will be shared in the WhatsApp group.
                 </p>
               </div>
-              <a href="https://chat.whatsapp.com/CIdlgkTxklS7I3kZ6RqNcg" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-[#25D366] text-white font-semibold text-sm shadow hover:bg-[#20bd5a] transition">
+              <a href="https://chat.whatsapp.com/KqjIjm2YhlkJNKZR6ObCoE" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-[#25D366] text-white font-semibold text-sm shadow hover:bg-[#20bd5a] transition">
                 <i className="fa-brands fa-whatsapp text-lg"></i> Join WhatsApp Group
               </a>
             </>
