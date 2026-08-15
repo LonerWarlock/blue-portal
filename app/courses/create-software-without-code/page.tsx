@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 
 type PaymentResult = 'success' | 'failed' | null;
 
-const COURSE_FEE = 2000;
+const COURSE_FEE = 1500;
 const COURSE_FEE_STR = `\u20B9${COURSE_FEE.toLocaleString('en-IN')}`;
 
 const DEGREES = [
@@ -24,7 +24,7 @@ const YEAR_OPTIONS = [
 const EXPERIENCE_LEVELS = ['Beginner (No Code)', 'Intermediate (Knows basics)', 'Advanced (Experienced Developer)'];
 
 const TERMS = (fee: string) => [
-  `A registration fee of ${fee} is required to confirm your registration for the "Create Softwares Without Writing A Single Line Of Code" workshop. If 50+ total registrations are received, every enrolled participant will receive a \u20B9500 refund back (effective fee: \u20B91,500).`,
+  `A registration fee of ${fee} (+ applicable PayU transaction charges) is required to confirm your registration for the "Create Softwares Without Writing A Single Line Of Code" workshop.`,
   'The registration fee is strictly non-refundable under standard conditions, including voluntary withdrawal or failure to attend live sessions.',
   'Participants will receive access to live sessions, recordings, AI prompt toolkits, and software build resources.',
   'Course materials, prompt templates, and software resources shared during the program are for personal learning only and may not be redistributed.',
@@ -186,7 +186,7 @@ export default function NoCodeCoursePage() {
           sessionId,
           formData: form,
           productName: 'Create Softwares Without Writing A Single Line Of Code',
-          customAmount: 2000,
+          customAmount: 1500,
           redirectPath: '/courses/create-software-without-code',
         }),
       });
@@ -251,15 +251,7 @@ export default function NoCodeCoursePage() {
                     <p><span className="text-gray-400">Email:</span> <span className="text-gray-700">{resultData.email}</span></p>
                   </>
                 )}
-                <p><span className="text-gray-400">Amount Paid:</span> <span className="text-violet-600 font-semibold">{COURSE_FEE_STR}</span></p>
-              </div>
-              <div className="rounded-xl bg-purple-50 border border-purple-200 p-4 mb-6 text-left">
-                <p className="text-xs font-semibold text-purple-900 mb-1">
-                  <i className="fa-solid fa-gift mr-1.5 text-purple-600"></i> Milestone Refund Offer:
-                </p>
-                <p className="text-[11px] text-purple-700">
-                  If 50+ total registrations are received, every enrolled student will receive a <strong>&#8377;500 refund back</strong> directly! (Effective Fee: &#8377;1,500). Share with friends to help hit the milestone!
-                </p>
+                <p><span className="text-gray-400">Amount Paid:</span> <span className="text-violet-600 font-semibold">{COURSE_FEE_STR} (+ PayU charges)</span></p>
               </div>
               <div className="rounded-xl bg-green-50 border border-green-200 p-4 mb-6">
                 <p className="text-sm font-semibold text-green-800 mb-1">
@@ -494,26 +486,20 @@ export default function NoCodeCoursePage() {
         <div className="rounded-2xl bg-white border border-gray-200 p-6 shadow-sm mb-8 space-y-6">
           {/* Pricing Banner */}
           <div className="rounded-xl bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 p-4 sm:p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-200/60 pb-3 mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600">Workshop Fee</span>
-                <div className="text-2xl font-extrabold text-gray-900">{COURSE_FEE_STR} <span className="text-xs font-normal text-gray-500">/ seat</span></div>
+                <div className="text-2xl font-extrabold text-gray-900">{COURSE_FEE_STR} <span className="text-xs font-normal text-gray-500">+ PayU transaction charges / seat</span></div>
               </div>
               <div>
-                <span className="inline-block px-3 py-1 rounded-full bg-indigo-600 text-white font-bold text-xs">
-                  SPECIAL CASHBACK OFFER
+                <span className="inline-block px-3 py-1.5 rounded-full bg-blue-600 text-white font-bold text-xs shadow-sm">
+                  <i className="fa-solid fa-shield-halved mr-1"></i> Live 1-Day Workshop
                 </span>
               </div>
             </div>
-            <div className="rounded-lg bg-white/90 border border-indigo-200 p-3">
-              <p className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-                <i className="fa-solid fa-gift text-indigo-600"></i> Get &#8377;500 Refund Back!
-              </p>
-              <p className="text-xs text-indigo-800 mt-0.5">
-                If <strong>50+ total registrations</strong> are reached, every participant receives a <strong>&#8377;500 refund back</strong>!
-                <span className="block mt-0.5 font-bold text-indigo-950">Effective Workshop Fee: &#8377;1,500</span>
-              </p>
-            </div>
+            <p className="text-[11px] text-gray-500 mt-2">
+              <i className="fa-solid fa-circle-info mr-1 text-blue-500"></i> Standard PayU payment gateway transaction charges apply at checkout.
+            </p>
           </div>
 
           {/* Key Takeaways - Strong Bullet Points */}
