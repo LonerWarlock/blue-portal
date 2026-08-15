@@ -441,7 +441,7 @@ export default function NoCodeCoursePage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold mb-3">
             <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-            Live AI Software Creation Workshop
+            1-Week Live AI Software Creation Course
           </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 leading-tight">
             <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
@@ -488,12 +488,12 @@ export default function NoCodeCoursePage() {
           <div className="rounded-xl bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 p-4 sm:p-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600">Workshop Fee</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600">Course Fee</span>
                 <div className="text-2xl font-extrabold text-gray-900">{COURSE_FEE_STR} <span className="text-xs font-normal text-gray-500">+ PayU transaction charges / seat</span></div>
               </div>
               <div>
                 <span className="inline-block px-3 py-1.5 rounded-full bg-blue-600 text-white font-bold text-xs shadow-sm">
-                  <i className="fa-solid fa-shield-halved mr-1"></i> Live 1-Day Workshop
+                  <i className="fa-solid fa-calendar-week mr-1"></i> 1-Week Live Course
                 </span>
               </div>
             </div>
