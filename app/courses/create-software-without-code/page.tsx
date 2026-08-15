@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 
 type PaymentResult = 'success' | 'failed' | null;
 
-const COURSE_FEE = 1500;
+const COURSE_FEE = 1000;
 const COURSE_FEE_STR = `\u20B9${COURSE_FEE.toLocaleString('en-IN')}`;
 
 const DEGREES = [
@@ -186,7 +186,7 @@ export default function NoCodeCoursePage() {
           sessionId,
           formData: form,
           productName: 'Create Softwares Without Writing A Single Line Of Code',
-          customAmount: 1500,
+          customAmount: 1000,
           redirectPath: '/courses/create-software-without-code',
         }),
       });
