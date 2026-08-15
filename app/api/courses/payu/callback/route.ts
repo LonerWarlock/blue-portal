@@ -138,7 +138,7 @@ export async function POST(req: Request) {
         .eq('email', courseEmail)
         .neq('payment_status', 'success');
 
-      const recordPayload = {
+      const basePayload = {
         first_name: (fd.firstName || firstname || '').trim(),
         last_name: (fd.lastName || '').trim(),
         email: courseEmail,
@@ -156,20 +156,30 @@ export async function POST(req: Request) {
         payment_txn_id: payuMoneyId || txnid,
         payment_amount: paidAmount,
         payment_status: 'success',
-        productinfo: courseTitle,
       };
 
-      let { error: insertError } = await supabaseAdmin
-        .from(targetTable)
-        .insert(recordPayload);
+      let insertError: any = null;
 
-      // Fallback to course_registrations if new table has not been created yet in Supabase SQL editor
-      if (insertError && targetTable !== 'course_registrations') {
-        console.warn(`Primary insert into ${targetTable} failed, falling back to course_registrations:`, insertError);
-        const { error: fallbackError } = await supabaseAdmin
+      if (targetTable === 'vibe_coding_registrations') {
+        const { error: primaryError } = await supabaseAdmin
+          .from('vibe_coding_registrations')
+          .insert({
+            ...basePayload,
+            productinfo: courseTitle,
+          });
+
+        if (primaryError) {
+          console.warn('Primary insert into vibe_coding_registrations failed, falling back to course_registrations:', primaryError);
+          const { error: fallbackError } = await supabaseAdmin
+            .from('course_registrations')
+            .insert(basePayload);
+          insertError = fallbackError;
+        }
+      } else {
+        const { error: defaultError } = await supabaseAdmin
           .from('course_registrations')
-          .insert(recordPayload);
-        insertError = fallbackError;
+          .insert(basePayload);
+        insertError = defaultError;
       }
 
       if (insertError) {
