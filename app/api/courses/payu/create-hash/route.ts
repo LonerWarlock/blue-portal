@@ -5,7 +5,7 @@ import { COURSE_FEE_PAYU } from '@/app/courses/config';
 
 export async function POST(request: Request) {
   try {
-    const { sessionId, formData } = await request.json();
+    const { sessionId, formData, productName, customAmount, redirectPath } = await request.json();
 
     if (!sessionId || !formData) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -23,9 +23,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'PayU credentials not configured' }, { status: 500 });
     }
 
+    const productinfo = (productName || 'Python & Data Science Bootcamp 2026').trim();
+    const amount = customAmount ? `${Number(customAmount).toFixed(2)}` : COURSE_FEE_PAYU;
+    const path = redirectPath || '/courses';
+
+    const enrichedFormData = {
+      ...formData,
+      productinfo,
+      amount,
+      redirectPath: path,
+    };
+
     const { error: insertError } = await supabaseAdmin
       .from('pending_registrations')
-      .insert({ id: sessionId, form_data: formData });
+      .insert({ id: sessionId, form_data: enrichedFormData });
 
     if (insertError) {
       console.error('Failed to store pending course registration:', insertError);
@@ -33,8 +44,6 @@ export async function POST(request: Request) {
     }
 
     const txnid = sessionId;
-    const amount = COURSE_FEE_PAYU;
-    const productinfo = 'Python & Data Science Bootcamp 2026';
     const firstname = formData.firstName || 'Participant';
     const email = formData.email || '';
 

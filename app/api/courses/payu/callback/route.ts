@@ -56,42 +56,42 @@ export async function POST(req: Request) {
       return NextResponse.redirect(`${siteUrl}/courses?payment=failed&txnid=${txnid}`, 303);
     }
 
+    let pendingFd: Record<string, any> | null = null;
+    let pendingId: string | null = null;
+
+    if (txnid) {
+      const { data: pending } = await supabaseAdmin
+        .from('pending_registrations')
+        .select('id, form_data')
+        .eq('id', txnid)
+        .maybeSingle();
+
+      if (pending && pending.form_data) {
+        pendingFd = pending.form_data;
+        pendingId = pending.id;
+      }
+    }
+
+    if (!pendingFd && email) {
+      const { data: fallbackList } = await supabaseAdmin
+        .from('pending_registrations')
+        .select('id, form_data')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (fallbackList) {
+        const match = fallbackList.find(r => {
+          const fdEmail = (r.form_data?.email || '').toLowerCase().trim();
+          return fdEmail === email;
+        });
+        if (match && match.form_data) {
+          pendingFd = match.form_data;
+          pendingId = match.id;
+        }
+      }
+    }
+
     if (status === 'success') {
-      let pendingFd: Record<string, any> | null = null;
-      let pendingId: string | null = null;
-
-      if (txnid) {
-        const { data: pending } = await supabaseAdmin
-          .from('pending_registrations')
-          .select('id, form_data')
-          .eq('id', txnid)
-          .maybeSingle();
-
-        if (pending && pending.form_data) {
-          pendingFd = pending.form_data;
-          pendingId = pending.id;
-        }
-      }
-
-      if (!pendingFd && email) {
-        const { data: fallbackList } = await supabaseAdmin
-          .from('pending_registrations')
-          .select('id, form_data')
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (fallbackList) {
-          const match = fallbackList.find(r => {
-            const fdEmail = (r.form_data?.email || '').toLowerCase().trim();
-            return fdEmail === email;
-          });
-          if (match && match.form_data) {
-            pendingFd = match.form_data;
-            pendingId = match.id;
-          }
-        }
-      }
-
       const fd = pendingFd || {
         firstName: firstname || 'Participant',
         lastName: '',
@@ -108,6 +108,9 @@ export async function POST(req: Request) {
       };
 
       const courseEmail = (fd.email || email).toLowerCase().trim();
+      const courseTitle = (fd.productinfo || productinfo || 'Course / Workshop').trim();
+      const paidAmount = Number(amount) || fd.amount || COURSE_FEE;
+      const redirectBasePath = fd.redirectPath || '/courses';
 
       const { data: existing } = await supabaseAdmin
         .from('course_registrations')
@@ -120,7 +123,7 @@ export async function POST(req: Request) {
         if (pendingId) {
           await supabaseAdmin.from('pending_registrations').delete().eq('id', pendingId);
         }
-        return NextResponse.redirect(`${siteUrl}/courses?payment=success&txnid=${txnid}`, 303);
+        return NextResponse.redirect(`${siteUrl}${redirectBasePath}?payment=success&txnid=${txnid}`, 303);
       }
 
       await supabaseAdmin
@@ -147,13 +150,13 @@ export async function POST(req: Request) {
           declaration_accepted: fd.declarationAccepted ?? true,
           terms_accepted: fd.termsAccepted ?? true,
           payment_txn_id: payuMoneyId || txnid,
-          payment_amount: Number(amount) || COURSE_FEE,
+          payment_amount: paidAmount,
           payment_status: 'success',
         });
 
       if (insertError) {
         console.error('Failed to insert course registration on successful callback:', insertError);
-        return NextResponse.redirect(`${siteUrl}/courses?payment=failed&txnid=${txnid}`, 303);
+        return NextResponse.redirect(`${siteUrl}${redirectBasePath}?payment=failed&txnid=${txnid}`, 303);
       }
 
       if (pendingId) {
@@ -176,30 +179,24 @@ export async function POST(req: Request) {
           const fullName = `${(fd.firstName || firstname || '').trim()} ${(fd.lastName || '').trim()}`.trim();
 
           transporter.sendMail({
-            from: `"Imergene Bootcamp" <${user}>`,
+            from: `"Imergene Learning" <${user}>`,
             to: courseEmail,
-            subject: 'Registration Confirmed — Python & Data Science Bootcamp 2026',
+            subject: `Registration Confirmed — ${courseTitle}`,
             html: `
               <div style="font-family:Arial,sans-serif;color:#333;line-height:1.6;background:#f8fafb;padding:20px;">
                 <div style="max-width:600px;margin:0 auto;background:#fff;padding:30px;border-radius:8px;border:1px solid #e2e8f0;">
-                  <h2 style="margin-top:0;color:#6d28d9;border-bottom:2px solid #f1f5f9;padding-bottom:10px;">Bootcamp Registration Confirmed</h2>
+                  <h2 style="margin-top:0;color:#6d28d9;border-bottom:2px solid #f1f5f9;padding-bottom:10px;">Registration Confirmed</h2>
                   <p>Hi <strong>${fullName}</strong>,</p>
-                  <p>Your registration for the <strong>Python & Data Science Bootcamp 2026</strong> has been confirmed. Your payment of <strong>\u20B9${COURSE_FEE}</strong> has been received successfully.</p>
+                  <p>Your registration for <strong>${courseTitle}</strong> has been confirmed. Your payment of <strong>\u20B9${paidAmount}</strong> has been received successfully.</p>
                   <table style="width:100%;border-collapse:collapse;margin:20px 0;">
                     <tr><td style="padding:8px 0;font-weight:bold;color:#475569;width:140px;">Name:</td><td style="padding:8px 0;">${fullName}</td></tr>
                     <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Email:</td><td style="padding:8px 0;">${courseEmail}</td></tr>
                     <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Phone:</td><td style="padding:8px 0;">${(fd.phone || '').trim()}</td></tr>
-                    <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Degree:</td><td style="padding:8px 0;">${(fd.degree || '').trim()} — ${(fd.branch || '').trim()}</td></tr>
-                    <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">College:</td><td style="padding:8px 0;">${(fd.collegeName || '').trim()}</td></tr>
+                    <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Degree / Role:</td><td style="padding:8px 0;">${(fd.degree || '').trim()} ${(fd.branch ? '— ' + fd.branch : '')}</td></tr>
+                    <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Organization:</td><td style="padding:8px 0;">${(fd.collegeName || '').trim()}</td></tr>
                     <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Transaction ID:</td><td style="padding:8px 0;">${payuMoneyId || txnid}</td></tr>
                   </table>
-                  <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:16px;margin:20px 0;">
-                    <h3 style="margin-top:0;color:#6d28d9;font-size:16px;">Bootcamp Timeline</h3>
-                    <p style="margin:4px 0;color:#334155;"><strong>Start Date:</strong> 13 August 2026</p>
-                    <p style="margin:4px 0;color:#334155;"><strong>End Date:</strong> 30 September 2026</p>
-                    <p style="margin:4px 0;color:#334155;"><strong>Duration:</strong> 45 days</p>
-                  </div>
-                  <p style="color:#475569;">We will reach out to you shortly with the detailed schedule and session links.</p>
+                  <p style="color:#475569;">We will reach out to you shortly with the detailed schedule, live session links, and program materials.</p>
                   <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:20px 0;">
                     <p style="margin:0;color:#166534;"><strong>Join the WhatsApp Group for updates:</strong></p>
                     <p style="margin:4px 0 0;"><a href="https://chat.whatsapp.com/CIdlgkTxklS7I3kZ6RqNcg" style="color:#2563eb;">Click here to join</a></p>
@@ -216,12 +213,13 @@ export async function POST(req: Request) {
         console.error('SMTP Setup Error in Course PayU Callback:', mailErr);
       }
 
-      return NextResponse.redirect(`${siteUrl}/courses?payment=success&txnid=${txnid}`, 303);
+      return NextResponse.redirect(`${siteUrl}${redirectBasePath}?payment=success&txnid=${txnid}`, 303);
     } else {
+      const redirectBasePath = (pendingFd?.redirectPath) || '/courses';
       if (txnid) {
         await supabaseAdmin.from('pending_registrations').delete().eq('id', txnid);
       }
-      return NextResponse.redirect(`${siteUrl}/courses?payment=failed&txnid=${txnid}`, 303);
+      return NextResponse.redirect(`${siteUrl}${redirectBasePath}?payment=failed&txnid=${txnid}`, 303);
     }
   } catch (err: any) {
     console.error('Course PayU Callback Fatal Error:', err);
