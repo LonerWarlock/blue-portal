@@ -112,8 +112,14 @@ export async function POST(req: Request) {
       const paidAmount = Number(amount) || fd.amount || COURSE_FEE;
       const redirectBasePath = fd.redirectPath || '/courses';
 
+      const isVibeCoding = redirectBasePath.includes('create-software-without-code') || 
+                           courseTitle.toLowerCase().includes('software') || 
+                           courseTitle.toLowerCase().includes('vibe');
+
+      const targetTable = isVibeCoding ? 'vibe_coding_registrations' : 'course_registrations';
+
       const { data: existing } = await supabaseAdmin
-        .from('course_registrations')
+        .from(targetTable)
         .select('id')
         .eq('email', courseEmail)
         .eq('payment_status', 'success')
@@ -127,32 +133,44 @@ export async function POST(req: Request) {
       }
 
       await supabaseAdmin
-        .from('course_registrations')
+        .from(targetTable)
         .delete()
         .eq('email', courseEmail)
         .neq('payment_status', 'success');
 
-      const { error: insertError } = await supabaseAdmin
-        .from('course_registrations')
-        .insert({
-          first_name: (fd.firstName || firstname || '').trim(),
-          last_name: (fd.lastName || '').trim(),
-          email: courseEmail,
-          phone: (fd.phone || data.phone || '').trim(),
-          date_of_birth: fd.dateOfBirth?.trim() || null,
-          gender: fd.gender?.trim() || null,
-          degree: (fd.degree || '').trim(),
-          branch: (fd.branch || '').trim(),
-          college_name: (fd.collegeName || '').trim(),
-          year_of_study: (fd.yearOfStudy || '').trim(),
-          current_status: (fd.currentStatus || '').trim(),
-          programming_experience: (fd.programmingExperience || '').trim(),
-          declaration_accepted: fd.declarationAccepted ?? true,
-          terms_accepted: fd.termsAccepted ?? true,
-          payment_txn_id: payuMoneyId || txnid,
-          payment_amount: paidAmount,
-          payment_status: 'success',
-        });
+      const recordPayload = {
+        first_name: (fd.firstName || firstname || '').trim(),
+        last_name: (fd.lastName || '').trim(),
+        email: courseEmail,
+        phone: (fd.phone || data.phone || '').trim(),
+        date_of_birth: fd.dateOfBirth?.trim() || null,
+        gender: fd.gender?.trim() || null,
+        degree: (fd.degree || '').trim(),
+        branch: (fd.branch || '').trim(),
+        college_name: (fd.collegeName || '').trim(),
+        year_of_study: (fd.yearOfStudy || '').trim(),
+        current_status: (fd.currentStatus || '').trim(),
+        programming_experience: (fd.programmingExperience || '').trim(),
+        declaration_accepted: fd.declarationAccepted ?? true,
+        terms_accepted: fd.termsAccepted ?? true,
+        payment_txn_id: payuMoneyId || txnid,
+        payment_amount: paidAmount,
+        payment_status: 'success',
+        productinfo: courseTitle,
+      };
+
+      let { error: insertError } = await supabaseAdmin
+        .from(targetTable)
+        .insert(recordPayload);
+
+      // Fallback to course_registrations if new table has not been created yet in Supabase SQL editor
+      if (insertError && targetTable !== 'course_registrations') {
+        console.warn(`Primary insert into ${targetTable} failed, falling back to course_registrations:`, insertError);
+        const { error: fallbackError } = await supabaseAdmin
+          .from('course_registrations')
+          .insert(recordPayload);
+        insertError = fallbackError;
+      }
 
       if (insertError) {
         console.error('Failed to insert course registration on successful callback:', insertError);
