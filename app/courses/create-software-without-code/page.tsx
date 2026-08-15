@@ -6,7 +6,9 @@ import { useSearchParams } from 'next/navigation';
 type PaymentResult = 'success' | 'failed' | null;
 
 const COURSE_FEE = 1000;
-const COURSE_FEE_STR = `\u20B9${COURSE_FEE.toLocaleString('en-IN')}`;
+const GATEWAY_FEE = 24; // 2.4% Gateway & Processing Fee
+const TOTAL_FEE = COURSE_FEE + GATEWAY_FEE;
+const COURSE_FEE_STR = `\u20B9${TOTAL_FEE.toLocaleString('en-IN')}`;
 
 const DEGREES = [
   'B.Tech', 'B.E.', 'BCA', 'B.Sc', 'BCS', 'B.Com', 'BBA', 'BA', 'B.Design', 'B.Pharm',
@@ -186,7 +188,7 @@ export default function NoCodeCoursePage() {
           sessionId,
           formData: form,
           productName: 'Create Softwares Without Writing A Single Line Of Code',
-          customAmount: 1000,
+          customAmount: TOTAL_FEE,
           redirectPath: '/courses/create-software-without-code',
         }),
       });
@@ -488,8 +490,13 @@ export default function NoCodeCoursePage() {
           <div className="rounded-xl bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 p-4 sm:p-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600">Course Fee</span>
-                <div className="text-2xl font-extrabold text-gray-900">{COURSE_FEE_STR} <span className="text-xs font-normal text-gray-500">+ PayU transaction charges / seat</span></div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600">Course Fee Breakdown</span>
+                <div className="text-2xl font-extrabold text-gray-900">
+                  {COURSE_FEE_STR} <span className="text-xs font-normal text-gray-500">/ seat</span>
+                </div>
+                <div className="text-xs text-gray-600 mt-1">
+                  &#8377;1,000 Course Fee + &#8377;24 Gateway &amp; Processing Fee
+                </div>
               </div>
               <div>
                 <span className="inline-block px-3 py-1.5 rounded-full bg-blue-600 text-white font-bold text-xs shadow-sm">
@@ -497,8 +504,8 @@ export default function NoCodeCoursePage() {
                 </span>
               </div>
             </div>
-            <p className="text-[11px] text-gray-500 mt-2">
-              <i className="fa-solid fa-circle-info mr-1 text-blue-500"></i> Standard PayU payment gateway transaction charges apply at checkout.
+            <p className="text-[11px] text-gray-500 mt-2.5 pt-2 border-t border-blue-200/50">
+              <i className="fa-solid fa-circle-info mr-1 text-blue-500"></i> Includes standard PayU payment gateway &amp; processing charges. Net course fee retained: &#8377;1,000.
             </p>
           </div>
 
