@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { usePostHog } from 'posthog-js/react';
 
 type PaymentResult = 'success' | 'failed' | null;
 
@@ -106,6 +107,7 @@ export default function NoCodeCoursePage() {
   const searchParams = useSearchParams();
   const paymentResult = searchParams.get('payment') as PaymentResult;
   const txnid = searchParams.get('txnid');
+  const posthog = usePostHog();
 
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormData>(initial);
@@ -165,6 +167,13 @@ export default function NoCodeCoursePage() {
     setError('');
     const err = validateStep();
     if (err) { setError(err); return; }
+    try {
+      posthog?.capture('vibe_coding_wizard_step_completed', {
+        step_index: step,
+        next_step: step + 1,
+        email: form.email || undefined,
+      });
+    } catch (e) {}
     setStep(s => Math.min(s + 1, 3));
   };
 
@@ -174,6 +183,16 @@ export default function NoCodeCoursePage() {
     setError('');
     const err = validateStep();
     if (err) { setError(err); return; }
+
+    try {
+      posthog?.capture('vibe_coding_payment_initiated', {
+        email: form.email,
+        phone: form.phone,
+        degree: form.degree,
+        college: form.collegeName,
+        total_amount: TOTAL_FEE,
+      });
+    } catch (e) {}
 
     setLoading(true);
     try {
