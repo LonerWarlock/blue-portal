@@ -66,14 +66,14 @@ async function managementRequest<T>(
 
 export async function createManagedKey(input: {
   name: string;
-  limit: number;
+  limit?: number | null;
   expiresAt: string;
 }): Promise<CreatedOpenRouterKey> {
   return managementRequest<CreatedOpenRouterKey>('/keys', {
     method: 'POST',
     body: JSON.stringify({
       name: input.name,
-      limit: input.limit,
+      limit: input.limit ?? null,
       limit_reset: null,
       expires_at: input.expiresAt,
       workspace_id: openRouterWorkspaceId()

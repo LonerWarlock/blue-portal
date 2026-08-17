@@ -25,6 +25,7 @@ export const BLUE_RUNTIME_UI_MAX_ALLOWANCE = 0.35;
 export const BLUE_RUNTIME_EXTENSION_ALLOWANCE = 0.20;
 export const BLUE_RUNTIME_CREDENTIAL_MINUTES = 60;
 export const BLUE_RUNTIME_ROTATION_WINDOW_MS = 5 * 60 * 1000;
+export const BLUE_RUNTIME_HEARTBEAT_STALE_MS = 2 * 60 * 1000;
 
 const MIN_PAID_ALLOWANCE = 0.01;
 const FREE_PROVIDER_CEILING = 0.001;
@@ -69,6 +70,7 @@ interface RuntimeTaskRow {
   expires_at: string;
   created_at: string;
   updated_at: string;
+  last_heartbeat_at: string | null;
   finished_at: string | null;
 }
 
@@ -209,6 +211,32 @@ export async function admitBlueRuntimeTask(
     deviceHash
   }));
   const expiresAt = credentialExpiry();
+
+  // Auto-expire/settle previous stale or abandoned active tasks for this user
+  try {
+    const { data: activeTasks } = await supabaseAdmin!
+      .from('blue_runtime_tasks')
+      .select('*')
+      .eq('user_id', refreshedAccount.userId)
+      .in('state', ['provisioning', 'active']);
+
+    if (activeTasks && activeTasks.length > 0) {
+      const nowMs = Date.now();
+      for (const activeTask of activeTasks) {
+        if (activeTask.request_id === input.requestId) continue;
+        const updatedAtMs = Date.parse(String(activeTask.last_heartbeat_at || activeTask.updated_at || ''));
+        const expiresAtMs = Date.parse(String(activeTask.expires_at || ''));
+        const isStale = isNaN(updatedAtMs) || (nowMs - updatedAtMs > BLUE_RUNTIME_HEARTBEAT_STALE_MS);
+        const isExpired = !isNaN(expiresAtMs) && expiresAtMs <= nowMs;
+
+        if (isStale || isExpired) {
+          await settleRuntimeTask(activeTask as any, 'stopped', {}).catch(() => undefined);
+        }
+      }
+    }
+  } catch {
+    // Non-blocking fallback for pre-admission cleanup
+  }
   const { data, error } = await supabaseAdmin!.rpc('admit_blue_runtime_task', {
     user_id_param: refreshedAccount.userId,
     request_id_param: input.requestId,
@@ -299,6 +327,30 @@ export async function getBlueRuntimeTask(
     return admissionPayload(await requireTask(account.userId, requestId), credential, await walletBalance(account.userId), model);
   }
   return admissionPayload(task, decryptCredential(active), await walletBalance(account.userId), model);
+}
+
+/**
+ * A heartbeat contains no prompt or workspace data. It prevents a healthy
+ * long-running direct task from being mistaken for an abandoned one while
+ * allowing crashed clients to free their account slot quickly.
+ */
+export async function heartbeatBlueRuntimeTask(
+  account: BluePaygAccount,
+  requestId: string,
+  deviceId: string
+): Promise<void> {
+  assertConfigured();
+  const task = await requireTask(account.userId, requestId);
+  if (task.device_hash !== sha256(deviceId)) throw statusError(403, 'This Blue runtime belongs to another device');
+  if (isTerminal(task.state) || task.state === 'stopping') return;
+  const now = new Date().toISOString();
+  const { error } = await supabaseAdmin!
+    .from('blue_runtime_tasks')
+    .update({ last_heartbeat_at: now, updated_at: now })
+    .eq('request_id', requestId)
+    .eq('user_id', account.userId)
+    .in('state', ['provisioning', 'active']);
+  if (error) throw statusError(500, `Could not record Blue runtime activity: ${error.message}`);
 }
 
 export async function extendBlueRuntimeTask(
@@ -709,6 +761,9 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     const guardrailId = await ensureModelGuardrail(providerModel.id);
     const created = await createManagedKey({
       name: `Blue ${task.request_id}`.slice(0, 200),
+      // This is a task-scoped credential, not an unrestricted copy of our
+      // OpenRouter balance. The client can safely extend the *same* task at a
+      // provider boundary; the initial credential must still be bounded.
       limit: providerLimit,
       expiresAt
     });
@@ -734,7 +789,7 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     }).eq('id', placeholder.id).eq('state', 'provisioning');
     if (activateError) throw activateError;
     const { error: taskError } = await supabaseAdmin!.from('blue_runtime_tasks').update({
-      state: 'active', expires_at: expiresAt, updated_at: now
+      state: 'active', expires_at: expiresAt, updated_at: now, last_heartbeat_at: now
     }).eq('request_id', task.request_id).in('state', ['provisioning', 'active']);
     if (taskError) throw taskError;
     await supabaseAdmin!.from('billing_reservations').update({
