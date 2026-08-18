@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import VSCodeInstallSnippet from "../components/VSCodeInstallSnippet";
 
 const TIER_BADGE_COLORS: Record<string, string> = {
   "Low Cost": "bg-green-950/60 text-green-400 border border-green-900/60",
@@ -576,10 +577,15 @@ export default function ConsolePage() {
                 {authError}
               </div>
             )}
+
+            <div className="mt-8 w-full">
+              <VSCodeInstallSnippet />
+            </div>
           </div>
         ) : (
           
           <div className="w-full space-y-10">
+            <VSCodeInstallSnippet />
             
             <div className={`grid grid-cols-1 ${isProPayg ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-8`}>
               

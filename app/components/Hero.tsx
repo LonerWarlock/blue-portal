@@ -1,5 +1,6 @@
 import Link from "next/link";
 import TerminalCard3D from "./TerminalCard3D";
+import VSCodeInstallSnippet from "./VSCodeInstallSnippet";
 
 export default function Hero() {
   return (
@@ -54,6 +55,11 @@ export default function Hero() {
               <i className="fa-solid fa-book mr-2" />
               Docs
             </Link>
+          </div>
+
+          {/* Terminal Command Install Snippet */}
+          <div className="mt-10">
+            <VSCodeInstallSnippet />
           </div>
         </div>
 
