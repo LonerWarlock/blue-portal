@@ -11,20 +11,14 @@ export async function POST(req: Request) {
     const data: Record<string, string> = {};
 
     try {
-      const formData = await req.formData();
-      formData.forEach((value, key) => {
+      // Read body as text first (guaranteed to work), then parse as form data
+      const rawBody = await req.text();
+      const searchParams = new URLSearchParams(rawBody);
+      searchParams.forEach((value, key) => {
         data[key] = value.toString();
       });
-    } catch {
-      try {
-        const text = await req.text();
-        const searchParams = new URLSearchParams(text);
-        searchParams.forEach((value, key) => {
-          data[key] = value.toString();
-        });
-      } catch (e) {
-        console.error('Failed to parse PayU callback body:', e);
-      }
+    } catch (e) {
+      console.error('Failed to parse PayU callback body:', e);
     }
 
     const key = (data.key || '').trim();
@@ -37,6 +31,8 @@ export async function POST(req: Request) {
     const hash = (data.hash || '').trim();
     const additionalCharges = (data.additionalCharges || '').trim();
     const payuMoneyId = (data.mihpayid || data.payuMoneyId || txnid).trim();
+
+    console.log('[Course PayU Callback]', { txnid, email, status, amount, productinfo, payuMoneyId, dataKeys: Object.keys(data).length });
 
     const salt = process.env.PAYU_MERCHANT_SALT || '';
 
