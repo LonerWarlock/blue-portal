@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/blue-runtime-reconcile",
-      "schedule": "0 3 * * *"
-    }
-  ]
-}
