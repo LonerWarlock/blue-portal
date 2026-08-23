@@ -36,6 +36,9 @@ export default function Navbar() {
           <Link prefetch={false} href="/blog" className="text-sm text-gray-400 hover:text-gray-200 transition">
             Blog
           </Link>
+          <Link prefetch={false} href="/courses/java" className="text-sm font-medium text-orange-300 hover:text-orange-200 transition">
+            Java Course
+          </Link>
         </nav>
 
         <div className="flex items-center space-x-3">
