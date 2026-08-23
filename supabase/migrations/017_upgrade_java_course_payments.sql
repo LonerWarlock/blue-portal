@@ -4,16 +4,16 @@
 ALTER TABLE java_course_registrations
   ADD COLUMN IF NOT EXISTS payment_txn_id TEXT,
   ADD COLUMN IF NOT EXISTS payu_payment_id TEXT,
-  ADD COLUMN IF NOT EXISTS course_fee NUMERIC(10, 2) NOT NULL DEFAULT 1.00,
-  ADD COLUMN IF NOT EXISTS gateway_fee NUMERIC(10, 2) NOT NULL DEFAULT 0.02,
-  ADD COLUMN IF NOT EXISTS payment_amount NUMERIC(10, 2) NOT NULL DEFAULT 1.02,
+  ADD COLUMN IF NOT EXISTS course_fee NUMERIC(10, 2) NOT NULL DEFAULT 2500.00,
+  ADD COLUMN IF NOT EXISTS gateway_fee NUMERIC(10, 2) NOT NULL DEFAULT 59.00,
+  ADD COLUMN IF NOT EXISTS payment_amount NUMERIC(10, 2) NOT NULL DEFAULT 2559.00,
   ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'pending',
   ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
 
 ALTER TABLE java_course_registrations
-  ALTER COLUMN course_fee SET DEFAULT 1.00,
-  ALTER COLUMN gateway_fee SET DEFAULT 0.02,
-  ALTER COLUMN payment_amount SET DEFAULT 1.02;
+  ALTER COLUMN course_fee SET DEFAULT 2500.00,
+  ALTER COLUMN gateway_fee SET DEFAULT 59.00,
+  ALTER COLUMN payment_amount SET DEFAULT 2559.00;
 
 UPDATE java_course_registrations
 SET payment_status = 'pending'
@@ -21,9 +21,9 @@ WHERE payment_status IS NULL
    OR payment_status NOT IN ('pending', 'success');
 
 UPDATE java_course_registrations
-SET course_fee = 1.00,
-    gateway_fee = 0.02,
-    payment_amount = 1.02
+SET course_fee = 2500.00,
+    gateway_fee = 59.00,
+    payment_amount = 2559.00
 WHERE payment_status = 'pending';
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_java_course_registrations_payment_txn

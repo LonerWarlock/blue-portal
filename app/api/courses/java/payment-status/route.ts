@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
   const { data: completed, error: completedError } = await supabaseAdmin
     .from("java_course_registrations")
-    .select("id")
+    .select("id, payment_amount, gateway_fee")
     .eq("payment_txn_id", txnid)
     .eq("payment_status", "success")
     .maybeSingle();
@@ -29,7 +29,14 @@ export async function POST(request: Request) {
     console.error("Java payment status lookup failed:", completedError);
     return NextResponse.json({ error: "Payment verification is temporarily unavailable." }, { status: 503, headers });
   }
-  if (completed) return NextResponse.json({ status: "success", registrationId: completed.id }, { headers });
+  if (completed) {
+    return NextResponse.json({
+      status: "success",
+      registrationId: completed.id,
+      paymentAmount: Number(completed.payment_amount),
+      gatewayFee: Number(completed.gateway_fee),
+    }, { headers });
+  }
 
   const { data: pending, error: pendingError } = await supabaseAdmin
     .from("pending_registrations")
@@ -90,7 +97,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: completion.error }, { status: 500, headers });
     }
 
-    return NextResponse.json({ status: "success", registrationId: completion.registrationId }, { headers });
+    return NextResponse.json({
+      status: "success",
+      registrationId: completion.registrationId,
+      paymentAmount: JAVA_COURSE.totalPayable,
+      gatewayFee: JAVA_COURSE.gatewayFee,
+    }, { headers });
   } catch (error) {
     console.error("Java PayU reconciliation failed:", error);
     return NextResponse.json({ error: "Payment verification is temporarily unavailable." }, { status: 503, headers });

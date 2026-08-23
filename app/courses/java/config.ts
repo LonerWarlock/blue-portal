@@ -1,4 +1,4 @@
-const JAVA_COURSE_TEST_MODE = true;
+const JAVA_COURSE_TEST_MODE = false;
 const ACTIVE_COURSE_FEE = JAVA_COURSE_TEST_MODE ? 1 : 2500;
 const PAYU_STANDARD_RATE = 0.02;
 const GST_RATE = 0.18;
@@ -30,6 +30,7 @@ export const JAVA_COURSE = {
   totalPayableLabel: formatCurrency(TOTAL_PAYABLE),
   productInfo: "Java Launchpad - Live Online Course",
   supportEmail: "support@imergene.in",
+  whatsappGroupUrl: "https://chat.whatsapp.com/KNPJ4cQRENdLiTO6aMllME",
 } as const;
 
 export const JAVA_COURSE_TRACKS = [

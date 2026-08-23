@@ -74,11 +74,13 @@ const faqs = [
   {
     question: "What is the course fee?",
     answer:
-      `For payment testing, the course fee is ${JAVA_COURSE.feeLabel}. A ${JAVA_COURSE.gatewayFeeLabel} payment processing charge is added, making the total payable ${JAVA_COURSE.totalPayableLabel}.`,
+      `The course fee is ${JAVA_COURSE.feeLabel}. A ${JAVA_COURSE.gatewayFeeLabel} payment processing charge is added, making the total payable ${JAVA_COURSE.totalPayableLabel}.`,
   },
 ];
 
 const STORAGE_PREFIX = "java_course_payment_";
+const formatCurrency = (amount: number) =>
+  `₹${amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function FieldLabel({ children, required = true }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -95,6 +97,7 @@ export default function JavaCoursePage() {
   const [checkingPayment, setCheckingPayment] = useState(false);
   const [error, setError] = useState("");
   const [registrationId, setRegistrationId] = useState("");
+  const [confirmedPayment, setConfirmedPayment] = useState<{ amount: number; gatewayFee: number } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
@@ -122,6 +125,9 @@ export default function JavaCoursePage() {
           if (!response.ok || result.status !== "success") {
             throw new Error(result.error || "We could not verify this payment yet. Please contact support with your transaction reference.");
           }
+          const amount = Number(result.paymentAmount);
+          const gatewayFee = Number(result.gatewayFee);
+          if (Number.isFinite(amount) && Number.isFinite(gatewayFee)) setConfirmedPayment({ amount, gatewayFee });
           setRegistrationId(txnid);
         })
         .catch((verificationError) => {
@@ -136,6 +142,9 @@ export default function JavaCoursePage() {
           if (!response.ok || result.status !== "success") {
             throw new Error("Payment was not completed. Your details have been restored so you can try again.");
           }
+          const amount = Number(result.paymentAmount);
+          const gatewayFee = Number(result.gatewayFee);
+          if (Number.isFinite(amount) && Number.isFinite(gatewayFee)) setConfirmedPayment({ amount, gatewayFee });
           setRegistrationId(txnid);
         })
         .catch((verificationError) => {
@@ -389,7 +398,7 @@ export default function JavaCoursePage() {
             <h2 className="mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">Your next build starts here.</h2>
             <p className="mt-5 max-w-md leading-7 text-stone-600">Complete your details and pay the one-time course fee to confirm your place. A payment receipt and enrollment confirmation will be emailed to you.</p>
             <div className="mt-8 space-y-4 text-sm text-stone-700">
-              <p className="flex items-start gap-3"><Check className="mt-0.5 shrink-0 text-[#d74b2a]" size={18} /> Test course fee of {JAVA_COURSE.feeLabel}</p>
+              <p className="flex items-start gap-3"><Check className="mt-0.5 shrink-0 text-[#d74b2a]" size={18} /> One-time course fee of {JAVA_COURSE.feeLabel}</p>
               <p className="flex items-start gap-3"><Check className="mt-0.5 shrink-0 text-[#d74b2a]" size={18} /> Total {JAVA_COURSE.totalPayableLabel}, including processing charges</p>
               <p className="flex items-start gap-3"><Check className="mt-0.5 shrink-0 text-[#d74b2a]" size={18} /> Your details are used only for this course</p>
             </div>
@@ -407,14 +416,21 @@ export default function JavaCoursePage() {
                 <span className="flex h-20 w-20 items-center justify-center rounded-full bg-[#e9f4ea] text-[#26733d]"><CheckCircle2 size={38} /></span>
                 <p className="mt-7 text-xs font-bold uppercase tracking-[0.18em] text-[#26733d]">Payment confirmed</p>
                 <h3 className="mt-3 text-3xl font-semibold tracking-tight">You&apos;re enrolled, {firstName}.</h3>
-                <p className="mt-4 max-w-md leading-7 text-stone-600">We received your total payment of <strong className="text-stone-900">{JAVA_COURSE.totalPayableLabel}</strong>, including {JAVA_COURSE.gatewayFeeLabel} in processing charges. Your receipt and enrollment details have been sent to <strong className="text-stone-900">{form.email || "your registered email"}</strong>.</p>
+                <p className="mt-4 max-w-md leading-7 text-stone-600">We received your total payment of <strong className="text-stone-900">{confirmedPayment ? formatCurrency(confirmedPayment.amount) : JAVA_COURSE.totalPayableLabel}</strong>, including {confirmedPayment ? formatCurrency(confirmedPayment.gatewayFee) : JAVA_COURSE.gatewayFeeLabel} in processing charges. Your receipt and enrollment details have been sent to <strong className="text-stone-900">{form.email || "your registered email"}</strong>.</p>
                 <div className="mt-7 rounded-xl bg-stone-50 px-4 py-3 font-mono text-xs text-stone-500">Transaction: {registrationId.toUpperCase()}</div>
-                <Link href="/" className="mt-8 inline-flex items-center gap-2 font-semibold text-[#d74b2a] hover:text-[#a8341b]">Back to Imergene <ArrowRight size={17} /></Link>
+                <a
+                  href={JAVA_COURSE.whatsappGroupUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#1f8f4d] px-6 py-3 font-semibold text-white transition hover:bg-[#18763f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1f8f4d]/25"
+                >
+                  <MessageCircle size={18} /> Join WhatsApp group <ArrowRight size={17} />
+                </a>
               </div>
             ) : (
               <form onSubmit={submitRegistration} noValidate>
                 <div className="mb-7 flex items-start justify-between gap-4 border-b border-stone-200 pb-6">
-                  <div><h3 className="text-2xl font-semibold tracking-tight">Complete enrollment</h3><p className="mt-1 text-sm text-stone-500">{JAVA_COURSE.cohort} · Payment test mode</p></div>
+                  <div><h3 className="text-2xl font-semibold tracking-tight">Complete enrollment</h3><p className="mt-1 text-sm text-stone-500">{JAVA_COURSE.cohort} · {JAVA_COURSE.totalPayableLabel} total</p></div>
                   <span className="rounded-full bg-[#f8e3dc] p-3 text-[#d74b2a]"><Coffee size={22} /></span>
                 </div>
 
