@@ -1,6 +1,5 @@
 import {
   EXPERIENCE_OPTIONS,
-  SCHEDULE_OPTIONS,
   STATUS_OPTIONS,
 } from "@/app/courses/java/config";
 
@@ -11,8 +10,6 @@ export type JavaRegistrationData = {
   city: string;
   currentStatus: string;
   experience: string;
-  preferredSchedule: string;
-  learningGoal: string;
   consent: true;
 };
 
@@ -37,8 +34,6 @@ export function validateJavaRegistration(input: unknown): ValidationResult {
   const city = cleanText(body.city, 80);
   const currentStatus = cleanText(body.currentStatus, 60);
   const experience = cleanText(body.experience, 80);
-  const preferredSchedule = cleanText(body.preferredSchedule, 80);
-  const learningGoal = cleanText(body.learningGoal, 600);
 
   if (fullName.length < 2) return { ok: false, error: "Please enter your full name." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Please enter a valid email address." };
@@ -46,7 +41,6 @@ export function validateJavaRegistration(input: unknown): ValidationResult {
   if (city.length < 2) return { ok: false, error: "Please enter your city." };
   if (!(STATUS_OPTIONS as readonly string[]).includes(currentStatus)) return { ok: false, error: "Please select your current status." };
   if (!(EXPERIENCE_OPTIONS as readonly string[]).includes(experience)) return { ok: false, error: "Please select your Java experience." };
-  if (!(SCHEDULE_OPTIONS as readonly string[]).includes(preferredSchedule)) return { ok: false, error: "Please select a preferred schedule." };
   if (body.consent !== true) return { ok: false, error: "Please accept the privacy consent to enroll." };
 
   return {
@@ -58,8 +52,6 @@ export function validateJavaRegistration(input: unknown): ValidationResult {
       city,
       currentStatus,
       experience,
-      preferredSchedule,
-      learningGoal,
       consent: true,
     },
   };

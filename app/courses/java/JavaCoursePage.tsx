@@ -27,7 +27,6 @@ import {
   EXPERIENCE_OPTIONS,
   JAVA_COURSE,
   JAVA_COURSE_TRACKS,
-  SCHEDULE_OPTIONS,
   STATUS_OPTIONS,
 } from "./config";
 
@@ -38,8 +37,6 @@ type RegistrationForm = {
   city: string;
   currentStatus: string;
   experience: string;
-  preferredSchedule: string;
-  learningGoal: string;
   consent: boolean;
   website: string;
 };
@@ -51,8 +48,6 @@ const initialForm: RegistrationForm = {
   city: "",
   currentStatus: "",
   experience: "",
-  preferredSchedule: "",
-  learningGoal: "",
   consent: false,
   website: "",
 };
@@ -121,7 +116,7 @@ export default function JavaCoursePage() {
 
     if (payment === "success") {
       setCheckingPayment(true);
-      fetch(`/api/courses/java/payment-status?txnid=${encodeURIComponent(txnid)}`, { cache: "no-store" })
+      fetch(`/api/courses/java/payment-status?txnid=${encodeURIComponent(txnid)}`, { method: "POST", cache: "no-store" })
         .then(async (response) => {
           const result = await response.json();
           if (!response.ok || result.status !== "success") {
@@ -134,7 +129,19 @@ export default function JavaCoursePage() {
         })
         .finally(() => setCheckingPayment(false));
     } else {
-      setError("Payment was not completed. Your details have been restored so you can try again.");
+      setCheckingPayment(true);
+      fetch(`/api/courses/java/payment-status?txnid=${encodeURIComponent(txnid)}`, { method: "POST", cache: "no-store" })
+        .then(async (response) => {
+          const result = await response.json();
+          if (!response.ok || result.status !== "success") {
+            throw new Error("Payment was not completed. Your details have been restored so you can try again.");
+          }
+          setRegistrationId(txnid);
+        })
+        .catch((verificationError) => {
+          setError(verificationError instanceof Error ? verificationError.message : "Payment was not completed. Please try again.");
+        })
+        .finally(() => setCheckingPayment(false));
     }
 
     window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
@@ -424,8 +431,6 @@ export default function JavaCoursePage() {
                   <label><FieldLabel>City</FieldLabel><input className={inputClass} value={form.city} onChange={(event) => update("city", event.target.value)} autoComplete="address-level2" maxLength={80} placeholder="Pune" required /></label>
                   <label><FieldLabel>Current status</FieldLabel><select className={inputClass} value={form.currentStatus} onChange={(event) => update("currentStatus", event.target.value)} required><option value="">Select one</option>{STATUS_OPTIONS.map((option) => <option key={option}>{option}</option>)}</select></label>
                   <label><FieldLabel>Java experience</FieldLabel><select className={inputClass} value={form.experience} onChange={(event) => update("experience", event.target.value)} required><option value="">Select one</option>{EXPERIENCE_OPTIONS.map((option) => <option key={option}>{option}</option>)}</select></label>
-                  <label><FieldLabel>Preferred schedule</FieldLabel><select className={inputClass} value={form.preferredSchedule} onChange={(event) => update("preferredSchedule", event.target.value)} required><option value="">Select one</option>{SCHEDULE_OPTIONS.map((option) => <option key={option}>{option}</option>)}</select></label>
-                  <label className="sm:col-span-2"><FieldLabel required={false}>What would you like to build or achieve?</FieldLabel><textarea className={`${inputClass} min-h-28 resize-y`} value={form.learningGoal} onChange={(event) => update("learningGoal", event.target.value)} maxLength={600} placeholder="Tell us what brings you to Java..." /></label>
                   <label className="hidden" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={form.website} onChange={(event) => update("website", event.target.value)} /></label>
                 </div>
 
