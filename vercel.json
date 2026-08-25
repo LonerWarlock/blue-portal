@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/blue-runtime-reconcile",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/marketing-campaign",
+      "schedule": "0 4 * * *"
     }
   ]
 }
