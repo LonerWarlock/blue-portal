@@ -50,15 +50,15 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(`
 <p>Hey there,</p>
 
-<p>Om from Blue here — sending this from a script, but reading replies by hand.</p>
+<p>Om from Blue here — sending this from an automated script, but reading replies by hand.</p>
 
 <p>You're probably already using VS Code and paying way too much for Cursor or Claude credits.</p>
 
 <p>You probably also want multi-file AI edits without spending $20/month.</p>
 
-<p>So: <a href="vscode:extension/om-mali.blue-coding-assistant" style="color: #2563eb;">install our VS Code extension</a>, grab your key from <a href="${siteUrl}/console" style="color: #2563eb;">the console</a>, and ask it to write something. That's it.</p>
+<p>So: <a href="vscode:extension/om-mali.blue-coding-assistant" style="color: #2563eb;">install our VS Code extension</a>, grab your key from <a href="${siteUrl}/console" style="color: #2563eb;">the console</a>, and ask it to write something. Takes less than 60 seconds.</p>
 
-<p>Easy,</p>
+<p>Cheers,</p>
         `, siteUrl)
       };
 
@@ -68,15 +68,15 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(`
 <p>Hey there,</p>
 
-<p>Om from Blue here with your scheduled Day 3 nudge (I promise it gets useful).</p>
+<p>Om from Blue here with your Day 3 setup tip (I promise this one actually saves time).</p>
 
-<p>You're probably writing boilerplate by hand or context-switching to browser ChatGPT.</p>
+<p>You're probably writing repetitive boilerplate by hand or context-switching to ChatGPT in a browser tab.</p>
 
-<p>You probably also want to trigger multi-file refactors right inside VS Code in 2 seconds.</p>
+<p>You probably also want to trigger multi-file refactors right inside VS Code without leaving your keyboard.</p>
 
-<p>So: select any code, hit <code>Ctrl+Shift+P</code>, and run <code>Blue: Edit Code</code>. That's it.</p>
+<p>So: select any code, hit <code>Ctrl+Shift+P</code>, and run <code>Blue: Edit Code</code>. Saves at least 15 minutes of typing today.</p>
 
-<p>Easy,</p>
+<p>Happy coding,</p>
         `, siteUrl)
       };
 
@@ -86,15 +86,15 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(`
 <p>Hey there,</p>
 
-<p>Om from Blue here. This email is automated, but I actually fix bugs based on what people reply to it.</p>
+<p>Om from Blue here. Yes this email was sent automatically, but I actually fix bugs based on what people reply to it.</p>
 
 <p>You signed up a week ago.</p>
 
-<p>You probably hit a weird edge case, forgot your key, or just got busy.</p>
+<p>You probably hit a weird edge case, forgot your key, or just got pulled into other projects.</p>
 
-<p>So: hit reply and tell me what sucked, or <a href="${siteUrl}/console" style="color: #2563eb;">grab your key</a> and give it another try. That's it.</p>
+<p>So: hit reply and tell me what sucked, or <a href="${siteUrl}/console" style="color: #2563eb;">grab your key</a> and give it another spin. No hard feelings either way.</p>
 
-<p>Easy,</p>
+<p>Best,</p>
         `, siteUrl)
       };
 
@@ -104,15 +104,15 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(`
 <p>Hey there,</p>
 
-<p>Om from Blue here — yes, a bot sent this, but a human (me) reads the inbox.</p>
+<p>Om from Blue here — a bot sent this email, but a real person (me) reads the inbox.</p>
 
 <p>You created a Blue account, but haven't made a single request yet.</p>
 
-<p>You probably just got distracted before installing the extension.</p>
+<p>You probably just got distracted right before installing the extension.</p>
 
-<p>So: <a href="vscode:extension/om-mali.blue-coding-assistant" style="color: #2563eb;">install the extension</a>, copy your key from <a href="${siteUrl}/console" style="color: #2563eb;">the console</a>, and try one prompt. That's it.</p>
+<p>So: <a href="vscode:extension/om-mali.blue-coding-assistant" style="color: #2563eb;">install the extension</a>, copy your key from <a href="${siteUrl}/console" style="color: #2563eb;">the console</a>, and run one prompt. Literally 3 clicks.</p>
 
-<p>Easy,</p>
+<p>Let me know how it goes,</p>
         `, siteUrl)
       };
 
@@ -122,15 +122,15 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(`
 <p>Hey there,</p>
 
-<p>Om from Blue here with an email triggered by a cron job, though I do read every response.</p>
+<p>Om from Blue here with an email triggered by a cron job, though I do read every single response.</p>
 
 <p>You generated an API key a while ago, but haven't used it to run any prompts yet.</p>
 
-<p>You're probably still burning $20/month on Cursor out of habit.</p>
+<p>You're probably still burning $20/month on Cursor out of pure muscle memory.</p>
 
-<p>So: <a href="vscode:extension/om-mali.blue-coding-assistant" style="color: #2563eb;">open VS Code</a>, paste your key, and ask Blue to build a feature for $1/mo. That's it.</p>
+<p>So: <a href="vscode:extension/om-mali.blue-coding-assistant" style="color: #2563eb;">open VS Code</a>, paste your key, and ask Blue to build a feature for $1/mo. Worst case, you wasted 2 minutes. Best case, you saved $19.</p>
 
-<p>Easy,</p>
+<p>Fair enough?</p>
         `, siteUrl)
       };
 
@@ -140,15 +140,15 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(`
 <p>Hey there,</p>
 
-<p>Om from Blue here. This is automated, but my inbox isn't.</p>
+<p>Om from Blue here. This message is automated, but my inbox is 100% human.</p>
 
-<p>You tried Blue 2 weeks ago, but haven't made any requests since.</p>
+<p>You tried Blue a couple of weeks ago, but haven't made any requests since.</p>
 
-<p>We just pushed new model routing, faster multi-file context, and lower latency.</p>
+<p>We just pushed upgraded model routing, faster multi-file context building, and lower latency across the board.</p>
 
-<p>So: open VS Code and ask Blue to refactor something today. That's it.</p>
+<p>So: open VS Code and ask Blue to refactor a file today. You'll notice the difference right away.</p>
 
-<p>Easy,</p>
+<p>Welcome back,</p>
         `, siteUrl)
       };
 
@@ -158,15 +158,15 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(`
 <p>Hey there,</p>
 
-<p>Om from Blue here — writing via script, reading replies in person.</p>
+<p>Om from Blue here — writing this template via code, checking replies in person.</p>
 
-<p>You used to code with Blue a lot, but stopped about a month ago.</p>
+<p>You used to code with Blue regularly, but stopped about a month ago.</p>
 
-<p>You probably hit a bug we didn't know about or switched tools.</p>
+<p>You probably ran into a bug we didn't spot or switched to another tool.</p>
 
-<p>So: hit reply and tell me why you stopped, or fire up VS Code and test out the latest build. That's it.</p>
+<p>So: hit reply and tell me why you stopped, or open VS Code and test out the latest build. Even a single line of feedback helps.</p>
 
-<p>Easy,</p>
+<p>Appreciate you,</p>
         `, siteUrl)
       };
 
@@ -176,15 +176,15 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(`
 <p>Hey there,</p>
 
-<p>Om from Blue here with a system alert wrapped in a chill email.</p>
+<p>Om from Blue here with a system alert wrapped inside a friendly email.</p>
 
 <p>You're almost out of free Blue credits.</p>
 
-<p>You probably want to keep coding without your AI assistant cutting off mid-file.</p>
+<p>You probably want to keep coding without your AI assistant cutting off in the middle of a file edit.</p>
 
-<p>So: <a href="${siteUrl}/console" style="color: #2563eb;">top up credits</a> or upgrade to Blue Pro. That's it.</p>
+<p>So: <a href="${siteUrl}/console" style="color: #2563eb;">top up credits</a> or upgrade to Blue Pro before your next prompt gets paused halfway.</p>
 
-<p>Easy,</p>
+<p>Talk soon,</p>
         `, siteUrl)
       };
 
@@ -194,15 +194,15 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(`
 <p>Hey there,</p>
 
-<p>Om from Blue here — automated email, genuine compliment.</p>
+<p>Om from Blue here — computer-sent email, genuine compliment.</p>
 
-<p>You've been using Blue heavily on the free tier lately.</p>
+<p>You've been putting Blue through serious work on the free tier lately.</p>
 
 <p>You probably want faster throughput, bigger context windows, and zero daily caps.</p>
 
-<p>So: <a href="${siteUrl}/console" style="color: #2563eb;">check out Blue Pro</a> for $1/mo. That's it.</p>
+<p>So: <a href="${siteUrl}/console" style="color: #2563eb;">check out Blue Pro</a> starting at just $1/month. You've earned the upgrade.</p>
 
-<p>Easy,</p>
+<p>Keep building,</p>
         `, siteUrl)
       };
 
@@ -212,15 +212,15 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(`
 <p>Hey there,</p>
 
-<p>Om from Blue here with an automated reminder from our billing system.</p>
+<p>Om from Blue here with a quick automated reminder from our system.</p>
 
 <p>Your Blue subscription just expired.</p>
 
-<p>Your keys, settings, and project history are all still intact.</p>
+<p>Don't worry — your keys, settings, and project history are all safely saved.</p>
 
-<p>So: <a href="${siteUrl}/console" style="color: #2563eb;">renew your plan</a> and keep building. That's it.</p>
+<p>So: <a href="${siteUrl}/console" style="color: #2563eb;">renew your plan</a> and pick up right where you left off.</p>
 
-<p>Easy,</p>
+<p>Back to work,</p>
         `, siteUrl)
       };
 
@@ -230,15 +230,15 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(`
 <p>Hey there,</p>
 
-<p>Om from Blue here — automated notification, but very practical.</p>
+<p>Om from Blue here — automated ping, but practical advice.</p>
 
 <p>Your Blue Pro credit balance is running low.</p>
 
-<p>You probably don't want your VS Code inline edits pausing in the middle of a refactor.</p>
+<p>You probably don't want your VS Code inline suggestions pausing mid-session while you're in the flow.</p>
 
-<p>So: <a href="${siteUrl}/console" style="color: #2563eb;">add credits to your wallet</a>. That's it.</p>
+<p>So: <a href="${siteUrl}/console" style="color: #2563eb;">add credits to your wallet</a>. Takes 10 seconds in the console.</p>
 
-<p>Easy,</p>
+<p>Thanks for being a pro,</p>
         `, siteUrl)
       };
 
@@ -248,15 +248,15 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(`
 <p>Hey there,</p>
 
-<p>Om from Blue here — automated broadcast, but worth 30 seconds of your time.</p>
+<p>Om from Blue here — automated broadcast, but worth 30 seconds of your attention.</p>
 
-<p>You're already using AI to write code.</p>
+<p>You're already using AI to speed up your coding.</p>
 
 <p>You probably also want to build full-stack apps end-to-end using autonomous AI agents.</p>
 
-<p>So: check out our <a href="${siteUrl}/courses/create-software-without-code" style="color: #2563eb;">Vibe Coding Masterclass</a>. That's it.</p>
+<p>So: check out our <a href="${siteUrl}/courses/create-software-without-code" style="color: #2563eb;">Vibe Coding Masterclass</a>. Check out the first module for free.</p>
 
-<p>Easy,</p>
+<p>See you inside,</p>
         `, siteUrl)
       };
 
@@ -266,13 +266,13 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
         html: wrapEmail(customContent || `
 <p>Hey there,</p>
 
-<p>Om from Blue here with a quick product update.</p>
+<p>Om from Blue here with a quick product release update.</p>
 
-<p>We just pushed new updates and speed improvements to Blue.</p>
+<p>We just shipped major model speed improvements and bug fixes to Blue.</p>
 
-<p>So: update your VS Code extension and check out <a href="${siteUrl}/console" style="color: #2563eb;">the console</a>. That's it.</p>
+<p>So: update your VS Code extension and check out <a href="${siteUrl}/console" style="color: #2563eb;">the console</a>. Let me know what you think of the new speed.</p>
 
-<p>Easy,</p>
+<p>Onwards,</p>
         `, siteUrl)
       };
 
@@ -286,7 +286,7 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
 
 <p>Check out the latest updates on <a href="${siteUrl}/console" style="color: #2563eb;">Blue AI</a>.</p>
 
-<p>Easy,</p>
+<p>Best,</p>
         `, siteUrl)
       };
   }
