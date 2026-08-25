@@ -262,17 +262,19 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
 
     case 'new_feature':
       return {
-        subject: customSubject || "New in Blue",
+        subject: customSubject || "New in Blue: Auto safe images & fallbacks",
         html: wrapEmail(customContent || `
 <p>Hey there,</p>
 
-<p>Om from Blue here with a quick product release update.</p>
+<p>Om from Blue here with an email that's automated, but doesn't pretend otherwise. I still read every reply though.</p>
 
-<p>We just shipped major model speed improvements and bug fixes to Blue.</p>
+<p>You're probably hunting down images for your project manually or watching code generation stall when a placeholder fails.</p>
 
-<p>So: update your VS Code extension and check out <a href="${siteUrl}/console" style="color: #2563eb;">the console</a>. Let me know what you think of the new speed.</p>
+<p>You probably also want Blue to grab safe, licensed photos automatically — or build custom fallback visuals on the fly without missing a beat.</p>
 
-<p>Onwards,</p>
+<p>So: update to <strong>v0.6.39</strong> in VS Code and run your prompt. That's it. (Blender 3D works right alongside it too).</p>
+
+<p>Easy,</p>
         `, siteUrl)
       };
 

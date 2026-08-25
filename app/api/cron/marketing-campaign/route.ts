@@ -54,11 +54,22 @@ async function handleMarketingCampaign(req: Request) {
       auth: { user: smtpUser, pass: smtpPass }
     });
 
-    // 3. Fetch all auth users
-    const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
-    if (usersError || !usersData?.users) {
-      console.error('Failed to retrieve auth users:', usersError);
-      return NextResponse.json({ error: 'Failed to retrieve users' }, { status: 500 });
+    // 3. Fetch all auth users across pages
+    let allUsers: any[] = [];
+    let page = 1;
+    const perPage = 1000;
+    while (true) {
+      const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+      if (usersError || !usersData?.users) {
+        if (page === 1) {
+          console.error('Failed to retrieve auth users:', usersError);
+          return NextResponse.json({ error: 'Failed to retrieve users' }, { status: 500 });
+        }
+        break;
+      }
+      allUsers = allUsers.concat(usersData.users);
+      if (usersData.users.length < perPage) break;
+      page++;
     }
 
     // 4. Fetch relational data in parallel
@@ -103,7 +114,7 @@ async function handleMarketingCampaign(req: Request) {
     const details: any[] = [];
 
     // 5. Evaluate and classify each user
-    for (const user of usersData.users) {
+    for (const user of allUsers) {
       if (!user.email) continue;
       if (processedCount >= batchLimit) {
         details.push({ email: user.email, status: 'batch_limit_reached' });
