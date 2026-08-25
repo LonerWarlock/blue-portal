@@ -1,0 +1,2 @@
+Place your 'portfolio_demo.mp4' file in this directory.
+Once saved here, Next.js will serve it as '/videos/portfolio_demo.mp4'.
