@@ -16,8 +16,10 @@ export default function VSCodeInstallSnippet({ className = '' }: { className?: s
 
   return (
     <div className={`w-full max-w-xl mx-auto ${className}`}>
-      {/* Clean minimal terminal command pill */}
-      <div className="group relative flex items-center justify-between gap-3 bg-ink border border-ink/80 hover:border-ink-muted rounded-md px-4 py-2.5 transition-colors duration-150">
+      {/* Clean minimal terminal command pill — intentionally always a dark
+          terminal surface, independent of the light/dark theme toggle, so
+          the white command text stays readable in both themes. */}
+      <div className="group relative flex items-center justify-between gap-3 bg-[#172033] border border-[#172033]/80 hover:border-[#667085] rounded-md px-4 py-2.5 transition-colors duration-150">
         <div className="flex items-center gap-3 overflow-x-auto font-mono text-xs sm:text-sm text-white/90 scrollbar-none py-0.5">
           <span className="text-white/50 font-bold select-none">$</span>
           <code className="text-white font-mono tracking-tight select-all">{command}</code>
