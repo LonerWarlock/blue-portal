@@ -1,5 +1,5 @@
 import PageLayout from "@/app/components/PageLayout";
-import HeroConsole from "@/app/components/HeroConsole";
+import AgentLiveDemo from "@/app/components/AgentLiveDemo";
 import Link from "next/link";
 
 export default function AgentsPage() {
@@ -38,7 +38,7 @@ export default function AgentsPage() {
             </h2>
 
             <div className="mt-8">
-              <HeroConsole />
+              <AgentLiveDemo />
             </div>
           </div>
 
