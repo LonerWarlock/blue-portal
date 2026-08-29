@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import LoadingOverlay from "./components/LoadingOverlay";
+import FloatingAssistant from "./components/FloatingAssistant";
 import { PostHogProvider } from "./providers/PostHogProvider";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -55,6 +56,7 @@ export default function RootLayout({
             <AuthProvider>
               <LoadingOverlay />
               {children}
+              <FloatingAssistant />
             </AuthProvider>
           </PostHogProvider>
         </ThemeProvider>
