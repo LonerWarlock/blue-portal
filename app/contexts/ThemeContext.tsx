@@ -26,6 +26,7 @@ function getSystemTheme(): ResolvedTheme {
 
 function applyTheme(resolved: ResolvedTheme) {
   document.documentElement.setAttribute("data-theme", resolved);
+  document.documentElement.style.colorScheme = resolved;
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -35,9 +36,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Pick up whatever the blocking inline script (see layout.tsx) already
   // resolved, so React doesn't cause a second flash on hydration.
   useEffect(() => {
-    const saved = (localStorage.getItem(STORAGE_KEY) as ThemePreference | null) ?? "system";
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const saved: ThemePreference = stored === "light" || stored === "dark" || stored === "system"
+      ? stored
+      : "system";
+    const resolved = saved === "system" ? getSystemTheme() : saved;
     setThemeState(saved);
-    setResolvedTheme(saved === "system" ? getSystemTheme() : saved);
+    setResolvedTheme(resolved);
+    applyTheme(resolved);
   }, []);
 
   useEffect(() => {

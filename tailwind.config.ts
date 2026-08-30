@@ -1,5 +1,7 @@
 import type { Config } from "tailwindcss";
 
+const themeColor = (token: string) => `rgb(var(--${token}-rgb) / <alpha-value>)`;
+
 const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -9,16 +11,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: { DEFAULT: "var(--ink)", muted: "var(--ink-muted)", faint: "var(--ink-faint)" },
-        paper: { DEFAULT: "var(--paper)", alt: "var(--paper-alt)", sunken: "var(--paper-sunken)" },
-        surface: { DEFAULT: "var(--surface)" },
-        line: { DEFAULT: "var(--line)", strong: "var(--line-strong)" },
-        brand: { DEFAULT: "var(--brand)", hover: "var(--brand-hover)", soft: "var(--brand-soft)" },
-        accent: { DEFAULT: "var(--accent)" },
+        ink: { DEFAULT: themeColor("ink"), muted: themeColor("ink-muted"), faint: themeColor("ink-faint") },
+        paper: { DEFAULT: themeColor("paper"), alt: themeColor("paper-alt"), sunken: themeColor("paper-sunken") },
+        surface: { DEFAULT: themeColor("surface") },
+        line: { DEFAULT: themeColor("line"), strong: themeColor("line-strong") },
+        brand: { DEFAULT: themeColor("brand"), hover: themeColor("brand-hover"), soft: themeColor("brand-soft") },
+        accent: { DEFAULT: themeColor("accent") },
+        success: { DEFAULT: themeColor("success") },
+        danger: { DEFAULT: themeColor("danger") },
+        warning: { DEFAULT: themeColor("warning") },
+        terminal: { DEFAULT: themeColor("terminal") },
       },
       boxShadow: {
-        soft: "0 1px 2px rgba(23,32,51,0.05)",
-        elevated: "0 6px 16px rgba(23,32,51,0.06), 0 1px 3px rgba(23,32,51,0.05)",
+        soft: "var(--shadow-sm)",
+        elevated: "var(--shadow-md)",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],

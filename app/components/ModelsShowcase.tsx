@@ -53,8 +53,8 @@ export default function ModelsShowcase() {
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded font-semibold font-mono whitespace-nowrap border ${
                     model.isFree
-                      ? "bg-white border-success/40 text-success"
-                      : "bg-white border-brand/30 text-brand"
+                      ? "bg-surface border-success/40 text-success"
+                      : "bg-surface border-brand/30 text-brand"
                   }`}
                 >
                   {model.isFree ? "Free" : "Premium"}

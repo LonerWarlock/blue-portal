@@ -224,8 +224,8 @@ export default function JavaCoursePage() {
   };
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#f5f1e8] text-stone-950">
-      <header className="sticky top-0 z-50 border-b border-stone-900/10 bg-[#f5f1e8]/90 backdrop-blur-xl">
+    <main className="min-h-screen overflow-hidden bg-paper-alt text-ink">
+      <header className="sticky top-0 z-50 border-b border-line bg-paper-alt/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5" aria-label="Imergene home">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#20201e] text-[#ffb59f]">
@@ -255,7 +255,7 @@ export default function JavaCoursePage() {
         </div>
 
         {mobileMenuOpen && (
-          <div className="border-t border-stone-900/10 bg-[#f5f1e8] px-5 py-4 md:hidden">
+          <div className="border-t border-line bg-paper-alt px-5 py-4 md:hidden">
             <div className="flex flex-col gap-3">
               <a href="#curriculum" onClick={() => setMobileMenuOpen(false)} className="py-2 text-sm font-medium">Curriculum</a>
               <a href="#outcomes" onClick={() => setMobileMenuOpen(false)} className="py-2 text-sm font-medium">Outcomes</a>
@@ -277,7 +277,7 @@ export default function JavaCoursePage() {
               <span className="text-sm font-medium text-stone-500">{JAVA_COURSE.cohort}</span>
             </div>
 
-            <h1 className="max-w-3xl text-5xl font-semibold leading-[0.96] tracking-[-0.055em] text-[#20201e] sm:text-6xl lg:text-[78px]">
+            <h1 className="max-w-3xl text-5xl font-semibold leading-[0.96] tracking-[-0.055em] text-ink sm:text-6xl lg:text-[78px]">
               Learn Java.
               <br />
               <span className="text-[#d74b2a]">Build for real.</span>
@@ -335,19 +335,19 @@ export default function JavaCoursePage() {
               </div>
             </div>
             <div className="absolute -bottom-5 -left-1 z-20 flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-5 py-3.5 shadow-xl shadow-stone-900/10 lg:-left-7">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e9f4ea] text-[#26733d]"><BadgeCheck size={21} /></span>
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-success/15 text-success"><BadgeCheck size={21} /></span>
               <div><p className="text-sm font-bold text-stone-900">Pay {JAVA_COURSE.totalPayableLabel} total</p><p className="text-xs text-stone-500">Includes {JAVA_COURSE.gatewayFeeLabel} processing charge</p></div>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="curriculum" className="scroll-mt-20 bg-white py-20 lg:py-28">
+      <section id="curriculum" className="scroll-mt-20 bg-surface py-20 lg:py-28">
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-[0.7fr_1.3fr]">
             <div>
               <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#d74b2a]">What you will learn</span>
-              <h2 className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-[#20201e] sm:text-5xl">A clear path from syntax to shipping.</h2>
+              <h2 className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-ink sm:text-5xl">A clear path from syntax to shipping.</h2>
               <p className="mt-5 max-w-md leading-7 text-stone-600">Every module compounds into a real backend application, so theory never stays abstract for long.</p>
             </div>
 
@@ -391,7 +391,7 @@ export default function JavaCoursePage() {
         </div>
       </section>
 
-      <section ref={formRef} id="register" className="scroll-mt-20 bg-[#f5f1e8] py-20 lg:py-28">
+      <section ref={formRef} id="register" className="scroll-mt-20 bg-paper-alt py-20 lg:py-28">
         <div className="mx-auto grid max-w-7xl gap-12 px-5 lg:grid-cols-[0.75fr_1.25fr] lg:px-8">
           <div>
             <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#d74b2a]">Registration</span>
@@ -413,8 +413,8 @@ export default function JavaCoursePage() {
               </div>
             ) : registrationId ? (
               <div className="flex min-h-[540px] flex-col items-center justify-center text-center" aria-live="polite">
-                <span className="flex h-20 w-20 items-center justify-center rounded-full bg-[#e9f4ea] text-[#26733d]"><CheckCircle2 size={38} /></span>
-                <p className="mt-7 text-xs font-bold uppercase tracking-[0.18em] text-[#26733d]">Payment confirmed</p>
+                <span className="flex h-20 w-20 items-center justify-center rounded-full bg-success/15 text-success"><CheckCircle2 size={38} /></span>
+                <p className="mt-7 text-xs font-bold uppercase tracking-[0.18em] text-success">Payment confirmed</p>
                 <h3 className="mt-3 text-3xl font-semibold tracking-tight">You&apos;re enrolled, {firstName}.</h3>
                 <p className="mt-4 max-w-md leading-7 text-stone-600">We received your total payment of <strong className="text-stone-900">{confirmedPayment ? formatCurrency(confirmedPayment.amount) : JAVA_COURSE.totalPayableLabel}</strong>, including {confirmedPayment ? formatCurrency(confirmedPayment.gatewayFee) : JAVA_COURSE.gatewayFeeLabel} in processing charges. Your receipt and enrollment details have been sent to <strong className="text-stone-900">{form.email || "your registered email"}</strong>.</p>
                 <div className="mt-7 rounded-xl bg-stone-50 px-4 py-3 font-mono text-xs text-stone-500">Transaction: {registrationId.toUpperCase()}</div>
@@ -431,7 +431,7 @@ export default function JavaCoursePage() {
               <form onSubmit={submitRegistration} noValidate>
                 <div className="mb-7 flex items-start justify-between gap-4 border-b border-stone-200 pb-6">
                   <div><h3 className="text-2xl font-semibold tracking-tight">Complete enrollment</h3><p className="mt-1 text-sm text-stone-500">{JAVA_COURSE.cohort} · {JAVA_COURSE.totalPayableLabel} total</p></div>
-                  <span className="rounded-full bg-[#f8e3dc] p-3 text-[#d74b2a]"><Coffee size={22} /></span>
+                  <span className="rounded-full bg-danger/15 p-3 text-danger"><Coffee size={22} /></span>
                 </div>
 
                 <div className="mb-7 rounded-2xl border border-stone-200 bg-stone-50 p-4" aria-label="Payment amount breakdown">
@@ -467,7 +467,7 @@ export default function JavaCoursePage() {
         </div>
       </section>
 
-      <section id="faq" className="scroll-mt-20 border-t border-stone-900/10 bg-[#f5f1e8] pb-24 pt-20">
+      <section id="faq" className="scroll-mt-20 border-t border-line bg-paper-alt pb-24 pt-20">
         <div className="mx-auto grid max-w-5xl gap-10 px-5 lg:grid-cols-[0.65fr_1.35fr] lg:px-8">
           <div><span className="text-xs font-bold uppercase tracking-[0.18em] text-[#d74b2a]">FAQ</span><h2 className="mt-4 text-3xl font-semibold tracking-[-0.035em]">Good questions, clearly answered.</h2></div>
           <div className="border-t border-stone-300">

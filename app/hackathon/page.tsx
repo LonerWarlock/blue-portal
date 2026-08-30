@@ -277,7 +277,7 @@ export default function HackathonPage() {
   // ---------- RESULT SCREEN ----------
   if (paymentResult) {
     return (
-      <div className="min-h-screen bg-[#f8fafb] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-paper flex items-center justify-center px-6">
         <div className="rounded-lg bg-white border border-gray-200 p-10 max-w-lg w-full text-center shadow-lg">
           {paymentResult === 'success' ? (
             <>
@@ -332,7 +332,7 @@ export default function HackathonPage() {
   // ---------- DEADLINE PASSED ----------
   if (isDeadlinePassed) {
     return (
-      <div className="min-h-screen bg-[#f8fafb] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-paper flex items-center justify-center px-6">
         <div className="rounded-lg bg-white border border-gray-200 p-10 max-w-lg w-full text-center shadow-lg">
           <div className="w-20 h-20 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto mb-6">
             <i className="fa-solid fa-clock text-3xl text-amber-400"></i>
@@ -508,7 +508,7 @@ export default function HackathonPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafb] px-4 py-10">
+    <div className="min-h-screen bg-paper px-4 py-10">
       <div className="w-full max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">

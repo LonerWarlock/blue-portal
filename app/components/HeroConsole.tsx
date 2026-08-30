@@ -18,7 +18,7 @@ export default function HeroConsole() {
           <i className="fa-solid fa-bolt text-xs" />
         </div>
       </div>
-      <div className="relative bg-ink aspect-video">
+      <div className="relative bg-terminal aspect-video">
         <video
           className="w-full h-full object-contain"
           controls

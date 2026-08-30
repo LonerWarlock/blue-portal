@@ -10,7 +10,6 @@ const footerLinks = {
   ],
   Resources: [
     { label: "Documentation", href: "/docs" },
-    { label: "Java Course", href: "/courses/java" },
     { label: "Changelog", href: "/changelog" },
     { label: "Community", href: "/community" },
     { label: "Status", href: "/status" },
@@ -28,48 +27,55 @@ const footerLinks = {
 
 export default function Footer() {
   return (
-    <footer className="w-full bg-paper-alt py-10 px-6 border-t border-line">
+    <footer className="w-full bg-paper-alt px-6 py-12 border-t border-line">
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-wrap gap-x-12 gap-y-6 mb-8">
-          <div className="flex items-center gap-2 mr-4">
-            <div className="w-7 h-7 rounded-md bg-brand flex items-center justify-center shrink-0">
-              <i className="fa-solid fa-robot text-[10px] text-white"></i>
-            </div>
-            <span className="text-sm font-display font-bold tracking-tight text-ink">Blue AI</span>
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.25fr_repeat(3,minmax(0,1fr))]">
+          <div>
+            <Link href="/" className="inline-flex items-center gap-3">
+              <div className="w-9 h-9 rounded-md bg-brand flex items-center justify-center shrink-0">
+                <i className="fa-solid fa-robot text-xs text-white"></i>
+              </div>
+              <div>
+                <span className="block text-base font-display font-bold tracking-tight text-ink">Blue AI</span>
+                <span className="eyebrow block leading-none mt-1">Coding Agent</span>
+              </div>
+            </Link>
+            <p className="mt-4 max-w-xs text-sm leading-6 text-ink-muted">
+              Affordable autonomous coding agents that plan, build, test, and improve your software.
+            </p>
           </div>
+
           {Object.entries(footerLinks).map(([category, links]) => (
             <div key={category}>
-              <h4 className="eyebrow mb-2">{category}</h4>
-              <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <h4 className="eyebrow mb-4">{category}</h4>
+              <nav aria-label={`${category} links`} className="flex flex-col items-start gap-2.5">
                 {links.map((link) => (
-                  <Link prefetch={false}
+                  <Link
+                    prefetch={false}
                     key={link.label}
                     href={link.href}
-                    className="text-xs text-ink-muted hover:text-ink transition-colors duration-150 whitespace-nowrap"
+                    className="text-sm text-ink-muted hover:text-ink transition-colors duration-150"
                   >
                     {link.label}
                   </Link>
                 ))}
-              </div>
+              </nav>
             </div>
           ))}
         </div>
 
-        <div className="pt-6 border-t border-line flex flex-col md:flex-row justify-between items-center gap-2">
+        <div className="mt-10 pt-6 border-t border-line flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="text-xs text-ink-faint text-center md:text-left">
             &copy; 2026 Blue AI. All rights reserved. Owned and operated by IMERGENE.
           </div>
-          <div className="flex items-center gap-3">
-            <a href="#" className="text-ink-faint hover:text-ink-muted transition-colors duration-150 text-xs">
-              <i className="fa-brands fa-x-twitter"></i>
-            </a>
-            <a href="#" className="text-ink-faint hover:text-ink-muted transition-colors duration-150 text-xs">
+          <div className="flex items-center gap-4">
+            <a href="#" aria-label="GitHub" className="text-ink-faint hover:text-ink transition-colors duration-150 text-sm">
               <i className="fa-brands fa-github"></i>
             </a>
-            <a href="#" className="text-ink-faint hover:text-ink-muted transition-colors duration-150 text-xs">
+            <a href="#" aria-label="LinkedIn" className="text-ink-faint hover:text-ink transition-colors duration-150 text-sm">
               <i className="fa-brands fa-linkedin"></i>
             </a>
-            <a href="#" className="text-ink-faint hover:text-ink-muted transition-colors duration-150 text-xs">
+            <a href="#" aria-label="YouTube" className="text-ink-faint hover:text-ink transition-colors duration-150 text-sm">
               <i className="fa-brands fa-youtube"></i>
             </a>
           </div>

@@ -555,7 +555,7 @@ export default function ConsolePage() {
 
             <button 
               onClick={handleGoogleLogin} 
-              className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-lg bg-white text-gray-900 font-semibold shadow-lg hover:bg-paper-alt active:scale-[0.98] transition duration-200"
+              className="theme-preserve-light w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-lg bg-white text-gray-900 font-semibold shadow-lg hover:bg-gray-100 active:scale-[0.98] transition duration-200"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path fill="#EA4335" d="M12 5.04c1.62 0 3.08.56 4.22 1.65l3.15-3.15C17.45 1.72 14.92 1 12 1 7.35 1 3.37 3.68 1.34 7.6l3.86 3C6.12 7.6 8.84 5.04 12 5.04z" />
@@ -681,7 +681,7 @@ export default function ConsolePage() {
 
               <div className="lg:col-span-2 p-6 rounded-lg panel relative overflow-hidden flex flex-col justify-between min-h-[220px]">
                 {!hasBlueCredits && (
-                  <div className="absolute inset-0 bg-ink/75 z-10 flex flex-col items-center justify-center p-6 text-center select-none">
+                  <div className="absolute inset-0 bg-terminal/75 z-10 flex flex-col items-center justify-center p-6 text-center select-none">
                     <div className="w-12 h-12 rounded-lg bg-brand/10 border border-line flex items-center justify-center mb-3 shadow-lg">
                       <i className="fa-solid fa-lock text-brand text-lg"></i>
                     </div>
@@ -1081,7 +1081,7 @@ export default function ConsolePage() {
         </div>
       </footer>
       {modalConfig.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/80">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-terminal/80">
           <div className="w-full max-w-md rounded-lg panel border border-line p-6 relative overflow-hidden transition-all duration-300 transform scale-100">
             {/* Colorful top strip */}
             <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${

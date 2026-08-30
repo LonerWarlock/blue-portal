@@ -18,6 +18,7 @@ const THEME_INIT_SCRIPT = `
       ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
       : pref;
     document.documentElement.setAttribute('data-theme', resolved);
+    document.documentElement.style.colorScheme = resolved;
   } catch (e) {}
 })();
 `;
@@ -45,7 +46,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${plexSans.variable} ${plexMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${plexSans.variable} ${plexMono.variable}`}>
       <head>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

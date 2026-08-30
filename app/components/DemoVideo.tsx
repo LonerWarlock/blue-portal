@@ -27,7 +27,7 @@ export default function DemoVideo() {
                 <i className="fa-solid fa-video text-xs"></i>
               </div>
             </div>
-            <div className="relative bg-ink aspect-video">
+            <div className="relative bg-terminal aspect-video">
               <video
                 className="w-full h-full object-contain"
                 controls

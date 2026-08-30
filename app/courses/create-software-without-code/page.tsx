@@ -254,7 +254,7 @@ export default function NoCodeCoursePage() {
   // ---------- RESULT SCREEN ----------
   if (paymentResult) {
     return (
-      <div className="min-h-screen bg-[#f8fafb] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-paper flex items-center justify-center px-6">
         <div className="rounded-lg bg-white border border-gray-200 p-10 max-w-lg w-full text-center shadow-lg">
           {paymentResult === 'success' ? (
             <>
@@ -456,7 +456,7 @@ export default function NoCodeCoursePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafb] px-4 py-8 sm:py-12">
+    <div className="min-h-screen bg-paper px-4 py-8 sm:py-12">
       <div className="w-full max-w-3xl mx-auto">
         {/* Top Header */}
         <div className="text-center mb-8">

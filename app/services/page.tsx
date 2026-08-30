@@ -122,7 +122,7 @@ export default function ServicesPage() {
             {services.map((service) => (
               <section key={service.number} className="scroll-mt-24">
                 <div className="flex items-center gap-4 mb-4">
-                  <span className="text-4xl font-bold text-gray-800/60 select-none">{service.number}</span>
+                  <span className="text-4xl font-bold text-ink-faint/60 select-none">{service.number}</span>
                   <h2 className="text-2xl font-bold text-ink">{service.title}</h2>
                 </div>
                 <p className="text-ink-muted leading-relaxed ml-16 mb-6">{service.description}</p>

@@ -44,7 +44,7 @@ export default function LoadingOverlay() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/60"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-terminal/60"
         >
           <motion.div
             className="font-mono font-medium text-lg tracking-tight bg-paper border border-line rounded-md px-4 py-2 text-ink"
