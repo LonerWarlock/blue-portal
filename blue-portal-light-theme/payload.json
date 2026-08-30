@@ -1,9 +1,0 @@
-{
-  "model": "ai21/jamba-large-1.7",
-  "messages": [
-    {
-      "role": "user",
-      "content": "say hello in 3 words"
-    }
-  ]
-}
