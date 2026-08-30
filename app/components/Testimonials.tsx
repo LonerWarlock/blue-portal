@@ -1,33 +1,21 @@
 const testimonials = [
   {
-    quote: "It was night and day from one batch to another, adoption went from single digits to over 80%. It just spread like wildfire, all the best builders were using Blue.",
-    name: "Diana Hu",
-    role: "General Partner, Y Combinator",
+    quote: "Best in the era where coding agents are not affordable. its affordable, powerful and easy to use.",
+    name: "Om Karande",
+    date: "August 6, 2026",
+    rating: 5,
   },
   {
-    quote: "My favorite enterprise AI service is Blue. Every one of our engineers, some 40,000, are now assisted by AI and our productivity has gone up incredibly.",
-    name: "Jensen Huang",
-    role: "President & CEO, NVIDIA",
+    quote: "A very nice and affordable alternative to all the AI agents out there. Very nice product for students and startup developers.",
+    name: "Soham Phatak",
+    date: "July 20, 2026",
+    rating: 5,
   },
   {
-    quote: "The best LLM applications have an autonomy slider: you control how much independence to give the AI. In Blue, you can do inline completions, targeted edits, or let it rip with full autonomous agent mode.",
-    name: "Andrej Karpathy",
-    role: "CEO, Eureka Labs",
-  },
-  {
-    quote: "Blue quickly grew from hundreds to thousands of extremely enthusiastic Stripe employees. There's significant economic outcomes when making software creation more efficient.",
-    name: "Patrick Collison",
-    role: "Co-Founder & CEO, Stripe",
-  },
-  {
-    quote: "The most useful AI tool that I currently pay for, hands down, is Blue. It's fast, understands context, handles brackets properly, sensible keyboard shortcuts, bring-your-own-model — everything is well put together.",
-    name: "shadcn",
-    role: "Creator of shadcn/ui",
-  },
-  {
-    quote: "It's definitely becoming more fun to be a programmer. We are at the 1% of what's possible, and it's in interactive experiences like Blue where frontier models shine brightest.",
-    name: "Greg Brockman",
-    role: "President, OpenAI",
+    quote: "In the era of claude and codex, i prefer blue. It is cheap and very powerful. Worth using.",
+    name: "Om Mali",
+    date: "July 17, 2026",
+    rating: 5,
   },
 ];
 
@@ -38,10 +26,10 @@ export default function Testimonials() {
         <div className="text-center mb-16">
           <span className="eyebrow">// testimonials</span>
           <h2 className="mt-3 text-3xl md:text-4xl font-display font-bold tracking-tight text-ink">
-            Trusted by world-class builders.
+            What Blue users are saying.
           </h2>
           <p className="mt-4 text-ink-muted max-w-2xl mx-auto">
-            Teams that build world-class software rely on Blue to accelerate their development.
+            Feedback from developers using Blue for affordable, agent-powered coding.
           </p>
         </div>
 
@@ -49,13 +37,19 @@ export default function Testimonials() {
           {testimonials.map((t, i) => (
             <div key={i} className="panel bg-paper p-6 flex flex-col justify-between min-h-[220px]">
               <div>
+                <div className="mb-4 flex items-center gap-2" aria-label={`${t.rating} out of 5 stars`}>
+                  <span className="text-sm tracking-[0.18em] text-amber-500" aria-hidden="true">
+                    {"★".repeat(t.rating)}
+                  </span>
+                  <span className="text-xs text-ink-muted">{t.rating}.0</span>
+                </div>
                 <p className="text-sm text-ink leading-relaxed">
                   &ldquo;{t.quote}&rdquo;
                 </p>
               </div>
               <div className="mt-6 pt-4 border-t border-line">
                 <p className="text-sm font-semibold text-ink">{t.name}</p>
-                <p className="text-xs text-ink-muted">{t.role}</p>
+                <p className="text-xs text-ink-muted">{t.date}</p>
               </div>
             </div>
           ))}
