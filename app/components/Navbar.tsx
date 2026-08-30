@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
+import ThemeToggle from "./ThemeToggle";
 
 const NAV_LINKS = [
   { href: "/product/agents", label: "Agents" },
@@ -51,6 +52,7 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center space-x-3">
+          <ThemeToggle />
           {user ? (
             <>
               <Link prefetch={false}

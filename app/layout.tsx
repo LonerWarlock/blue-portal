@@ -5,6 +5,22 @@ import LoadingOverlay from "./components/LoadingOverlay";
 import FloatingAssistant from "./components/FloatingAssistant";
 import { PostHogProvider } from "./providers/PostHogProvider";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
+
+// Resolves and applies the theme before first paint, so there is no
+// flash of the wrong theme on load. Reads the same localStorage key
+// that ThemeContext writes to.
+const THEME_INIT_SCRIPT = `
+(function () {
+  try {
+    var pref = localStorage.getItem('blue-ai-theme') || 'system';
+    var resolved = pref === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : pref;
+    document.documentElement.setAttribute('data-theme', resolved);
+  } catch (e) {}
+})();
+`;
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const plexSans = IBM_Plex_Sans({
@@ -32,15 +48,18 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${plexSans.variable} ${plexMono.variable}`}>
       <head>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-screen bg-paper text-ink flex flex-col antialiased relative font-sans">
-        <PostHogProvider>
-          <AuthProvider>
-            <LoadingOverlay />
-            {children}
-            <FloatingAssistant />
-          </AuthProvider>
-        </PostHogProvider>
+        <ThemeProvider>
+          <PostHogProvider>
+            <AuthProvider>
+              <LoadingOverlay />
+              {children}
+              <FloatingAssistant />
+            </AuthProvider>
+          </PostHogProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

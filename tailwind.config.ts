@@ -9,12 +9,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: { DEFAULT: "#172033", muted: "#667085", faint: "#98A2B3" },
-        paper: { DEFAULT: "#FAF8F4", alt: "#F3F0E9", sunken: "#EAE6DC" },
-        surface: { DEFAULT: "#FFFFFF" },
-        line: { DEFAULT: "#E3E6EC", strong: "#CCD2DC" },
-        brand: { DEFAULT: "#28648F", hover: "#1F4F72", soft: "#DCECF7" },
-        accent: { DEFAULT: "#B7841F" },
+        ink: { DEFAULT: "var(--ink)", muted: "var(--ink-muted)", faint: "var(--ink-faint)" },
+        paper: { DEFAULT: "var(--paper)", alt: "var(--paper-alt)", sunken: "var(--paper-sunken)" },
+        surface: { DEFAULT: "var(--surface)" },
+        line: { DEFAULT: "var(--line)", strong: "var(--line-strong)" },
+        brand: { DEFAULT: "var(--brand)", hover: "var(--brand-hover)", soft: "var(--brand-soft)" },
+        accent: { DEFAULT: "var(--accent)" },
       },
       boxShadow: {
         soft: "0 1px 2px rgba(23,32,51,0.05)",

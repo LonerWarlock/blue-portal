@@ -1,5 +1,4 @@
 import Link from "next/link";
-import TerminalCard3D from "./TerminalCard3D";
 import VSCodeInstallSnippet from "./VSCodeInstallSnippet";
 
 export default function Hero() {
@@ -19,7 +18,7 @@ export default function Hero() {
         <div className="text-center max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-line-strong bg-paper eyebrow mb-8">
             <span className="w-1.5 h-1.5 rounded-full bg-brand" />
-            Autonomous Agents — Plan, Code, Test, Self-Correct
+            AI Coding Agents for Developers
           </div>
 
           <h1 className="text-4xl md:text-6xl font-display font-bold tracking-tight leading-tight text-ink">
@@ -29,33 +28,35 @@ export default function Hero() {
           </h1>
 
           <p className="mt-6 text-lg text-ink-muted max-w-2xl mx-auto leading-relaxed">
-            Blue&apos;s Autonomous Agents don&apos;t just suggest code lines—they build entire features,
-            run tests, and fix bugs by themselves.
+            Blue understands your codebase, then builds entire features, writes
+            tests, and fixes bugs on its own&mdash;working autonomously so you can
+            focus on architecture, not busywork.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link prefetch={false} href="/console" className="btn btn-primary text-base">
-              Get Started
+              Get Started for Free
               <i className="fa-solid fa-arrow-right ml-2" />
             </Link>
-            <Link prefetch={false} href="/subscribe" className="btn btn-secondary text-base">
-              <i className="fa-solid fa-crown mr-2 text-accent" />
-              See Plans
-            </Link>
-            <Link prefetch={false} href="/docs" className="btn btn-ghost text-base">
-              <i className="fa-solid fa-book mr-2" />
-              Docs
+            <Link prefetch={false} href="/contact" className="btn btn-secondary text-base">
+              Book a Demo
             </Link>
           </div>
+
+          <p className="mt-4 text-sm text-ink-faint">
+            <Link prefetch={false} href="/subscribe" className="hover:text-ink-muted transition-colors duration-150">
+              See plans &amp; pricing
+            </Link>
+            <span className="mx-2">&middot;</span>
+            <Link prefetch={false} href="/docs" className="hover:text-ink-muted transition-colors duration-150">
+              Read the docs
+            </Link>
+          </p>
 
           {/* Terminal Command Install Snippet */}
           <div className="mt-10">
             <VSCodeInstallSnippet />
           </div>
-        </div>
-
-        <div className="mt-16 max-w-5xl mx-auto">
-          <TerminalCard3D />
         </div>
       </div>
     </section>

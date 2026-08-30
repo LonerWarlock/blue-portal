@@ -1,4 +1,5 @@
 import PageLayout from "@/app/components/PageLayout";
+import AgentLiveDemo from "@/app/components/AgentLiveDemo";
 import Link from "next/link";
 
 export default function AgentsPage() {
@@ -30,55 +31,14 @@ export default function AgentsPage() {
             </p>
           </div>
 
-          {/* Agent Loop Diagram */}
-          <div className="mt-20 max-w-5xl mx-auto">
-            <div className="rounded-lg panel border border-line overflow-hidden">
-              <div className="flex items-center gap-2 px-5 py-3 border-b border-line bg-paper-alt">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
-                </div>
-                <span className="text-xs text-ink-faint ml-3 font-mono">blue-agent ~/project</span>
-              </div>
-              <div className="p-8 space-y-6">
-                <div className="flex items-start gap-4 p-4 rounded-lg bg-brand/10 border border-line">
-                  <div className="w-10 h-10 rounded-lg bg-brand flex items-center justify-center shrink-0">
-                    <i className="fa-solid fa-list-check text-white"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-brand">1. Plans</h3>
-                    <p className="text-sm text-ink-muted mt-1">Outlines all the file changes and new code blocks required to achieve the goal.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4 p-4 rounded-lg bg-brand/10 border border-line">
-                  <div className="w-10 h-10 rounded-lg bg-brand flex items-center justify-center shrink-0">
-                    <i className="fa-solid fa-code text-white"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-brand">2. Writes Code</h3>
-                    <p className="text-sm text-ink-muted mt-1">Creates and updates code files automatically in your workspace.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4 p-4 rounded-lg bg-brand/10 border border-line">
-                  <div className="w-10 h-10 rounded-lg bg-brand flex items-center justify-center shrink-0">
-                    <i className="fa-solid fa-terminal text-white"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-brand">3. Runs Terminals</h3>
-                    <p className="text-sm text-ink-muted mt-1">Runs compiling tasks, lint checks, and testing commands to ensure the code is correct.</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4 p-4 rounded-lg bg-green-950/20 border border-green-900/30">
-                  <div className="w-10 h-10 rounded-lg bg-brand flex items-center justify-center shrink-0">
-                    <i className="fa-solid fa-rotate text-white"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-green-300">4. Self-Corrects</h3>
-                    <p className="text-sm text-ink-muted mt-1">If a test fails, the agent reads the terminal output error, rewrites the code, and tests it again until it passes.</p>
-                  </div>
-                </div>
-              </div>
+          {/* Watch Blue work — real product demo */}
+          <div className="mt-20 max-w-5xl mx-auto text-center">
+            <h2 className="text-2xl md:text-3xl font-display font-bold tracking-tight text-ink">
+              Watch Blue work
+            </h2>
+
+            <div className="mt-8">
+              <AgentLiveDemo />
             </div>
           </div>
 
