@@ -10,6 +10,7 @@ const footerLinks = {
   ],
   Resources: [
     { label: "Documentation", href: "/docs" },
+    { label: "Java Course", href: "/courses/java" },
     { label: "Changelog", href: "/changelog" },
     { label: "Community", href: "/community" },
     { label: "Status", href: "/status" },
