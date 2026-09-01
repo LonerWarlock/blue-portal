@@ -207,6 +207,19 @@ The queue protects Blue billing and provider spending. It is not used to proxy o
 - Rewrite campaign jobs to use cursor pagination instead of loading all Auth users and related tables into memory.
 - Do not expose recipient email lists in cron responses or logs.
 
+### Scheduler deployment
+
+The checked-in `vercel.json` uses one daily invocation per endpoint so deployments remain valid on Vercel Hobby. This is a deployment-safe fallback, not the production cadence for an advertising launch.
+
+For production, use Vercel Pro or an external scheduler and invoke the protected endpoints with `Authorization: Bearer $CRON_SECRET` at these intervals:
+
+- `/api/cron/blue-runtime-reconcile`: every minute.
+- `/api/cron/jobs`: every minute.
+- `/api/cron/subscription-check`: hourly.
+- `/api/cron/marketing-campaign`: daily.
+
+Do not launch paid traffic with only the Hobby daily cadence: stale runtime leases and transactional email jobs could remain pending for up to 24 hours.
+
 ## 9. Observability and Safety Controls
 
 Add Sentry and structured server logs with request IDs. Never log emails, OTPs, bearer tokens, Blue keys, OpenRouter credentials or complete request payloads.

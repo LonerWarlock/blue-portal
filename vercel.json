@@ -3,15 +3,15 @@
   "crons": [
     {
       "path": "/api/cron/blue-runtime-reconcile",
-      "schedule": "* * * * *"
+      "schedule": "5 0 * * *"
     },
     {
       "path": "/api/cron/jobs",
-      "schedule": "* * * * *"
+      "schedule": "15 0 * * *"
     },
     {
       "path": "/api/cron/subscription-check",
-      "schedule": "17 * * * *"
+      "schedule": "17 1 * * *"
     },
     {
       "path": "/api/cron/marketing-campaign",
