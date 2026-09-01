@@ -17,8 +17,8 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const email = normalizeEmail(body.email);
     const code = typeof body.code === 'string' ? body.code.trim() : '';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{6}$/.test(code)) {
-      return NextResponse.json({ error: 'Email and a valid 6-digit code are required' }, { status: 400 });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{6,8}$/.test(code)) {
+      return NextResponse.json({ error: 'Email and a valid verification code are required' }, { status: 400 });
     }
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Authentication is temporarily unavailable' }, { status: 503 });
