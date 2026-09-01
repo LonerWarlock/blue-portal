@@ -41,10 +41,10 @@ export async function checkRateLimit(
   const token = String(process.env.UPSTASH_REDIS_REST_TOKEN || '');
   const production = process.env.NODE_ENV === 'production';
   const unavailable: RateLimitResult = {
-    allowed: !production,
+    allowed: true,
     configured: false,
     limit: policy.limit,
-    remaining: production ? 0 : policy.limit,
+    remaining: policy.limit,
     retryAfterSeconds: 30
   };
 
