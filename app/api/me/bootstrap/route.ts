@@ -43,27 +43,36 @@ export async function GET(request: Request) {
         .maybeSingle(),
     ]);
 
-    if (walletResult.error || profileResult.error || subscriptionResult.error) {
+    if (walletResult.error || profileResult.error) {
       throw statusError(500, 'Failed to load account data');
+    }
+
+    if (subscriptionResult.error) {
+      console.warn('[bootstrap] subscription metadata is unavailable');
     }
 
     const wallet = walletResult.data;
     const profile = profileResult.data;
-    const subscription = subscriptionResult.data;
+    const subscription = subscriptionResult.error ? null : subscriptionResult.data;
     const subscriptionExpired = subscription?.current_period_end
       ? new Date(subscription.current_period_end).getTime() <= Date.now()
       : false;
     const activeLegacySubscription = subscription?.status === 'active' && !subscriptionExpired;
     const activeBluePro = wallet?.account_type === 'pro_payg'
-      && profile?.status === 'active'
-      && Number(profile.total_credits_purchased || 0) > 0;
+      && profile?.status === 'active';
     const discount = Number(subscription?.metadata?.imr_discount || 0);
 
     let bluePro = null;
     if (activeBluePro) {
       const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
-      const [key, paymentsResult, usageResult, summaryResult] = await Promise.all([
-        getOrCreateUserKey(userId),
+      let key = null;
+      try {
+        key = await getOrCreateUserKey(userId);
+      } catch {
+        console.warn('[bootstrap] Blue API key is temporarily unavailable');
+      }
+
+      const [paymentsResult, usageResult, summaryResult] = await Promise.all([
         supabaseAdmin
           .from('credit_payments')
           .select('*')
@@ -85,11 +94,19 @@ export async function GET(request: Request) {
       ]);
 
       if (paymentsResult.error || usageResult.error || summaryResult.error) {
-        throw statusError(500, 'Failed to load Blue Pro activity');
+        console.warn('[bootstrap] optional Blue Pro activity is partially unavailable', {
+          payments: Boolean(paymentsResult.error),
+          usage: Boolean(usageResult.error),
+          summary: Boolean(summaryResult.error),
+        });
       }
 
       const balance = Math.max(0, Number(wallet?.blue_credits || 0));
       const threshold = lowBalanceThreshold(Math.max(0, Number(profile?.last_top_up_credits || 0)) || 1);
+      const usageRows = usageResult.error ? [] : (usageResult.data || []);
+      const summary = summaryResult.error
+        ? summarizeUsageRows(usageRows)
+        : summaryResult.data;
       bluePro = {
         wallet: {
           eligible: true,
@@ -106,14 +123,14 @@ export async function GET(request: Request) {
           renewal_url: '/blue-pro/checkout',
         },
         key,
-        transactions: paymentsResult.data || [],
+        transactions: paymentsResult.error ? [] : (paymentsResult.data || []),
         usage: {
-          usage: usageResult.data || [],
-          total_count: Number(summaryResult.data?.total_requests || 0),
+          usage: usageRows,
+          total_count: Number(summary?.total_requests || 0),
           summary: {
-            total_requests: Number(summaryResult.data?.total_requests || 0),
-            total_blue_credits_used: Number(summaryResult.data?.total_blue_credits_used || 0),
-            model_breakdown: summaryResult.data?.model_breakdown || {},
+            total_requests: Number(summary?.total_requests || 0),
+            total_blue_credits_used: Number(summary?.total_blue_credits_used || 0),
+            model_breakdown: summary?.model_breakdown || {},
             period_days: 30,
           },
         },
@@ -141,4 +158,25 @@ export async function GET(request: Request) {
       error: error instanceof Error ? error.message : 'Server error',
     }, { status, headers: PRIVATE_NO_STORE_HEADERS });
   }
+}
+
+function summarizeUsageRows(rows: any[]) {
+  const modelBreakdown: Record<string, { requests: number; blue_credits_used: number }> = {};
+  let totalBlueCreditsUsed = 0;
+
+  for (const row of rows) {
+    const model = String(row?.model || 'unknown');
+    const cost = Math.max(0, Number(row?.blue_credits_cost ?? row?.cost ?? 0));
+    const current = modelBreakdown[model] || { requests: 0, blue_credits_used: 0 };
+    current.requests += 1;
+    current.blue_credits_used += cost;
+    modelBreakdown[model] = current;
+    totalBlueCreditsUsed += cost;
+  }
+
+  return {
+    total_requests: rows.length,
+    total_blue_credits_used: totalBlueCreditsUsed,
+    model_breakdown: modelBreakdown,
+  };
 }

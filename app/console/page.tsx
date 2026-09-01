@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import VSCodeInstallSnippet from "../components/VSCodeInstallSnippet";
+import ThemeToggle from "../components/ThemeToggle";
 
 const TIER_BADGE_COLORS: Record<string, string> = {
   "Low Cost": "bg-green-950/60 text-green-400 border border-green-900/60",
@@ -87,6 +88,8 @@ export default function ConsolePage() {
   const [discount, setDiscount] = useState<number>(0);
   const [isProPayg, setIsProPayg] = useState(false);
   const [hasBlueCredits, setHasBlueCredits] = useState(false);
+  const [accountLoading, setAccountLoading] = useState(false);
+  const [accountError, setAccountError] = useState("");
   const [proWallet, setProWallet] = useState<any>(null);
   const [proTransactions, setProTransactions] = useState<any[]>([]);
   const [proUsage, setProUsage] = useState<any>(null);
@@ -124,6 +127,11 @@ export default function ConsolePage() {
         setBalance(0);
         setPlan("lite");
         setDiscount(0);
+        setIsProPayg(false);
+        setHasBlueCredits(false);
+        setProWallet(null);
+        setAccountError("");
+        setAccountLoading(false);
       }
       setLoading(false);
     });
@@ -179,9 +187,11 @@ export default function ConsolePage() {
   };
 
   const loadUserData = async (_userId: string) => {
+    setAccountLoading(true);
+    setAccountError("");
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      if (!session) throw new Error('Your session has expired. Please sign in again.');
       const token = session.access_token;
 
       void refreshModelCatalog();
@@ -199,7 +209,7 @@ export default function ConsolePage() {
       setProPackConfig(data.pack_config || { priceINR: 100, credits: 1 });
       setPlan(data.subscription?.plan || 'lite');
       setDiscount(Number(data.subscription?.discount || 0));
-      setIsProPayg(Boolean(bluePro));
+      setIsProPayg(Boolean(data.subscription?.is_pro || bluePro));
       setProWallet(nextProWallet);
       setHasBlueCredits(Number(nextProWallet?.blue_credits || 0) > 0);
       setCurrentApiKey(bluePro?.key?.key || '');
@@ -208,6 +218,11 @@ export default function ConsolePage() {
       setProUsage(bluePro?.usage || null);
     } catch (err) {
       console.error("Error loading user data:", err);
+      setAccountError(err instanceof Error
+        ? err.message
+        : 'Account data could not be loaded. Please retry.');
+    } finally {
+      setAccountLoading(false);
     }
   };
 
@@ -439,6 +454,9 @@ export default function ConsolePage() {
     );
   }
 
+  const hasActiveSubscription = plan !== 'lite';
+  const proFeaturesLocked = !isProPayg && !accountLoading && !accountError;
+
   return (
     <>
       <header className="w-full panel py-4 px-6 border-b border-line sticky top-0 z-50">
@@ -461,15 +479,25 @@ export default function ConsolePage() {
             <a href="/blog" className="text-sm text-ink-muted hover:text-ink transition">Blog</a>
           </nav>
 
+          <div className="flex items-center space-x-3">
+            <ThemeToggle />
               {user && (
                 <div className="flex items-center space-x-4">
                   <span className="text-sm text-ink-muted font-medium hidden sm:inline">{user.email}</span>
-                  {isProPayg ? (
+                  {accountLoading ? (
+                    <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg border border-line text-xs font-bold text-ink-muted">
+                      Loading account…
+                    </span>
+                  ) : accountError ? (
+                    <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg border border-warning/40 text-xs font-bold text-warning">
+                      Account unavailable
+                    </span>
+                  ) : isProPayg ? (
                     <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg bg-brand/10 border border-line text-xs font-bold text-brand">
                       <i className="fa-solid fa-bolt mr-1.5 text-[10px]"></i>
                       Blue Pro
                     </span>
-                  ) : plan === "blue" ? (
+                  ) : hasActiveSubscription ? (
                     <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg bg-brand/10 border border-line text-xs font-bold text-brand">
                       <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
                       Blue Active
@@ -493,6 +521,7 @@ export default function ConsolePage() {
                   </button>
                 </div>
               )}
+          </div>
         </div>
       </header>
 
@@ -553,6 +582,22 @@ export default function ConsolePage() {
           
           <div className="w-full space-y-10">
             <VSCodeInstallSnippet />
+
+            {accountError && (
+              <div role="alert" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-ink">
+                <div>
+                  <p className="font-semibold">Your account details could not be loaded.</p>
+                  <p className="mt-0.5 text-xs text-ink-muted">{accountError}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => user?.id && void loadUserData(user.id)}
+                  className="btn btn-secondary !py-1.5"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
             
             <div className={`grid grid-cols-1 ${isProPayg ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-8`}>
               
@@ -598,11 +643,19 @@ export default function ConsolePage() {
                     <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
                       isProPayg
                         ? 'bg-brand/10 border border-brand/30 text-brand'
-                        : plan === 'blue'
+                        : hasActiveSubscription
                         ? 'bg-brand/10 border border-brand/30 text-brand'
                         : 'bg-green-950/60 border border-green-900/60 text-green-400'
                     }`}>
-                      {isProPayg ? 'Blue Pro' : plan === 'blue' ? 'Blue' : 'Blue Lite'}
+                      {accountLoading
+                        ? 'Loading…'
+                        : accountError
+                          ? 'Unavailable'
+                          : isProPayg
+                            ? 'Blue Pro'
+                            : hasActiveSubscription
+                              ? 'Blue'
+                              : 'Blue Lite'}
                     </span>
                   </div>
                   <span className="text-4xl font-extrabold tracking-tight mt-2 block text-ink">
@@ -612,7 +665,7 @@ export default function ConsolePage() {
                   <span className="text-[20px] text-ink-faint mt-2 block font-mono">1 IMR = ₹0.50 (INR)</span>
                 </div>
                 <div className="mt-6 flex space-x-3">
-                  {hasBlueCredits ? null : plan === 'blue' ? (
+                  {hasBlueCredits ? null : hasActiveSubscription ? (
                     <a
                       href="/subscribe"
                       className="flex-1 py-2.5 px-4 rounded-lg border border-line text-brand text-sm font-semibold hover:bg-brand/10 transition duration-200 inline-flex items-center justify-center gap-2"
@@ -647,7 +700,7 @@ export default function ConsolePage() {
               </div>
 
               <div className="lg:col-span-2 p-6 rounded-lg panel relative overflow-hidden flex flex-col justify-between min-h-[220px]">
-                {!hasBlueCredits && (
+                {proFeaturesLocked && (
                   <div className="absolute inset-0 bg-terminal/75 z-10 flex flex-col items-center justify-center p-6 text-center select-none">
                     <div className="w-12 h-12 rounded-lg bg-brand/10 border border-line flex items-center justify-center mb-3 shadow-lg">
                       <i className="fa-solid fa-lock text-brand text-lg"></i>
@@ -663,7 +716,7 @@ export default function ConsolePage() {
                   </div>
                 )}
 
-                <div className={`flex flex-col justify-between h-full w-full ${!hasBlueCredits ? 'filter blur-[1.5px] opacity-35 select-none pointer-events-none' : ''}`}>
+                <div className={`flex flex-col justify-between h-full w-full ${proFeaturesLocked ? 'filter blur-[1.5px] opacity-35 select-none pointer-events-none' : ''}`}>
                   <div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block">Your Blue API Key</span>
@@ -675,23 +728,26 @@ export default function ConsolePage() {
                     <div className="mt-4 flex items-center space-x-2">
                       <div className="relative flex-1">
                         <input 
-                          type={apiKeyVisible ? "text" : "password"}
+                          type={apiKeyMasked || apiKeyVisible ? "text" : "password"}
                           readOnly 
-                          value={currentApiKey} 
+                          value={currentApiKey}
+                          placeholder={accountLoading ? 'Loading your Blue API key…' : 'Rotate key to create a new copyable key'}
                           className="w-full bg-paper border border-line rounded-lg py-3 px-4 text-xs font-mono text-brand focus:outline-none"
                         />
-                        <button onClick={() => setApiKeyVisible(!apiKeyVisible)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-ink-faint hover:text-ink-muted">
-                          <i className={`fa-solid ${apiKeyVisible ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                        </button>
+                        {currentApiKey && !apiKeyMasked && (
+                          <button onClick={() => setApiKeyVisible(!apiKeyVisible)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-ink-faint hover:text-ink-muted">
+                            <i className={`fa-solid ${apiKeyVisible ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                          </button>
+                        )}
                       </div>
-                      <button onClick={handleCopyKey} className="p-3 bg-paper-sunken border border-line-strong text-ink-muted rounded-lg hover:bg-paper-sunken transition">
+                      <button disabled={!currentApiKey} onClick={handleCopyKey} className="p-3 bg-paper-sunken border border-line-strong text-ink-muted rounded-lg hover:bg-paper-sunken transition disabled:cursor-not-allowed disabled:opacity-40">
                         <i className={`fa-solid ${copySuccess ? 'fa-check' : 'fa-copy'}`}></i>
                       </button>
                     </div>
                   </div>
                   <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs text-ink-faint space-y-2 sm:space-y-0 w-full">
                     <span>{apiKeyMasked ? 'Existing keys stay masked. Rotate it when you need a copyable value.' : 'Keep this key private. It controls your token usage and deployment billing.'}</span>
-                    <button onClick={handleRotateKey} className="text-brand font-semibold">Rotate Key</button>
+                    <button disabled={accountLoading} onClick={handleRotateKey} className="text-brand font-semibold disabled:cursor-not-allowed disabled:opacity-40">Rotate Key</button>
                   </div>
                 </div>
               </div>
