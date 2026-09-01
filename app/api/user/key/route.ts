@@ -1,19 +1,12 @@
-import { randomBytes } from 'crypto';
 import { NextResponse } from 'next/server';
 import { getBearerToken, getBluePaygAccount, statusError } from '@/lib/bluePayg';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getOrCreateUserKey, rotateUserKey } from '@/lib/userKey';
 
 export async function GET(request: Request) {
   try {
     const userId = await authenticatedEligibleUser(request);
-    const { data, error } = await supabaseAdmin!
-      .from('user_keys')
-      .select('key')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (error) throw statusError(500, 'Failed to retrieve Blue API key');
-    if (data?.key) return NextResponse.json({ key: data.key });
-    return createKey(userId);
+    return NextResponse.json(await getOrCreateUserKey(userId));
   } catch (error) {
     return errorResponse(error);
   }
@@ -21,7 +14,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    return createKey(await authenticatedEligibleUser(request));
+    return NextResponse.json(await rotateUserKey(await authenticatedEligibleUser(request)));
   } catch (error) {
     return errorResponse(error);
   }
@@ -35,15 +28,6 @@ async function authenticatedEligibleUser(request: Request): Promise<string> {
   if (error || !data.user) throw statusError(401, 'Unauthorized: Invalid token');
   await getBluePaygAccount(data.user.id);
   return data.user.id;
-}
-
-async function createKey(userId: string) {
-  const key = `blue_${randomBytes(24).toString('base64url')}`;
-  const { error } = await supabaseAdmin!
-    .from('user_keys')
-    .upsert({ user_id: userId, key }, { onConflict: 'user_id' });
-  if (error) throw statusError(500, 'Failed to generate Blue API key');
-  return NextResponse.json({ key });
 }
 
 function errorResponse(error: unknown) {

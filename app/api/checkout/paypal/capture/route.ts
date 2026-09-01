@@ -1,136 +1,94 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { capturePaypalOrder } from '@/lib/paypal';
+import { moneyEquals, safeInternalUrl } from '@/lib/paymentSecurity';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  const fallback = new URL('/console', siteUrl);
   try {
     const { searchParams } = new URL(request.url);
-    const sessionId = searchParams.get('session_id');
-    const token = searchParams.get('token');
-
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
-    const consoleUrl = `${siteUrl}/console`;
-
-    if (!sessionId || !token) {
-      return NextResponse.redirect(`${consoleUrl}?payment=failed`, 303);
-    }
-
-    if (!supabaseAdmin) {
-      return NextResponse.redirect(`${consoleUrl}?payment=failed`, 303);
-    }
+    const sessionId = searchParams.get('session_id') || '';
+    const orderId = searchParams.get('token') || '';
+    if (!sessionId || !orderId || !supabaseAdmin) return paymentRedirect(fallback, 'failed');
 
     const { data: session, error: sessionError } = await supabaseAdmin
       .from('checkout_sessions')
       .select('*')
       .eq('id', sessionId)
       .single();
+    if (sessionError || !session) return paymentRedirect(fallback, 'failed');
 
-    if (sessionError || !session) {
-      return NextResponse.redirect(`${consoleUrl}?payment=failed`, 303);
+    const metadata = (session.metadata || {}) as Record<string, unknown>;
+    const returnUrl = safeInternalUrl(metadata.return_url, siteUrl, '/console');
+    if (session.status === 'completed') return paymentRedirect(returnUrl, 'success');
+    if (session.status !== 'pending' || new Date(session.expires_at).getTime() <= Date.now()) {
+      return paymentRedirect(returnUrl, 'failed');
     }
 
-    const metadata = session.metadata || {};
-    const returnUrl = metadata.return_url || consoleUrl;
-
-    if (session.status === 'completed') {
-      return NextResponse.redirect(`${returnUrl}?payment=success`, 303);
+    const { data: paymentOrder, error: paymentOrderError } = await supabaseAdmin
+      .from('payment_orders')
+      .select('*')
+      .eq('checkout_session_id', session.id)
+      .eq('gateway', 'paypal')
+      .single();
+    if (paymentOrderError || !paymentOrder || paymentOrder.status !== 'pending') {
+      return paymentRedirect(returnUrl, 'failed');
+    }
+    if (paymentOrder.provider_order_id !== orderId || metadata.expected_order_id !== orderId) {
+      console.error('[Subscription] PayPal callback order mismatch', { sessionId });
+      return paymentRedirect(returnUrl, 'invalid');
     }
 
-    const captureResult = await capturePaypalOrder(token);
-
-    if (captureResult.status !== 'COMPLETED') {
-      await supabaseAdmin
-        .from('checkout_sessions')
-        .update({ status: 'expired' })
-        .eq('id', session.id)
-        .eq('status', 'pending');
-
-      return NextResponse.redirect(`${returnUrl}?payment=failed`, 303);
+    const capture = await capturePaypalOrder(orderId);
+    const expectedCustomId = String(metadata.expected_custom_id || '');
+    const expectedInvoiceId = String(metadata.expected_invoice_id || '');
+    const validCapture = capture.status === 'COMPLETED'
+      && capture.orderId === orderId
+      && capture.customId === expectedCustomId
+      && capture.invoiceId === expectedInvoiceId
+      && capture.currency === paymentOrder.currency
+      && moneyEquals(capture.grossAmount, paymentOrder.amount);
+    if (!validCapture) {
+      console.error('[Subscription] PayPal capture did not match stored payment order', { sessionId, orderId });
+      return paymentRedirect(returnUrl, 'invalid');
     }
 
-    const { data: claimedSession, error: claimError } = await supabaseAdmin
-      .from('checkout_sessions')
-      .update({ status: 'completed' })
-      .eq('id', session.id)
-      .eq('status', 'pending')
-      .select('id')
-      .maybeSingle();
-
-    if (claimError) throw new Error(`Failed to complete checkout: ${claimError.message}`);
-    if (!claimedSession) {
-      return NextResponse.redirect(`${returnUrl}?payment=success`, 303);
-    }
-
-    const txnid = metadata.txnid || ('ppc_' + Math.random().toString(36).substring(2, 11) + Date.now().toString().slice(-7));
-
-    const appliedImr = Number(metadata.redeemed_imr || 0);
-    if (appliedImr > 0) {
-      const { data: wallet } = await supabaseAdmin
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', session.user_id)
-        .single();
-
-      if (wallet) {
-        const currentBalance = Number(wallet.balance || 0);
-        const newBalance = Math.max(0, currentBalance - appliedImr);
-        await supabaseAdmin
-          .from('wallets')
-          .update({ balance: newBalance })
-          .eq('user_id', session.user_id);
-      }
-    }
-
-    const currentPeriodStart = new Date().toISOString();
-    const currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-
-    const { error: subError } = await supabaseAdmin
-      .from('subscriptions')
-      .upsert({
-        user_id: session.user_id,
-        plan: 'blue',
-        status: 'active',
-        current_period_start: currentPeriodStart,
-        current_period_end: currentPeriodEnd,
-        stripe_subscription_id: 'paypal_' + txnid,
-        stripe_customer_id: 'paypal_' + (captureResult.payerEmail || metadata.email || ''),
-        metadata: {
-          email: captureResult.payerEmail || metadata.email || '',
-          paypal_order_id: captureResult.orderId,
-          paypal_capture_id: captureResult.captureId,
-          warning_email_sent: false,
-          expiry_email_sent: false,
-        },
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
-
-    if (subError) {
-      console.error('Failed to upsert active subscription row:', subError);
-    }
-
-    return NextResponse.redirect(`${returnUrl}?payment=success`, 303);
-
-  } catch (err: any) {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
-    if (err?.message?.includes('ORDER_ALREADY_CAPTURED') && supabaseAdmin) {
+    const { error: completionError } = await supabaseAdmin.rpc('complete_blue_subscription_checkout', {
+      session_id_param: session.id,
+      provider_param: 'paypal',
+      provider_order_id_param: orderId,
+      provider_transaction_id_param: capture.captureId || orderId,
+      payer_email_param: capture.payerEmail || String(metadata.email || ''),
+    });
+    if (completionError) throw new Error(`Could not activate subscription: ${completionError.message}`);
+    return paymentRedirect(returnUrl, 'success');
+  } catch (error) {
+    // Repeated provider capture is safe only after our transaction committed.
+    if (supabaseAdmin) {
       try {
-        const { searchParams } = new URL(request.url);
-        const sessionId = searchParams.get('session_id');
-        const { data: recheck } = await supabaseAdmin
+        const sessionId = new URL(request.url).searchParams.get('session_id') || '';
+        const { data: session } = await supabaseAdmin
           .from('checkout_sessions')
           .select('status, metadata')
-          .eq('id', sessionId || '')
-          .single();
-        if (recheck?.status === 'completed') {
-          const meta = recheck.metadata || {};
-          const returnUrl = meta.return_url || `${siteUrl}/console`;
-          return NextResponse.redirect(`${returnUrl}?payment=success`, 303);
+          .eq('id', sessionId)
+          .maybeSingle();
+        if (session?.status === 'completed') {
+          return paymentRedirect(safeInternalUrl(session.metadata?.return_url, siteUrl, '/console'), 'success');
         }
-      } catch { /* fall through to error redirect */ }
+      } catch {
+        // Fall through to the safe failure redirect.
+      }
     }
-    console.error('PayPal Capture Error:', err);
-    return NextResponse.redirect(`${siteUrl}/console?payment=failed`, 303);
+    console.error('[Subscription] PayPal capture failed:', error);
+    return paymentRedirect(fallback, 'failed');
   }
+}
+
+function paymentRedirect(url: URL, status: 'success' | 'failed' | 'invalid') {
+  url.searchParams.set('payment', status);
+  return NextResponse.redirect(url, 303);
 }

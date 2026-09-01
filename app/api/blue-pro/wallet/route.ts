@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { getBearerToken, getBluePaygAccount, statusError } from '@/lib/bluePayg';
 import { isLowBalance } from '@/lib/openrouter';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { reconcileBlueRuntimeTasks } from '@/lib/blueRuntime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +21,6 @@ export async function GET(request: Request) {
     const { data, error } = await supabaseAdmin.auth.getUser(token);
     if (error || !data.user) throw statusError(401, 'Unauthorized: Invalid token');
 
-    await reconcileBlueRuntimeTasks({ userId: data.user.id, limit: 20 });
     const account = await getBluePaygAccount(data.user.id);
     const { data: profile } = await supabaseAdmin
       .from('blue_profiles')

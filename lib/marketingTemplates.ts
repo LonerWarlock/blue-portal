@@ -128,7 +128,7 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
 
 <p>You're probably still burning $20/month on Cursor out of pure muscle memory.</p>
 
-<p>So: <a href="vscode:extension/om-mali.blue-coding-assistant" style="color: #2563eb;">open VS Code</a>, paste your key, and ask Blue to build a feature for $1/mo. Worst case, you wasted 2 minutes. Best case, you saved $19.</p>
+<p>So: <a href="vscode:extension/om-mali.blue-coding-assistant" style="color: #2563eb;">open VS Code</a>, paste your key, and ask Blue to build a feature for $1. Worst case, you wasted 2 minutes. Best case, you saved $19.</p>
 
 <p>Fair enough?</p>
         `, siteUrl)
@@ -200,7 +200,7 @@ export function getCampaignEmail(type: CampaignType, options: TemplateOptions): 
 
 <p>You probably want faster throughput, bigger context windows, and zero daily caps.</p>
 
-<p>So: <a href="${siteUrl}/console" style="color: #2563eb;">check out Blue Pro</a> starting at just $1/month. You've earned the upgrade.</p>
+<p>So: <a href="${siteUrl}/console" style="color: #2563eb;">check out Blue Pro</a> starting at just $1. You've earned the upgrade.</p>
 
 <p>Keep building,</p>
         `, siteUrl)

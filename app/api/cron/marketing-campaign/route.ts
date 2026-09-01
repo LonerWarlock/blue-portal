@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import nodemailer from 'nodemailer';
 import { getCampaignEmail, CampaignType } from '@/lib/marketingTemplates';
+import { authorizeCron } from '@/lib/cronAuth';
+import { emailJobIdempotencyKey, enqueueEmailJob } from '@/lib/jobOutbox';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 export async function GET(req: Request) {
   return handleMarketingCampaign(req);
@@ -14,71 +19,47 @@ export async function POST(req: Request) {
 async function handleMarketingCampaign(req: Request) {
   try {
     // 1. Authorization Check
-    const cronSecret = process.env.CRON_SECRET;
-    const authHeader = req.headers.get('authorization');
     const { searchParams } = new URL(req.url);
-    const secretParam = searchParams.get('secret');
     const overrideCampaign = searchParams.get('campaign') as CampaignType | null;
     const customSubject = searchParams.get('subject') || undefined;
     const customContent = searchParams.get('content') || undefined;
-    const batchLimit = parseInt(searchParams.get('limit') || '50', 10);
+    const batchLimit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50));
+    const userPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
 
-    if (cronSecret) {
-      const isAuthorized =
-        (authHeader && authHeader === `Bearer ${cronSecret}`) ||
-        (secretParam && secretParam === cronSecret);
-      if (!isAuthorized) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+    if (!authorizeCron(req)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'DB admin client missing' }, { status: 500 });
     }
 
-    // 2. Fetch SMTP configurations
-    const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-    const port = parseInt(process.env.SMTP_PORT || '587');
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-
-    if (!smtpUser || !smtpPass) {
-      console.error('SMTP credentials missing. Skipping email sending.');
-      return NextResponse.json({ error: 'SMTP configurations missing' }, { status: 500 });
-    }
-
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user: smtpUser, pass: smtpPass }
+    // 2. Process one bounded auth page. The next page is a separate cron run.
+    const perPage = Math.min(200, Math.max(50, batchLimit * 4));
+    const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
+      page: userPage,
+      perPage
     });
-
-    // 3. Fetch all auth users across pages
-    let allUsers: any[] = [];
-    let page = 1;
-    const perPage = 1000;
-    while (true) {
-      const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
-      if (usersError || !usersData?.users) {
-        if (page === 1) {
-          console.error('Failed to retrieve auth users:', usersError);
-          return NextResponse.json({ error: 'Failed to retrieve users' }, { status: 500 });
-        }
-        break;
-      }
-      allUsers = allUsers.concat(usersData.users);
-      if (usersData.users.length < perPage) break;
-      page++;
+    if (usersError || !usersData?.users) {
+      console.error('Failed to retrieve auth users:', usersError);
+      return NextResponse.json({ error: 'Failed to retrieve users' }, { status: 500 });
     }
+    const allUsers = usersData.users;
+    if (allUsers.length === 0) {
+      return NextResponse.json({ success: true, processed: 0, message: 'No users found on this page.' });
+    }
+    const userIds = allUsers.map(user => user.id);
+    const userEmails = allUsers
+      .map(user => String(user.email || '').trim().toLowerCase())
+      .filter(Boolean);
 
     // 4. Fetch relational data in parallel
     const [subsRes, profilesRes, keysRes, walletsRes, vibeRes] = await Promise.all([
-      supabaseAdmin.from('subscriptions').select('*'),
-      supabaseAdmin.from('blue_profiles').select('*'),
-      supabaseAdmin.from('user_keys').select('user_id'),
-      supabaseAdmin.from('wallets').select('*'),
-      supabaseAdmin.from('vibe_coding_registrations').select('email')
+      supabaseAdmin.from('subscriptions').select('*').in('user_id', userIds),
+      supabaseAdmin.from('blue_profiles').select('*').in('user_id', userIds),
+      supabaseAdmin.from('user_keys').select('user_id').in('user_id', userIds),
+      supabaseAdmin.from('wallets').select('*').in('user_id', userIds),
+      supabaseAdmin.from('vibe_coding_registrations').select('email').in('email', userEmails)
     ]);
 
     const subMap = new Map<string, any>();
@@ -144,7 +125,6 @@ async function handleMarketingCampaign(req: Request) {
       // Check Cooldowns
       const metadata = sub?.metadata || {};
       const lastSentStr = metadata.last_marketing_sent_at;
-      const lastCampaign = metadata.last_campaign_type;
       const campaignsSent = metadata.campaigns_sent || {};
 
       if (lastSentStr && !overrideCampaign) {
@@ -230,25 +210,27 @@ async function handleMarketingCampaign(req: Request) {
         creditsRemaining: blueCredits
       });
 
-      const mailOptions = {
-        from: `"Om Karande at Blue AI" <${smtpUser}>`,
-        to: user.email,
-        subject,
-        html
-      };
-
       try {
-        await transporter.sendMail(mailOptions);
+        const queuedAt = new Date();
+        await enqueueEmailJob(
+          { to: user.email, subject, html },
+          emailJobIdempotencyKey('marketing', [
+            user.id,
+            matchedCampaign,
+            queuedAt.toISOString().slice(0, 10),
+          ])
+        );
 
-        // Update metadata tracking
+        // Mark the durable enqueue, not provider delivery. The outbox owns
+        // retries and dead-letter handling from this point onward.
         const updatedMetadata = {
           ...metadata,
           email: user.email,
-          last_marketing_sent_at: new Date().toISOString(),
+          last_marketing_sent_at: queuedAt.toISOString(),
           last_campaign_type: matchedCampaign,
           campaigns_sent: {
             ...campaignsSent,
-            [matchedCampaign]: new Date().toISOString()
+            [matchedCampaign]: queuedAt.toISOString()
           }
         };
 
@@ -265,15 +247,16 @@ async function handleMarketingCampaign(req: Request) {
             { onConflict: 'user_id' }
           );
 
-        details.push({ email: user.email, campaign: matchedCampaign, status: 'notified' });
+        details.push({ campaign: matchedCampaign, status: 'queued' });
         processedCount++;
       } catch (mailErr: any) {
-        console.error(`Failed to send ${matchedCampaign} email to ${user.email}:`, mailErr);
-        details.push({
-          email: user.email,
+        console.error('[marketing] Failed to queue campaign email', {
           campaign: matchedCampaign,
-          status: 'failed_sending',
-          error: mailErr.message
+          message: String(mailErr?.message || mailErr).slice(0, 300),
+        });
+        details.push({
+          campaign: matchedCampaign,
+          status: 'failed_to_queue'
         });
       }
     }
@@ -281,7 +264,14 @@ async function handleMarketingCampaign(req: Request) {
     return NextResponse.json({
       success: true,
       processed: processedCount,
-      details
+      page: userPage,
+      has_more: allUsers.length === perPage,
+      details: details.map(detail => ({
+        campaign: detail.campaign,
+        status: detail.status,
+        days_since_campaign: detail.days_since_campaign,
+        days_since_last: detail.days_since_last
+      }))
     });
   } catch (err: any) {
     console.error('Marketing campaign engine error:', err);

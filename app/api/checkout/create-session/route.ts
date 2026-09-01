@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { checkRateLimit, rateLimitHeaders, requestIp } from '@/lib/trafficControl';
 
 async function getAuthenticatedUser(request: Request) {
   const authHeader = request.headers.get('authorization');
@@ -23,6 +24,9 @@ async function getAuthenticatedUser(request: Request) {
 // POST: Create a checkout session for subscription redirect
 export async function POST(request: Request) {
   try {
+    if (String(process.env.DISABLE_CHECKOUT || '').toLowerCase() === 'true') {
+      return NextResponse.json({ error: 'Checkout is temporarily paused.' }, { status: 503 });
+    }
     const { user, error } = await getAuthenticatedUser(request);
     if (error || !user) {
       return NextResponse.json({ error }, { status: 401 });
@@ -32,9 +36,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'DB error' }, { status: 500 });
     }
 
+    const limits = await Promise.all([
+      checkRateLimit('checkout:user', user.id, { limit: 10, windowSeconds: 10 * 60 }),
+      checkRateLimit('checkout:ip', requestIp(request), { limit: 20, windowSeconds: 10 * 60 })
+    ]);
+    const blocked = limits.find(result => !result.allowed);
+    if (blocked) {
+      return NextResponse.json({
+        error: blocked.configured ? 'Too many checkout attempts. Please wait and try again.' : 'Checkout is temporarily unavailable.'
+      }, {
+        status: blocked.configured ? 429 : 503,
+        headers: rateLimitHeaders(blocked)
+      });
+    }
+
     const body = await request.json().catch(() => ({}));
-    const plan = body.plan || 'blue';
-    const billingCycle = body.billing_cycle || 'monthly';
+    const plan = String(body.plan || 'blue');
+    const billingCycle = String(body.billing_cycle || 'monthly');
+    if (plan !== 'blue' || billingCycle !== 'monthly') {
+      return NextResponse.json({ error: 'Unsupported product or billing cycle' }, { status: 400 });
+    }
 
     // Fetch active IMR discount
     let imrDiscount = 0;
@@ -62,7 +83,12 @@ export async function POST(request: Request) {
         expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
         metadata: { 
           email: user.email,
-          imr_discount: imrDiscount
+          imr_discount: imrDiscount,
+          product_sku: 'blue_monthly_inr',
+          base_price_inr: '149.00',
+          base_price_usd: '1.99',
+          currency_inr: 'INR',
+          currency_usd: 'USD',
         },
       })
       .select('id')

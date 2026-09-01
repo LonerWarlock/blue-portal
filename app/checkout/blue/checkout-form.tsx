@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { CurrencySelector } from '@/app/components/CurrencySelector';
+import { supabase } from '@/lib/supabase';
 
 interface Props {
   sessionId: string;
-  userId: string;
   returnUrl: string;
   email: string;
   imrBalance: number;
@@ -26,7 +26,7 @@ const blueFeatures = [
 
 const USD_PRICE = 1.99;
 
-export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }: Props) {
+export function CheckoutForm({ sessionId, returnUrl, email, imrBalance }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [redeemedImr, setRedeemedImr] = useState<number>(0);
@@ -56,9 +56,14 @@ export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }
       (window as any).paypal.Buttons({
         style: { layout: 'vertical', color: 'blue', shape: 'rect', label: 'paypal', height: 45 },
         createOrder: async () => {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) throw new Error('Please sign in again before checking out.');
           const res = await fetch('/api/checkout/paypal/create-order', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
             body: JSON.stringify({ sessionId, returnUrl, redeemedImr }),
           });
           const data = await res.json();
@@ -81,9 +86,14 @@ export function CheckoutForm({ sessionId, userId, returnUrl, email, imrBalance }
     setError('');
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Please sign in again before checking out.');
       const hashRes = await fetch('/api/checkout/payu/create-hash', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ sessionId, returnUrl, redeemedImr }),
       });
 

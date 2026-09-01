@@ -1,5 +1,8 @@
 "use client";
 
+import { Video } from "lucide-react";
+import LazyVideo from "./LazyVideo";
+
 export default function DemoVideo() {
   return (
     <section id="demo" className="py-24 relative">
@@ -24,24 +27,15 @@ export default function DemoVideo() {
               </div>
               <span className="text-xs text-ink-faint ml-3 font-mono">blue-demo</span>
               <div className="ml-auto text-ink-faint">
-                <i className="fa-solid fa-video text-xs"></i>
+                <Video aria-hidden="true" className="h-3 w-3" />
               </div>
             </div>
             <div className="relative bg-terminal aspect-video">
-              <video
-                className="w-full h-full object-contain"
-                controls
-                controlsList="nodownload"
-                onContextMenu={(e) => e.preventDefault()}
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-              >
-                <source src="/videos/portfolio_demo.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
+              <LazyVideo
+                src="/videos/portfolio_demo.mp4"
+                label="Blue building and deploying a portfolio website"
+                className="w-full h-full"
+              />
             </div>
           </div>
           <p className="text-center text-xs text-ink-faint mt-4">

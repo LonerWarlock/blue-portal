@@ -20,54 +20,42 @@ export async function GET(request: Request) {
     if (!supabaseAdmin) return NextResponse.json({ error: 'DB error' }, { status: 500 });
 
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
-    const offset = parseInt(searchParams.get('offset') || '0');
-    const days = parseInt(searchParams.get('days') || '30');
+    const requestedLimit = Number.parseInt(searchParams.get('limit') || '50', 10);
+    const requestedOffset = Number.parseInt(searchParams.get('offset') || '0', 10);
+    const requestedDays = Number.parseInt(searchParams.get('days') || '30', 10);
+    const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 50, 1), 100);
+    const offset = Math.max(Number.isFinite(requestedOffset) ? requestedOffset : 0, 0);
+    const days = Math.min(Math.max(Number.isFinite(requestedDays) ? requestedDays : 30, 1), 365);
 
     const since = new Date(Date.now() - days * 86400000).toISOString();
 
-    const { data: usage, error: usageError, count } = await supabaseAdmin
-      .from('billing_transactions')
-      .select('*', { count: 'exact' })
-      .eq('user_id', user.id)
-      .eq('account_type', 'pro_payg')
-      .gte('created_at', since)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    const [usageResult, summaryResult] = await Promise.all([
+      supabaseAdmin
+        .from('billing_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('account_type', 'pro_payg')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1),
+      supabaseAdmin.rpc('blue_usage_summary', {
+        user_id_param: user.id,
+        since_param: since,
+      }),
+    ]);
 
-    if (usageError) {
+    if (usageResult.error || summaryResult.error) {
       return NextResponse.json({ error: 'Failed to fetch usage' }, { status: 500 });
     }
-
-    const { data: aggData } = await supabaseAdmin
-      .from('billing_transactions')
-      .select('model, blue_credits_cost')
-      .eq('user_id', user.id)
-      .eq('account_type', 'pro_payg')
-      .gte('created_at', since);
-
-    const modelBreakdown: Record<string, { requests: number; totalCost: number }> = {};
-    let totalBlueCredits = 0;
-    let totalRequests = 0;
-
-    for (const row of aggData || []) {
-      const cost = Number(row.blue_credits_cost || 0);
-      totalBlueCredits += cost;
-      totalRequests++;
-      if (!modelBreakdown[row.model]) {
-        modelBreakdown[row.model] = { requests: 0, totalCost: 0 };
-      }
-      modelBreakdown[row.model].requests++;
-      modelBreakdown[row.model].totalCost += cost;
-    }
+    const summary = summaryResult.data || {};
 
     return NextResponse.json({
-      usage: usage || [],
-      total_count: count || 0,
+      usage: usageResult.data || [],
+      total_count: Number(summary.total_requests || 0),
       summary: {
-        total_requests: totalRequests,
-        total_blue_credits_used: Math.round(totalBlueCredits * 1000000) / 1000000,
-        model_breakdown: modelBreakdown,
+        total_requests: Number(summary.total_requests || 0),
+        total_blue_credits_used: Number(summary.total_blue_credits_used || 0),
+        model_breakdown: summary.model_breakdown || {},
         period_days: days
       }
     });

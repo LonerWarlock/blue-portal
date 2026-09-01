@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import nodemailer from 'nodemailer';
+import { authorizeCron } from '@/lib/cronAuth';
+import { emailJobIdempotencyKey, enqueueEmailJob } from '@/lib/jobOutbox';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 export async function GET(req: Request) {
   return handleSubscriptionCheck(req);
@@ -13,47 +18,41 @@ export async function POST(req: Request) {
 async function handleSubscriptionCheck(req: Request) {
   try {
     // 1. Authorization Check (for protection in production)
-    const cronSecret = process.env.CRON_SECRET;
-    const authHeader = req.headers.get('authorization');
-    const { searchParams } = new URL(req.url);
-    const secretParam = searchParams.get('secret');
-
-    if (cronSecret) {
-      const isAuthorized =
-        (authHeader && authHeader === `Bearer ${cronSecret}`) ||
-        (secretParam && secretParam === cronSecret);
-      if (!isAuthorized) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+    if (!authorizeCron(req)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'DB admin client missing' }, { status: 500 });
     }
 
-    // 2. Fetch SMTP configurations
-    const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-    const port = parseInt(process.env.SMTP_PORT || '587');
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-
-    if (!smtpUser || !smtpPass) {
-      console.error('SMTP credentials missing from environment. Skipping email sending.');
-      return NextResponse.json({ error: 'SMTP configurations missing' }, { status: 500 });
-    }
-
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user: smtpUser, pass: smtpPass }
-    });
-
-    // 3. Query all currently "active" subscriptions
-    const { data: subscriptions, error: fetchError } = await supabaseAdmin
-      .from('subscriptions')
-      .select('*')
-      .eq('status', 'active');
+    // 2. Query only actionable rows. Already-queued warnings are excluded so
+    // the first 100 subscriptions cannot permanently starve later accounts.
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
+    const warningDeadline = new Date(nowMs + 3 * 86_400_000).toISOString();
+    const [expiredResult, warningResult] = await Promise.all([
+      supabaseAdmin
+        .from('subscriptions')
+        .select('*')
+        .eq('status', 'active')
+        .lte('current_period_end', nowIso)
+        .order('current_period_end', { ascending: true })
+        .limit(100),
+      supabaseAdmin
+        .from('subscriptions')
+        .select('*')
+        .eq('status', 'active')
+        .gt('current_period_end', nowIso)
+        .lte('current_period_end', warningDeadline)
+        .or('metadata->>warning_email_sent.is.null,metadata->>warning_email_sent.eq.false')
+        .order('current_period_end', { ascending: true })
+        .limit(100),
+    ]);
+    const fetchError = expiredResult.error || warningResult.error;
+    const subscriptions = [...(expiredResult.data || []), ...(warningResult.data || [])]
+      .sort((left, right) => Date.parse(left.current_period_end) - Date.parse(right.current_period_end))
+      .slice(0, 100);
 
     if (fetchError) {
       console.error('Failed to query subscriptions:', fetchError);
@@ -64,7 +63,6 @@ async function handleSubscriptionCheck(req: Request) {
       return NextResponse.json({ success: true, processed: 0, message: 'No active subscriptions found.' });
     }
 
-    const nowMs = Date.now();
     let processedCount = 0;
     const details: any[] = [];
 
@@ -115,8 +113,28 @@ async function handleSubscriptionCheck(req: Request) {
       // CASE A: Subscription has officially expired
       if (msDiff <= 0) {
         const isExpiryEmailSent = !!sub.metadata?.expiry_email_sent;
+        let expiryQueued = isExpiryEmailSent;
 
-        // Perform DB status change regardless, but send email only once
+        if (!isExpiryEmailSent) {
+          try {
+            await enqueueEmailJob({
+              to: email,
+              subject: 'Your Blue AI Subscription Has Expired',
+              html: getExpiredEmailTemplate(formattedDate, siteUrl),
+            }, emailJobIdempotencyKey('subscription-expired', [
+              sub.id,
+              String(sub.current_period_end),
+            ]));
+            expiryQueued = true;
+          } catch (mailErr) {
+            console.error('[subscription] Failed to queue expiry email', {
+              subscription_id: sub.id,
+              message: mailErr instanceof Error ? mailErr.message.slice(0, 300) : 'Unknown outbox error',
+            });
+          }
+        }
+
+        // Expiration is authoritative even if the email provider is down.
         await supabaseAdmin
           .from('subscriptions')
           .update({
@@ -124,30 +142,13 @@ async function handleSubscriptionCheck(req: Request) {
             metadata: {
               ...(sub.metadata || {}),
               warning_email_sent: true,
-              expiry_email_sent: true,
+              expiry_email_sent: expiryQueued,
             },
             updated_at: new Date().toISOString()
           })
           .eq('id', sub.id);
 
-        if (!isExpiryEmailSent) {
-          // Send "Subscription Expired" email
-          const mailOptions = {
-            from: `"Blue AI Premium" <${smtpUser}>`,
-            to: email,
-            subject: 'Your Blue AI Subscription Has Expired',
-            html: getExpiredEmailTemplate(formattedDate, siteUrl)
-          };
-
-          try {
-            await transporter.sendMail(mailOptions);
-            details.push({ email, action: 'expired_notified' });
-          } catch (mailErr) {
-            console.error(`Failed to send expiry email to ${email}:`, mailErr);
-          }
-        } else {
-          details.push({ email, action: 'expired_db_only' });
-        }
+        details.push({ action: expiryQueued ? 'expired_email_queued' : 'expired_db_only' });
         processedCount++;
       } 
       // CASE B: Subscription is expiring in <= 3 days (Warning)
@@ -155,22 +156,20 @@ async function handleSubscriptionCheck(req: Request) {
         const isWarningEmailSent = !!sub.metadata?.warning_email_sent;
 
         if (!isWarningEmailSent) {
-          // Send "Warning / Renewal Reminder" email
           const daysLeftStr = daysDiff <= 1 
             ? 'less than 24 hours' 
             : `${Math.ceil(daysDiff)} days`;
 
-          const mailOptions = {
-            from: `"Blue AI Premium" <${smtpUser}>`,
-            to: email,
-            subject: `Action Required: Your Blue AI Subscription Ends in ${daysLeftStr}`,
-            html: getWarningEmailTemplate(daysLeftStr, formattedDate, siteUrl)
-          };
-
           try {
-            await transporter.sendMail(mailOptions);
-            
-            // Mark warning_email_sent as true in DB
+            await enqueueEmailJob({
+              to: email,
+              subject: `Action Required: Your Blue AI Subscription Ends in ${daysLeftStr}`,
+              html: getWarningEmailTemplate(daysLeftStr, formattedDate, siteUrl),
+            }, emailJobIdempotencyKey('subscription-warning', [
+              sub.id,
+              String(sub.current_period_end),
+            ]));
+
             await supabaseAdmin
               .from('subscriptions')
               .update({
@@ -182,12 +181,15 @@ async function handleSubscriptionCheck(req: Request) {
               })
               .eq('id', sub.id);
 
-            details.push({ email, action: 'warning_notified' });
+            details.push({ action: 'warning_email_queued' });
           } catch (mailErr) {
-            console.error(`Failed to send warning email to ${email}:`, mailErr);
+            console.error('[subscription] Failed to queue warning email', {
+              subscription_id: sub.id,
+              message: mailErr instanceof Error ? mailErr.message.slice(0, 300) : 'Unknown outbox error',
+            });
           }
         } else {
-          details.push({ email, action: 'warning_already_sent' });
+          details.push({ action: 'warning_already_queued' });
         }
         processedCount++;
       }
@@ -196,7 +198,7 @@ async function handleSubscriptionCheck(req: Request) {
     return NextResponse.json({
       success: true,
       processed: processedCount,
-      details
+      details: details.map(detail => ({ action: detail.action }))
     });
 
   } catch (err: any) {

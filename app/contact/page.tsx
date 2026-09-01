@@ -1,7 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import Script from "next/script";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PageLayout from "@/app/components/PageLayout";
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (element: HTMLElement, options: Record<string, unknown>) => string;
+      reset: (widgetId?: string) => void;
+      remove: (widgetId: string) => void;
+    };
+  }
+}
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
 
 export default function ContactPage() {
   const [name, setName] = useState("");
@@ -9,12 +22,45 @@ export default function ContactPage() {
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
+  const turnstileWidgetIdRef = useRef<string | null>(null);
+
+  const renderTurnstile = useCallback(() => {
+    if (!TURNSTILE_SITE_KEY || !window.turnstile || !turnstileContainerRef.current || turnstileWidgetIdRef.current) {
+      return;
+    }
+
+    turnstileWidgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
+      sitekey: TURNSTILE_SITE_KEY,
+      action: "contact",
+      theme: "auto",
+      callback: (token: string) => setTurnstileToken(token),
+      "expired-callback": () => setTurnstileToken(""),
+      "error-callback": () => setTurnstileToken(""),
+    });
+  }, []);
+
+  useEffect(() => {
+    renderTurnstile();
+    return () => {
+      if (turnstileWidgetIdRef.current && window.turnstile) {
+        window.turnstile.remove(turnstileWidgetIdRef.current);
+        turnstileWidgetIdRef.current = null;
+      }
+    };
+  }, [renderTurnstile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !message) {
       setStatus("error");
       setErrorMsg("Please fill out all fields.");
+      return;
+    }
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setStatus("error");
+      setErrorMsg("Please complete the human verification challenge.");
       return;
     }
 
@@ -27,16 +73,25 @@ export default function ContactPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, email, message }),
+        body: JSON.stringify({ name, email, message, turnstileToken }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
         setStatus("success");
         setName("");
         setEmail("");
         setMessage("");
+      } else if (response.status === 429) {
+        const retryAfter = Number(response.headers.get("Retry-After") || 0);
+        setStatus("error");
+        setErrorMsg(retryAfter > 0
+          ? `Too many messages. Please try again in ${Math.ceil(retryAfter / 60)} minute(s).`
+          : "Too many messages. Please try again later.");
+      } else if (response.status === 503) {
+        setStatus("error");
+        setErrorMsg("The contact form is temporarily unavailable. Please try again shortly.");
       } else {
         setStatus("error");
         setErrorMsg(data.error || "Failed to send message. Please try again.");
@@ -44,6 +99,11 @@ export default function ContactPage() {
     } catch (error) {
       setStatus("error");
       setErrorMsg("An unexpected error occurred. Please check your connection.");
+    } finally {
+      setTurnstileToken("");
+      if (turnstileWidgetIdRef.current) {
+        window.turnstile?.reset(turnstileWidgetIdRef.current);
+      }
     }
   };
 
@@ -157,13 +217,13 @@ export default function ContactPage() {
                   <h3 className="text-lg font-bold text-ink mb-4">Send a Message</h3>
 
                   {status === "success" && (
-                    <div className="mb-4 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
-                      ✓ Thank you! Your message has been sent successfully.
+                    <div aria-live="polite" className="mb-4 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
+                      ✓ Thank you! Your message has been accepted and queued for our team.
                     </div>
                   )}
 
                   {status === "error" && (
-                    <div className="mb-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                    <div role="alert" className="mb-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
                       ⚠ {errorMsg}
                     </div>
                   )}
@@ -174,6 +234,7 @@ export default function ContactPage() {
                       <input
                         type="text"
                         required
+                        maxLength={100}
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="John Doe"
@@ -185,6 +246,7 @@ export default function ContactPage() {
                       <input
                         type="email"
                         required
+                        maxLength={254}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="john@example.com"
@@ -196,15 +258,27 @@ export default function ContactPage() {
                       <textarea
                         rows={4}
                         required
+                        maxLength={5000}
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         placeholder="How can we help you?"
                         className="w-full bg-paper/60 border border-line rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand transition resize-none"
                       />
                     </div>
+                    {TURNSTILE_SITE_KEY ? (
+                      <>
+                        <Script
+                          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+                          strategy="afterInteractive"
+                          onLoad={renderTurnstile}
+                          onReady={renderTurnstile}
+                        />
+                        <div ref={turnstileContainerRef} className="min-h-[65px]" />
+                      </>
+                    ) : null}
                     <button
                       type="submit"
-                      disabled={status === "submitting"}
+                      disabled={status === "submitting" || Boolean(TURNSTILE_SITE_KEY && !turnstileToken)}
                       className="w-full py-2.5 rounded-lg bg-brand text-white text-sm font-semibold transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {status === "submitting" ? "Sending..." : "Send Message"}

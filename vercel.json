@@ -1,8 +1,17 @@
 {
+  "fluid": true,
   "crons": [
     {
       "path": "/api/cron/blue-runtime-reconcile",
-      "schedule": "0 3 * * *"
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/jobs",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/subscription-check",
+      "schedule": "17 * * * *"
     },
     {
       "path": "/api/cron/marketing-campaign",

@@ -1,133 +1,92 @@
 import { NextResponse } from 'next/server';
+import {
+  matchesExpectedPayuPayment,
+  parsePayuForm,
+  safeInternalUrl,
+  validPayuCallbackSignature,
+} from '@/lib/paymentSecurity';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { createHash, timingSafeEqual } from 'crypto';
 
-export async function POST(req: Request) {
+export const runtime = 'nodejs';
+
+export async function POST(request: Request) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  const defaultReturnUrl = new URL('/console', siteUrl);
   try {
-    const formData = await req.formData();
-    const data: Record<string, string> = {};
-    formData.forEach((value, key) => {
-      data[key] = value.toString();
-    });
-
-    const {
-      key, txnid, amount, productinfo, firstname, email,
-      status, hash, additionalCharges
-    } = data;
-
-    const salt = process.env.PAYU_MERCHANT_SALT || '';
-
-    // Verify reverse signature hash
-    let hashString = `${salt}|${status}|||||||||||${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`;
-    if (additionalCharges) {
-      hashString = `${additionalCharges}|${salt}|${status}|||||||||||${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`;
+    const data = parsePayuForm(await request.formData());
+    const merchantKey = process.env.PAYU_MERCHANT_KEY?.trim() || '';
+    const salt = process.env.PAYU_MERCHANT_SALT?.trim() || '';
+    if (
+      !merchantKey
+      || data.key !== merchantKey
+      || !validPayuCallbackSignature(data, salt)
+    ) {
+      console.error('[Subscription] Rejected PayU callback with invalid signature or merchant key', { txnid: data.txnid });
+      defaultReturnUrl.searchParams.set('payment', 'invalid');
+      return NextResponse.redirect(defaultReturnUrl, 303);
     }
-
-    const calculatedHash = createHash('sha512').update(hashString).digest('hex');
-
-    const expectedHash = Buffer.from(calculatedHash, 'hex');
-    const receivedHash = Buffer.from(hash || '', 'hex');
-    if (expectedHash.length !== receivedHash.length || !timingSafeEqual(expectedHash, receivedHash)) {
-      console.error('PayU Callback Signature Verification Failed');
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app'}/console?payment=invalid`, 303);
-    }
-
     if (!supabaseAdmin) {
-      return NextResponse.json({ error: 'DB admin client missing' }, { status: 500 });
+      return NextResponse.json({ error: 'Database is not configured' }, { status: 503 });
     }
 
-    // 1. Locate checkout session using txnid inside metadata
-    const { data: sessions, error: fetchError } = await supabaseAdmin
+    const { data: sessions, error } = await supabaseAdmin
       .from('checkout_sessions')
       .select('*')
-      .eq('metadata->>txnid', txnid)
+      .eq('metadata->>txnid', data.txnid)
       .limit(1);
-
-    if (fetchError || !sessions || sessions.length === 0) {
-      console.error('Failed to locate checkout session for txnid:', txnid, fetchError);
-      return NextResponse.json({ error: 'Session not found for transaction' }, { status: 404 });
+    const session = sessions?.[0];
+    if (error || !session) {
+      console.error('[Subscription] PayU checkout session not found:', data.txnid, error);
+      return NextResponse.json({ error: 'Checkout session not found' }, { status: 404 });
     }
 
-    const session = sessions[0];
-    const metadata = session.metadata || {};
-    const returnUrl = metadata.return_url || `${process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app'}/console`;
+    const metadata = (session.metadata || {}) as Record<string, unknown>;
+    const returnUrl = safeInternalUrl(metadata.return_url, siteUrl, '/console');
+    const expected = {
+      key: String(metadata.expected_key || ''),
+      amount: String(metadata.expected_amount || ''),
+      productinfo: String(metadata.expected_productinfo || ''),
+      firstname: String(metadata.expected_firstname || ''),
+      email: String(metadata.expected_email || ''),
+      txnid: String(metadata.txnid || ''),
+    };
+    if (
+      metadata.payment_provider !== 'payu'
+      || session.plan !== 'blue'
+      || session.billing_cycle !== 'monthly'
+      || !matchesExpectedPayuPayment(data, expected)
+    ) {
+      console.error('[Subscription] Rejected PayU callback that did not match its stored order', { txnid: data.txnid });
+      returnUrl.searchParams.set('payment', 'invalid');
+      return NextResponse.redirect(returnUrl, 303);
+    }
 
-    if (status === 'success') {
-      // 2. Update checkout session status
-      const { data: claimedSession, error: claimError } = await supabaseAdmin
-        .from('checkout_sessions')
-        .update({ status: 'completed' })
-        .eq('id', session.id)
-        .eq('status', 'pending')
-        .select('id')
-        .maybeSingle();
-
-      if (claimError) throw new Error(`Failed to complete checkout: ${claimError.message}`);
-      if (!claimedSession) {
-        return NextResponse.redirect(`${returnUrl}?payment=success`, 303);
-      }
-
-      // 3. Deduct applied IMR credits from user's wallet
-      const appliedImr = Number(metadata.redeemed_imr || 0);
-      if (appliedImr > 0) {
-        const { data: wallet } = await supabaseAdmin
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', session.user_id)
-          .single();
-
-        if (wallet) {
-          const currentBalance = Number(wallet.balance || 0);
-          const newBalance = Math.max(0, currentBalance - appliedImr);
-
-          await supabaseAdmin
-            .from('wallets')
-            .update({ balance: newBalance })
-            .eq('user_id', session.user_id);
-        }
-      }
-
-      // 4. Upsert Active Subscription (1 month duration)
-      const currentPeriodStart = new Date().toISOString();
-      const currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-
-      const { error: subError } = await supabaseAdmin
-        .from('subscriptions')
-        .upsert({
-          user_id: session.user_id,
-          plan: 'blue',
-          status: 'active',
-          current_period_start: currentPeriodStart,
-          current_period_end: currentPeriodEnd,
-          stripe_subscription_id: 'payu_' + txnid,
-          stripe_customer_id: 'payu_' + (email || 'customer'),
-          metadata: {
-            email: email || '',
-            warning_email_sent: false,
-            expiry_email_sent: false
-          },
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-
-      if (subError) {
-        console.error('Failed to upsert active subscription row:', subError);
-      }
-
-      // Redirect user back to console with success param
-      return NextResponse.redirect(`${returnUrl}?payment=success`, 303);
-    } else {
-      // Payment failed
+    if (data.status !== 'success') {
       await supabaseAdmin
         .from('checkout_sessions')
         .update({ status: 'expired' })
         .eq('id', session.id)
         .eq('status', 'pending');
-
-      return NextResponse.redirect(`${returnUrl}?payment=failed`, 303);
+      returnUrl.searchParams.set('payment', 'failed');
+      return NextResponse.redirect(returnUrl, 303);
     }
 
-  } catch (err: any) {
-    console.error('PayU Callback Error:', err);
-    return NextResponse.json({ error: err.message || 'Callback error' }, { status: 500 });
+    const { error: completionError } = await supabaseAdmin.rpc('complete_blue_subscription_checkout', {
+      session_id_param: session.id,
+      provider_param: 'payu',
+      provider_order_id_param: data.txnid,
+      provider_transaction_id_param: data.mihpayid || data.payuMoneyId || data.txnid,
+      payer_email_param: data.email,
+    });
+    if (completionError) {
+      throw new Error(`Could not activate subscription: ${completionError.message}`);
+    }
+
+    returnUrl.searchParams.set('payment', 'success');
+    return NextResponse.redirect(returnUrl, 303);
+  } catch (error) {
+    console.error('[Subscription] PayU callback failed:', error);
+    defaultReturnUrl.searchParams.set('payment', 'failed');
+    return NextResponse.redirect(defaultReturnUrl, 303);
   }
 }

@@ -1,5 +1,9 @@
+import { unstable_cache } from 'next/cache.js';
+
 const OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models';
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const STALE_FALLBACK_TTL_MS = 24 * 60 * 60 * 1000;
+const PROVIDER_TIMEOUT_MS = 8 * 1000;
 
 export interface OpenRouterModel {
   id: string;
@@ -47,6 +51,7 @@ const TRIAL_MODEL_IDS = new Set([
 ]);
 
 let cache: { loadedAt: number; models: OpenRouterModel[] } | undefined;
+let catalogRequest: Promise<OpenRouterModel[]> | undefined;
 
 export function openRouterApiKey(): string {
   return String(process.env.OPENROUTER_API_KEY || '')
@@ -56,22 +61,49 @@ export function openRouterApiKey(): string {
     .trim();
 }
 
+const getSharedOpenRouterModels = unstable_cache(
+  async (): Promise<OpenRouterModel[]> => {
+    const apiKey = openRouterApiKey();
+    if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured');
+
+    const response = await fetch(OPENROUTER_MODELS_URL, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS)
+    });
+    if (!response.ok) throw new Error(`OpenRouter models request failed (${response.status})`);
+
+    const payload = await response.json() as { data?: OpenRouterModel[] };
+    const models = normalizeOpenRouterModels(Array.isArray(payload.data) ? payload.data : []);
+    if (models.length === 0) throw new Error('OpenRouter returned an empty model catalog');
+    return models;
+  },
+  ['blue-openrouter-model-catalog-v2'],
+  { revalidate: 300, tags: ['openrouter-model-catalog'] }
+);
+
 export async function getOpenRouterModels(): Promise<OpenRouterModel[]> {
-  if (cache && Date.now() - cache.loadedAt < CACHE_TTL_MS) return cache.models;
-  const apiKey = openRouterApiKey();
-  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured');
+  const now = Date.now();
+  if (cache && now - cache.loadedAt < CACHE_TTL_MS) return cache.models;
+  if (catalogRequest) return catalogRequest;
 
-  const response = await fetch(OPENROUTER_MODELS_URL, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-    cache: 'no-store'
-  });
-  if (!response.ok) throw new Error(`OpenRouter models request failed (${response.status})`);
+  catalogRequest = (async () => {
+    try {
+      const models = await getSharedOpenRouterModels();
+      cache = { loadedAt: Date.now(), models };
+      return models;
+    } catch (error) {
+      // Keep model selection available through a temporary provider outage.
+      if (cache && now - cache.loadedAt < STALE_FALLBACK_TTL_MS) return cache.models;
+      throw error;
+    }
+  })();
 
-  const payload = await response.json() as { data?: OpenRouterModel[] };
-  const models = normalizeOpenRouterModels(Array.isArray(payload.data) ? payload.data : []);
-  if (models.length === 0) throw new Error('OpenRouter returned an empty model catalog');
-  cache = { loadedAt: Date.now(), models };
-  return models;
+  try {
+    return await catalogRequest;
+  } finally {
+    catalogRequest = undefined;
+  }
 }
 
 /**

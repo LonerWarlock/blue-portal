@@ -42,7 +42,8 @@ async function managementRequest<T>(
         'Content-Type': 'application/json',
         ...(init.headers || {})
       },
-      cache: 'no-store'
+      cache: 'no-store',
+      signal: init.signal || AbortSignal.timeout(10_000)
     });
     if (response.ok) return await response.json() as T;
 

@@ -1,73 +1,113 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { emailJobIdempotencyKey, enqueueEmailJob } from '@/lib/jobOutbox';
+import {
+  checkRateLimit,
+  rateLimitHeaders,
+  requestIp,
+  verifyTurnstile
+} from '@/lib/trafficControl';
+
+export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   try {
-    const { name, email, message } = await request.json();
-    
-    if (!name || !email || !message) {
-      return NextResponse.json({ error: 'Name, email, and message are required' }, { status: 400 });
+    const contentLength = Number(request.headers.get('content-length') || 0);
+    if (contentLength > 16_384) {
+      return NextResponse.json({ error: 'Request is too large' }, { status: 413 });
     }
 
-    // Configure Nodemailer with SMTP credentials from environment
-    const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-    const port = parseInt(process.env.SMTP_PORT || '465');
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-
-    if (!user || !pass) {
-      return NextResponse.json({ 
-        error: 'SMTP credentials are not configured. Please add SMTP_USER and SMTP_PASS to .env.local' 
-      }, { status: 500 });
+    const limit = await checkRateLimit(
+      'contact',
+      requestIp(request),
+      { limit: 5, windowSeconds: 3_600 }
+    );
+    if (!limit.allowed) {
+      return NextResponse.json(
+        {
+          error: limit.configured
+            ? 'Too many messages. Please try again later.'
+            : 'Contact form is temporarily unavailable.'
+        },
+        {
+          status: limit.configured ? 429 : 503,
+          headers: rateLimitHeaders(limit)
+        }
+      );
     }
 
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass }
-    });
-
-    const mailOptions = {
-      from: `"Blue AI Contact Form" <${user}>`,
-      to: 'team.imergene@gmail.com',
-      replyTo: email.trim().toLowerCase(),
-      subject: `New Contact Form Message from ${name}`,
-      html: `
-        <html>
-          <body style="font-family: Arial, sans-serif; color: #333333; line-height: 1.6; background-color: #f8fafc; padding: 20px;">
-            <div style="max-width: 600px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-              <h2 style="margin-top: 0; color: #1e3c72; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">New Message from Contact Form</h2>
-              
-              <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                <tr>
-                  <td style="padding: 8px 0; font-weight: bold; width: 120px; color: #475569;">Name:</td>
-                  <td style="padding: 8px 0; color: #1e293b;">${name}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; font-weight: bold; color: #475569;">Email:</td>
-                  <td style="padding: 8px 0; color: #1e293b;"><a href="mailto:${email}">${email}</a></td>
-                </tr>
-              </table>
-
-              <div style="margin-top: 25px; padding: 15px; background-color: #f8fafc; border-radius: 6px; border-left: 4px solid #3b82f6;">
-                <h4 style="margin: 0 0 10px 0; color: #475569;">Message:</h4>
-                <p style="margin: 0; white-space: pre-wrap; color: #0f172a;">${message}</p>
-              </div>
-
-              <div style="margin-top: 30px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: center;">
-                This email was sent automatically from the Blue AI contact form.
-              </div>
-            </div>
-          </body>
-        </html>
-      `
+    const body = await request.json() as {
+      name?: unknown;
+      email?: unknown;
+      message?: unknown;
+      turnstileToken?: unknown;
     };
+    const name = String(body.name || '').trim();
+    const email = String(body.email || '').trim().toLowerCase();
+    const message = String(body.message || '').trim();
+    const turnstileToken = String(body.turnstileToken || '');
 
-    await transporter.sendMail(mailOptions);
-    return NextResponse.json({ success: true, message: 'Message sent successfully' });
-  } catch (error: any) {
-    console.error('SMTP sending error:', error);
-    return NextResponse.json({ error: error.message || 'An error occurred sending the message' }, { status: 500 });
+    if (!name || !email || !message) {
+      return NextResponse.json(
+        { error: 'Name, email, and message are required' },
+        { status: 400 }
+      );
+    }
+    if (
+      name.length > 100
+      || message.length > 5_000
+      || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
+      return NextResponse.json({ error: 'Invalid contact form data' }, { status: 400 });
+    }
+
+    const challenge = await verifyTurnstile({
+      request,
+      token: turnstileToken,
+      expectedAction: 'contact'
+    });
+    if (!challenge.success) {
+      return NextResponse.json(
+        {
+          error: challenge.configured
+            ? 'Human verification failed'
+            : 'Contact form is temporarily unavailable'
+        },
+        { status: challenge.configured ? 400 : 503 }
+      );
+    }
+
+    const fiveMinuteBucket = String(Math.floor(Date.now() / 300_000));
+    const html = [
+      '<h2>New Blue AI contact message</h2>',
+      '<p><strong>Name:</strong> ' + escapeHtml(name) + '</p>',
+      '<p><strong>Email:</strong> ' + escapeHtml(email) + '</p>',
+      '<p style="white-space:pre-wrap">' + escapeHtml(message) + '</p>'
+    ].join('');
+    await enqueueEmailJob({
+      to: process.env.CONTACT_EMAIL_TO || 'team.imergene@gmail.com',
+      replyTo: email,
+      subject: 'New Contact Form Message from ' + name,
+      html
+    }, emailJobIdempotencyKey('contact', [email, message, fiveMinuteBucket]));
+
+    return NextResponse.json(
+      { success: true, message: 'Message accepted' },
+      { status: 202, headers: rateLimitHeaders(limit) }
+    );
+  } catch (error) {
+    console.error('[contact] request failed', {
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+    return NextResponse.json({ error: 'Unable to accept the message' }, { status: 503 });
   }
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  })[character] || character);
 }

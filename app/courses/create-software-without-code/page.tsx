@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { usePostHog } from 'posthog-js/react';
+import LazyVideo from '@/app/components/LazyVideo';
 
 type PaymentResult = 'success' | 'failed' | null;
 
@@ -488,14 +489,11 @@ export default function NoCodeCoursePage() {
             </span>
           </div>
           <div className="relative rounded-lg overflow-hidden bg-black aspect-video">
-            <video
+            <LazyVideo
               src="/videos/ui-demo.mp4"
-              controls
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="w-full h-full object-cover"
+              label="Blue AI visual interface creation demonstration"
+              objectFit="cover"
+              className="w-full h-full"
             />
           </div>
           <p className="text-center text-xs text-slate-400 mt-2.5 py-1">

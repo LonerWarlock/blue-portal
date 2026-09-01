@@ -1,6 +1,26 @@
 -- Blue Pro: Pay-As-You-Go Credits System
 -- Run in Supabase SQL Editor
 
+-- Reproducible core baseline. The first production database predated this
+-- repository, so these two tables previously existed only out of band.
+create extension if not exists pgcrypto;
+
+create table if not exists public.wallets (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  balance numeric(18, 10) not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.billing_transactions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  model text not null,
+  prompt_tokens bigint not null default 0,
+  completion_tokens bigint not null default 0,
+  cost numeric(18, 10) not null default 0,
+  created_at timestamptz not null default now()
+);
+
 -- 1. Add account_type and blue_credits to wallets
 alter table public.wallets
   add column if not exists account_type text not null default 'standard'

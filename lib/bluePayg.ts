@@ -56,20 +56,53 @@ export interface BillingReservation {
 
 export async function authenticateBlueKey(clientKey: string): Promise<BluePaygAccount> {
   if (!supabaseAdmin) throw statusError(500, 'Supabase admin is not configured');
+  if (!clientKey || clientKey.length > 512) throw statusError(401, 'Unauthorized: Invalid Blue API Key or session token');
 
   let userId: string | null = null;
-  const { data: keyRecord } = await supabaseAdmin
+  const keyHash = await sha256Hex(clientKey);
+  const { data: hashedKeyRecord, error: hashedKeyError } = await supabaseAdmin
     .from('user_keys')
     .select('user_id')
-    .eq('key', clientKey)
+    .eq('key_hash', keyHash)
     .maybeSingle();
 
-  if (keyRecord?.user_id) {
-    userId = keyRecord.user_id;
+  if (hashedKeyRecord?.user_id) {
+    userId = hashedKeyRecord.user_id;
   } else {
-    const { data: userData } = await supabaseAdmin.auth.getUser(clientKey);
-    if (userData?.user?.id) {
-      userId = userData.user.id;
+    // Rolling-deployment compatibility: environments that have not applied
+    // migration 021 may still contain a legacy plaintext key. Once found, it
+    // is upgraded in place and erased. Remove this branch after all projects
+    // have been migrated.
+    if (hashedKeyError && /key_hash/i.test(hashedKeyError.message || '')) {
+      const { data: legacyKeyRecord } = await supabaseAdmin
+        .from('user_keys')
+        .select('user_id')
+        .eq('key', clientKey)
+        .maybeSingle();
+      userId = legacyKeyRecord?.user_id || null;
+    } else {
+      const { data: legacyKeyRecord } = await supabaseAdmin
+        .from('user_keys')
+        .select('user_id, key')
+        .eq('key', clientKey)
+        .maybeSingle();
+      if (legacyKeyRecord?.user_id) {
+        userId = legacyKeyRecord.user_id;
+        await supabaseAdmin.from('user_keys').update({
+          key: null,
+          key_hash: keyHash,
+          key_prefix: clientKey.slice(0, 10),
+          last_four: clientKey.slice(-4),
+          rotated_at: new Date().toISOString()
+        }).eq('user_id', userId);
+      }
+    }
+
+    if (!userId) {
+      const { data: userData } = await supabaseAdmin.auth.getUser(clientKey);
+      if (userData?.user?.id) {
+        userId = userData.user.id;
+      }
     }
   }
 
@@ -79,17 +112,6 @@ export async function authenticateBlueKey(clientKey: string): Promise<BluePaygAc
 
 export async function getBluePaygAccount(userId: string): Promise<BluePaygAccount> {
   if (!supabaseAdmin) throw statusError(500, 'Supabase admin is not configured');
-
-  // A wallet read is also a safe reconciliation boundary. Interrupted legacy
-  // requests can leave expired reservations behind; this database function is
-  // atomic and idempotent, so no reservation can be refunded twice.
-  const { error: releaseError } = await supabaseAdmin.rpc('release_expired_blue_credit_reservations', {
-    user_id_param: userId
-  });
-  if (releaseError) {
-    console.error('[Blue PAYG] Failed to reconcile expired reservations:', releaseError.message);
-    throw statusError(500, 'Failed to reconcile Blue Credits');
-  }
 
   const [{ data: wallet, error: walletError }, { data: profile, error: profileError }] = await Promise.all([
     supabaseAdmin.from('wallets').select('account_type, blue_credits').eq('user_id', userId).maybeSingle(),
@@ -190,4 +212,9 @@ export function statusError(status: number, message: string): Error & { status: 
   const error = new Error(message) as Error & { status: number };
   error.status = status;
   return error;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }

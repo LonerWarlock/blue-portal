@@ -110,7 +110,6 @@ export default async function CheckoutBluePage({ searchParams }: Props) {
   return (
     <CheckoutForm
       sessionId={session_id}
-      userId={session.user_id}
       returnUrl={returnUrl}
       email={userEmail}
       imrBalance={imrBalance}

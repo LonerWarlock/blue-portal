@@ -13,7 +13,7 @@ const TIER_BADGE_COLORS: Record<string, string> = {
 };
 
 const MODEL_CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
-const BLUE_WALLET_REFRESH_INTERVAL_MS = 30 * 1000;
+const BLUE_WALLET_REFRESH_INTERVAL_MS = 60 * 1000;
 const MODEL_CATALOG_SESSION_KEY = 'blue.modelCatalog.v1';
 let modelCatalogCache: any[] = [];
 let modelCatalogLoadedAt = 0;
@@ -79,6 +79,7 @@ export default function ConsolePage() {
 
   // Console State
   const [currentApiKey, setCurrentApiKey] = useState("");
+  const [apiKeyMasked, setApiKeyMasked] = useState(false);
   const [apiKeyVisible, setApiKeyVisible] = useState(false);
   const [balance, setBalance] = useState(0);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -119,6 +120,7 @@ export default function ConsolePage() {
         loadUserData(session.user.id);
       } else {
         setCurrentApiKey("");
+        setApiKeyMasked(false);
         setBalance(0);
         setPlan("lite");
         setDiscount(0);
@@ -176,7 +178,7 @@ export default function ConsolePage() {
     }
   };
 
-  const loadUserData = async (userId: string) => {
+  const loadUserData = async (_userId: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -184,67 +186,26 @@ export default function ConsolePage() {
 
       void refreshModelCatalog();
 
-      // Parallelize wallet, subscription, pack-config, and Blue Pro wallet requests
-      const [walletRes, packRes, subRes, proRes] = await Promise.all([
-        fetch('/api/user/wallet', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/blue-pro/pack-config'),
-        fetch(`/api/user/subscription?email=${encodeURIComponent(session.user.email || '')}`),
-        fetch('/api/blue-pro/wallet', {
-          headers: { 'Authorization': `Bearer ${token}` },
-          cache: 'no-store'
-        })
-      ]);
+      const response = await fetch('/api/me/bootstrap', {
+        headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store'
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Account data could not be loaded.');
 
-      if (walletRes.ok) {
-        const walletData = await walletRes.json();
-        if (walletData.balance !== undefined) setBalance(walletData.balance);
-      }
-      if (packRes.ok) setProPackConfig(await packRes.json());
-
-      let fetchedPlan = 'lite';
-      let fetchedDiscount = 0;
-      if (subRes.ok) {
-        const subData = await subRes.json();
-        if (subData.plan) fetchedPlan = subData.plan;
-        if (subData.discount !== undefined) fetchedDiscount = subData.discount;
-      }
-
-      let nextIsProPayg = false;
-      let nextProWallet: any = null;
-      let nextHasBlueCredits = false;
-
-      if (proRes.ok) {
-        const proData = await proRes.json();
-        if (proData.eligible && proData.account_type === 'pro_payg') {
-          nextIsProPayg = true;
-          fetchedPlan = 'blue_pro';
-          nextProWallet = proData;
-          nextHasBlueCredits = Number(proData.blue_credits || 0) > 0;
-
-          const [keyRes, txnRes, usageRes] = await Promise.all([
-            fetch('/api/user/key', { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch('/api/blue-pro/transactions', { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch('/api/blue-pro/usage?days=30', { headers: { 'Authorization': `Bearer ${token}` } })
-          ]);
-
-          if (keyRes.ok) setCurrentApiKey((await keyRes.json()).key || '');
-          if (txnRes.ok) {
-            const txnData = await txnRes.json();
-            setProTransactions(txnData.transactions || []);
-          }
-          if (usageRes.ok) {
-            const usageData = await usageRes.json();
-            setProUsage(usageData);
-          }
-        }
-      }
-
-      // Synchronously update all plan states to prevent UI flickering between Blue and Blue Pro
-      setPlan(fetchedPlan);
-      setDiscount(fetchedDiscount);
-      setIsProPayg(nextIsProPayg);
+      const bluePro = data.blue_pro;
+      const nextProWallet = bluePro?.wallet || null;
+      setBalance(Number(data.wallet?.balance || 0));
+      setProPackConfig(data.pack_config || { priceINR: 100, credits: 1 });
+      setPlan(data.subscription?.plan || 'lite');
+      setDiscount(Number(data.subscription?.discount || 0));
+      setIsProPayg(Boolean(bluePro));
       setProWallet(nextProWallet);
-      setHasBlueCredits(nextHasBlueCredits);
+      setHasBlueCredits(Number(nextProWallet?.blue_credits || 0) > 0);
+      setCurrentApiKey(bluePro?.key?.key || '');
+      setApiKeyMasked(Boolean(bluePro?.key?.masked));
+      setProTransactions(bluePro?.transactions || []);
+      setProUsage(bluePro?.usage || null);
     } catch (err) {
       console.error("Error loading user data:", err);
     }
@@ -306,6 +267,7 @@ export default function ConsolePage() {
           const demoUser = { id: "demo_google_user", email: "team.imergene@gmail.com" };
           setUser(demoUser);
           setCurrentApiKey("blue_demo_key_google_123");
+          setApiKeyMasked(false);
           setBalance(1.00);
           setAuthStatusMessage("");
         }, 800);
@@ -332,6 +294,10 @@ export default function ConsolePage() {
   };
 
   const handleCopyKey = () => {
+    if (apiKeyMasked) {
+      showInfo('Key is securely masked', 'Rotate the key to receive a new value that can be copied once.');
+      return;
+    }
     navigator.clipboard.writeText(currentApiKey).then(() => {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 1500);
@@ -398,6 +364,7 @@ export default function ConsolePage() {
           const keyData = await keyRes.json();
           if (!keyRes.ok || keyData.error) throw new Error(keyData.error || 'Failed to rotate key');
           setCurrentApiKey(keyData.key);
+          setApiKeyMasked(false);
           setAuthStatusMessage("");
           showSuccess("Key Rotated", "API key successfully rotated!");
         } catch (err: any) {
@@ -723,8 +690,8 @@ export default function ConsolePage() {
                     </div>
                   </div>
                   <div className="mt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs text-ink-faint space-y-2 sm:space-y-0 w-full">
-                    <span>Keep this key private. It controls your token usage and deployment billing.</span>
-                    <button className="text-brand font-semibold">Rotate Key</button>
+                    <span>{apiKeyMasked ? 'Existing keys stay masked. Rotate it when you need a copyable value.' : 'Keep this key private. It controls your token usage and deployment billing.'}</span>
+                    <button onClick={handleRotateKey} className="text-brand font-semibold">Rotate Key</button>
                   </div>
                 </div>
               </div>

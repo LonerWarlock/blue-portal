@@ -1,6 +1,31 @@
 -- 007_course_registrations.sql
 -- Python & Data Science Course Registration Table
 
+-- The first no-code course launch created this table manually. Keep it in the
+-- migration chain so a new environment has the same schema.
+CREATE TABLE IF NOT EXISTS vibe_coding_registrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  first_name TEXT NOT NULL,
+  last_name TEXT,
+  email TEXT NOT NULL,
+  phone TEXT,
+  date_of_birth DATE,
+  gender TEXT,
+  degree TEXT,
+  branch TEXT,
+  college_name TEXT,
+  year_of_study TEXT,
+  current_status TEXT,
+  programming_experience TEXT,
+  declaration_accepted BOOLEAN NOT NULL DEFAULT FALSE,
+  terms_accepted BOOLEAN NOT NULL DEFAULT FALSE,
+  productinfo TEXT,
+  payment_txn_id TEXT UNIQUE,
+  payment_amount NUMERIC(12, 2),
+  payment_status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS course_registrations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { statusError } from '@/lib/bluePayg';
+import { authorizeCron } from '@/lib/cronAuth';
 import { publicBlueRuntimeError, reconcileBlueRuntimeTasks } from '@/lib/blueRuntime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 export async function GET(request: Request) {
   return run(request);
@@ -15,9 +16,8 @@ export async function POST(request: Request) {
 
 async function run(request: Request) {
   try {
-    const configured = String(process.env.CRON_SECRET || '');
-    if (!configured || request.headers.get('authorization') !== `Bearer ${configured}`) {
-      throw statusError(401, 'Unauthorized');
+    if (!authorizeCron(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const result = await reconcileBlueRuntimeTasks({ limit: 200 });
     return NextResponse.json({ ok: true, ...result }, { headers: { 'Cache-Control': 'no-store' } });

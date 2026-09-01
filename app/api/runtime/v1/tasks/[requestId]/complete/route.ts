@@ -21,7 +21,8 @@ export async function POST(request: Request, context: { params: { requestId: str
       decodeURIComponent(context.params.requestId),
       request.headers.get('x-blue-device-id') || '',
       rawOutcome as 'completed' | 'failed' | 'stopped' | 'expired',
-      usage
+      usage,
+      String(body.provider_generation_id || body.generation_id || '')
     );
     const pending = result.state === 'stopping';
     return NextResponse.json(result, {

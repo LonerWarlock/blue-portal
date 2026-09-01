@@ -3,7 +3,7 @@
 import posthog from 'posthog-js';
 import { PostHogProvider as PHProvider } from 'posthog-js/react';
 import { useEffect } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 if (typeof window !== 'undefined') {
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
@@ -12,41 +12,33 @@ if (typeof window !== 'undefined') {
   if (key) {
     posthog.init(key, {
       api_host: host,
-      person_profiles: 'always',
+      person_profiles: 'identified_only',
       capture_pageview: false, // We capture pageviews manually below for Next.js App Router
-      capture_pageleave: true,
-      autocapture: true,
+      capture_pageleave: false,
+      autocapture: false,
     });
   }
 }
 
 export function PostHogPageView() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (pathname && typeof window !== 'undefined') {
-      let url = window.origin + pathname;
-      if (searchParams && searchParams.toString()) {
-        url = url + `?${searchParams.toString()}`;
-      }
+    if (pathname && typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+      const url = window.origin + pathname;
       posthog.capture('$pageview', {
         $current_url: url,
       });
     }
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return null;
 }
 
-import { Suspense } from 'react';
-
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   return (
     <PHProvider client={posthog}>
-      <Suspense fallback={null}>
-        <PostHogPageView />
-      </Suspense>
+      <PostHogPageView />
       {children}
     </PHProvider>
   );

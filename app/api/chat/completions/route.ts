@@ -18,6 +18,16 @@ const TOP_UP_URL = '/blue-pro/checkout';
 const MAX_REQUEST_BYTES = 2_000_000;
 
 export async function POST(request: Request) {
+  if (String(process.env.ENABLE_LEGACY_AI_PROXY || 'false').toLowerCase() !== 'true') {
+    return NextResponse.json({
+      error: 'Blue streaming proxy is retired. Upgrade the Blue extension to use direct runtime.',
+      code: 'legacy_proxy_disabled',
+      runtime_endpoint: '/api/runtime/v1/tasks'
+    }, {
+      status: 410,
+      headers: { 'Cache-Control': 'no-store, max-age=0' }
+    });
+  }
   const traceId = request.headers.get('x-blue-trace-id') || crypto.randomUUID();
   let account: Awaited<ReturnType<typeof authenticateBlueKey>> | undefined;
   let requestId = '';

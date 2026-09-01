@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { authenticateBlueKey, getBearerToken } from '@/lib/bluePayg';
 import { completeBlueRuntimeTask, getBlueRuntimeTask, publicBlueRuntimeError } from '@/lib/blueRuntime';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/trafficControl';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -8,13 +9,31 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request, context: { params: { requestId: string } }) {
   try {
     const account = await authenticateBlueKey(getBearerToken(request));
+    const pollingLimit = await checkRateLimit(
+      'runtime:status',
+      `${account.userId}:${context.params.requestId}`,
+      { limit: 30, windowSeconds: 60 }
+    );
+    if (!pollingLimit.allowed) {
+      return NextResponse.json({
+        error: pollingLimit.configured ? 'Task status is being polled too quickly.' : 'Task status is temporarily unavailable.',
+        code: pollingLimit.configured ? 'rate_limited' : 'dependency_unavailable'
+      }, {
+        status: pollingLimit.configured ? 429 : 503,
+        headers: rateLimitHeaders(pollingLimit)
+      });
+    }
     const result = await getBlueRuntimeTask(
       account,
       decodeURIComponent(context.params.requestId),
       request.headers.get('x-blue-device-id') || ''
     );
-    const pending = 'credential' in result && !result.credential;
-    return NextResponse.json(result, { status: pending ? 202 : 200, headers: noStoreHeaders() });
+    const pending = result.state === 'queued' || result.state === 'provisioning';
+    const retryAfterMs = 'retry_after_ms' in result ? result.retry_after_ms : undefined;
+    return NextResponse.json(result, {
+      status: pending ? 202 : 200,
+      headers: noStoreHeaders(retryAfterMs ? Math.ceil(retryAfterMs / 1000) : undefined)
+    });
   } catch (error) {
     return runtimeError(error, 'restore');
   }

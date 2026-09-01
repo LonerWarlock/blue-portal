@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Bot, Crown, Terminal } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import ThemeToggle from "./ThemeToggle";
 
@@ -22,7 +23,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <Link prefetch={false} href="/" className="flex items-center space-x-3">
           <div className="w-9 h-9 rounded-md bg-brand flex items-center justify-center">
-            <i className="fa-solid fa-robot text-sm text-white"></i>
+            <Bot aria-hidden="true" className="h-4 w-4 text-white" />
           </div>
           <div>
             <span className="text-lg font-display font-bold tracking-tight text-ink">Blue AI</span>
@@ -59,14 +60,14 @@ export default function Navbar() {
                 href="/subscribe"
                 className="btn btn-secondary hidden sm:inline-flex !py-1.5"
               >
-                <i className="fa-solid fa-crown mr-1.5 text-[10px] text-accent"></i>
+                <Crown aria-hidden="true" className="mr-1.5 h-3 w-3 text-accent" />
                 Upgrade
               </Link>
               <Link prefetch={false}
                 href="/console"
                 className="btn btn-ghost hidden sm:inline-flex !py-1.5"
               >
-                <i className="fa-solid fa-terminal mr-1.5 text-[10px]"></i>
+                <Terminal aria-hidden="true" className="mr-1.5 h-3 w-3" />
                 Console
               </Link>
             </>
@@ -76,7 +77,7 @@ export default function Navbar() {
                 href="/subscribe"
                 className="btn btn-secondary hidden sm:inline-flex !py-1.5"
               >
-                <i className="fa-solid fa-crown mr-1.5 text-[10px] text-accent"></i>
+                <Crown aria-hidden="true" className="mr-1.5 h-3 w-3 text-accent" />
                 Upgrade
               </Link>
               <Link prefetch={false}

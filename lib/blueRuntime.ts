@@ -26,6 +26,11 @@ export const BLUE_RUNTIME_EXTENSION_ALLOWANCE = 0.20;
 export const BLUE_RUNTIME_CREDENTIAL_MINUTES = 60;
 export const BLUE_RUNTIME_ROTATION_WINDOW_MS = 5 * 60 * 1000;
 export const BLUE_RUNTIME_HEARTBEAT_STALE_MS = 2 * 60 * 1000;
+export const BLUE_RUNTIME_PROTOCOL_VERSION = 1;
+export const BLUE_RUNTIME_DEFAULT_GLOBAL_CONCURRENCY = 100;
+export const BLUE_RUNTIME_DEFAULT_QUEUE_LIMIT = 500;
+export const BLUE_RUNTIME_DEFAULT_QUEUE_TIMEOUT_SECONDS = 120;
+export const BLUE_RUNTIME_DEFAULT_RETRY_AFTER_MS = 2_500;
 
 const MIN_PAID_ALLOWANCE = 0.01;
 const FREE_PROVIDER_CEILING = 0.001;
@@ -44,7 +49,8 @@ const USAGE_OBSERVATION_INTERVAL_MS = positiveDuration(
 );
 
 type RuntimeMode = 'normal' | 'ui_max';
-type RuntimeTaskState = 'provisioning' | 'active' | 'stopping' | 'completed' | 'failed' | 'expired';
+type RuntimeTaskState = 'queued' | 'provisioning' | 'active' | 'stopping'
+  | 'completed' | 'cancelled' | 'failed' | 'expired';
 
 interface RuntimeTaskRow {
   request_id: string;
@@ -57,6 +63,7 @@ interface RuntimeTaskRow {
   access_tier: 'trial' | 'full';
   state: RuntimeTaskState;
   reserved_blue_credits: number | string;
+  requested_blue_credits: number | string;
   charged_blue_credits: number | string;
   balance_after: number | string | null;
   provider_cost: number | string;
@@ -71,7 +78,13 @@ interface RuntimeTaskRow {
   created_at: string;
   updated_at: string;
   last_heartbeat_at: string | null;
+  queued_at: string | null;
+  queue_expires_at: string | null;
+  provisioning_started_at: string | null;
+  execution_released_at: string | null;
+  provider_generation_id: string | null;
   finished_at: string | null;
+  queue_position?: number;
 }
 
 interface RuntimeCredentialRow {
@@ -103,6 +116,7 @@ export interface BlueRuntimeAdmissionInput {
   requestedCreditCeiling?: number;
   clientVersion: string;
   deviceId: string;
+  runtimeProtocolVersion?: number;
 }
 
 export interface BlueRuntimeCredential {
@@ -113,9 +127,13 @@ export interface BlueRuntimeCredential {
 }
 
 export interface BlueRuntimeAdmission {
+  runtime_protocol_version: typeof BLUE_RUNTIME_PROTOCOL_VERSION;
   request_id: string;
   state: RuntimeTaskState;
   credential?: BlueRuntimeCredential;
+  position?: number;
+  retry_after_ms?: number;
+  queue_expires_at?: string;
   billing: {
     reserved_blue_credits: number;
     remaining_blue_credits: number;
@@ -135,8 +153,9 @@ export interface BlueRuntimeAdmission {
 }
 
 export interface BlueRuntimeSettlement {
+  runtime_protocol_version: typeof BLUE_RUNTIME_PROTOCOL_VERSION;
   request_id: string;
-  state: 'completed' | 'failed' | 'expired';
+  state: 'completed' | 'cancelled' | 'failed' | 'expired';
   reserved_blue_credits: number;
   charged_blue_credits: number;
   refunded_blue_credits: number;
@@ -147,6 +166,7 @@ export interface BlueRuntimeSettlement {
 }
 
 export interface BlueRuntimeSettlementPending {
+  runtime_protocol_version: typeof BLUE_RUNTIME_PROTOCOL_VERSION;
   request_id: string;
   state: 'stopping';
   settlement_pending: true;
@@ -167,13 +187,48 @@ export interface RuntimeClientUsage {
   provider_cost?: number;
 }
 
+export interface BlueRuntimeCapacityConfig {
+  globalConcurrency: number;
+  queueLimit: number;
+  queueTimeoutSeconds: number;
+  retryAfterMs: number;
+}
+
+export function blueRuntimeCapacityConfig(): BlueRuntimeCapacityConfig {
+  return {
+    globalConcurrency: boundedInteger(
+      process.env.GLOBAL_AI_CONCURRENCY_LIMIT,
+      BLUE_RUNTIME_DEFAULT_GLOBAL_CONCURRENCY,
+      1,
+      10_000
+    ),
+    queueLimit: boundedInteger(
+      process.env.BLUE_RUNTIME_QUEUE_LIMIT,
+      BLUE_RUNTIME_DEFAULT_QUEUE_LIMIT,
+      1,
+      10_000
+    ),
+    queueTimeoutSeconds: boundedInteger(
+      process.env.BLUE_RUNTIME_QUEUE_TIMEOUT_SECONDS,
+      BLUE_RUNTIME_DEFAULT_QUEUE_TIMEOUT_SECONDS,
+      15,
+      3_600
+    ),
+    retryAfterMs: boundedInteger(
+      process.env.BLUE_RUNTIME_RETRY_AFTER_MS,
+      BLUE_RUNTIME_DEFAULT_RETRY_AFTER_MS,
+      500,
+      30_000
+    )
+  };
+}
+
 export async function admitBlueRuntimeTask(
   account: BluePaygAccount,
   input: BlueRuntimeAdmissionInput
 ): Promise<BlueRuntimeAdmission> {
   assertConfigured();
   validateAdmissionInput(input);
-  await reconcileBlueRuntimeTasks({ userId: account.userId, limit: 20 });
   const refreshedAccount = await loadBillingAccount(account.userId, account.threshold);
   const availableModels = modelsForAccess(await getOpenRouterModels(), refreshedAccount.accessTier);
   const model = resolveModel(availableModels, input.model);
@@ -208,9 +263,12 @@ export async function admitBlueRuntimeTask(
     mode: input.mode,
     requestedCeiling,
     clientVersion: input.clientVersion,
+    runtimeProtocolVersion: input.runtimeProtocolVersion || BLUE_RUNTIME_PROTOCOL_VERSION,
     deviceHash
   }));
   const expiresAt = credentialExpiry();
+  const capacity = blueRuntimeCapacityConfig();
+  const queueExpiresAt = new Date(Date.now() + capacity.queueTimeoutSeconds * 1000).toISOString();
 
   // Auto-expire/settle previous stale or abandoned active tasks for this user
   try {
@@ -237,7 +295,7 @@ export async function admitBlueRuntimeTask(
   } catch {
     // Non-blocking fallback for pre-admission cleanup
   }
-  const { data, error } = await supabaseAdmin!.rpc('admit_blue_runtime_task', {
+  const { data, error } = await supabaseAdmin!.rpc('admit_blue_runtime_task_v2', {
     user_id_param: refreshedAccount.userId,
     request_id_param: input.requestId,
     device_hash_param: deviceHash,
@@ -247,8 +305,10 @@ export async function admitBlueRuntimeTask(
     is_free_param: publicInfo.isFree,
     access_tier_param: refreshedAccount.accessTier,
     amount_param: allowance,
-    concurrency_limit_param: refreshedAccount.accessTier === 'trial' ? 1 : 3,
-    expires_at_param: expiresAt
+    global_limit_param: capacity.globalConcurrency,
+    queue_limit_param: capacity.queueLimit,
+    queue_expires_at_param: queueExpiresAt,
+    active_expires_at_param: expiresAt
   });
   if (error) throw mapDatabaseError(error.message);
   if (data?.conflict === true) {
@@ -260,12 +320,18 @@ export async function admitBlueRuntimeTask(
     throw statusError(409, 'Blue could not safely recover this task admission. Start a new task; no additional credits were reserved.');
   }
   if (!task) throw statusError(500, 'Blue runtime admission was not persisted');
+  if (task.state === 'queued') {
+    task.queue_position = Number(data?.queue_position || 0) || await runtimeQueuePosition(task);
+  }
   const remaining = Number(data?.remaining ?? (await walletBalance(refreshedAccount.userId)));
   if (isTerminal(task.state)) {
     return admissionPayload(task, undefined, remaining, model);
   }
   if (task.state === 'stopping') {
     throw statusError(409, 'This Blue runtime task is already stopping and cannot be replayed');
+  }
+  if (task.state === 'queued') {
+    return admissionPayload(task, undefined, remaining, model);
   }
 
   const active = await getActiveCredential(task.request_id);
@@ -308,11 +374,23 @@ export async function getBlueRuntimeTask(
   deviceId: string
 ): Promise<BlueRuntimeAdmission | BlueRuntimeSettlement> {
   assertConfigured();
-  const task = await getTaskForUser(account.userId, requestId);
+  let task = await getTaskForUser(account.userId, requestId);
   if (!task) throw statusError(404, 'Blue runtime task not found');
   if (task.device_hash !== sha256(deviceId)) throw statusError(403, 'This Blue runtime belongs to another device');
   if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(account.userId));
   if (task.state === 'stopping') throw statusError(409, 'This Blue runtime task is being settled');
+
+  if (task.state === 'queued') {
+    await promoteBlueRuntimeQueue();
+    task = await requireTask(account.userId, requestId);
+    if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(account.userId));
+    if (task.state === 'queued') {
+      task.queue_position = await runtimeQueuePosition(task);
+      const queuedModel = resolveModel(await getOpenRouterModels(), task.model);
+      if (!queuedModel) throw statusError(503, 'The selected Blue model is no longer available');
+      return admissionPayload(task, undefined, await walletBalance(account.userId), queuedModel);
+    }
+  }
 
   const model = resolveModel(await getOpenRouterModels(), task.model);
   if (!model) throw statusError(503, 'The selected Blue model is no longer available');
@@ -330,6 +408,22 @@ export async function getBlueRuntimeTask(
 }
 
 /**
+ * Atomically expires stale queue entries and grants available global slots.
+ * The database function is the distributed lock; no serverless instance owns
+ * the queue, and this function never provisions or returns provider keys.
+ */
+export async function promoteBlueRuntimeQueue(): Promise<void> {
+  if (!supabaseAdmin) return;
+  const capacity = blueRuntimeCapacityConfig();
+  const { error } = await supabaseAdmin.rpc('promote_blue_runtime_queue', {
+    global_limit_param: capacity.globalConcurrency,
+    promotion_limit_param: Math.min(capacity.globalConcurrency, 250),
+    active_expires_at_param: credentialExpiry()
+  });
+  if (error) throw mapDatabaseError(error.message);
+}
+
+/**
  * A heartbeat contains no prompt or workspace data. It prevents a healthy
  * long-running direct task from being mistaken for an abandoned one while
  * allowing crashed clients to free their account slot quickly.
@@ -343,6 +437,7 @@ export async function heartbeatBlueRuntimeTask(
   const task = await requireTask(account.userId, requestId);
   if (task.device_hash !== sha256(deviceId)) throw statusError(403, 'This Blue runtime belongs to another device');
   if (isTerminal(task.state) || task.state === 'stopping') return;
+  if (task.state === 'queued') throw statusError(409, 'This Blue runtime is still queued');
   const now = new Date().toISOString();
   const { error } = await supabaseAdmin!
     .from('blue_runtime_tasks')
@@ -362,6 +457,10 @@ export async function extendBlueRuntimeTask(
   assertConfigured();
   const task = await requireTask(account.userId, requestId);
   if (task.device_hash !== sha256(deviceId)) throw statusError(403, 'This Blue runtime belongs to another device');
+  if (task.state === 'queued') throw statusError(409, 'This Blue runtime is queued and cannot be extended yet');
+  if (task.state !== 'provisioning' && task.state !== 'active') {
+    throw statusError(409, 'This Blue runtime can no longer be extended');
+  }
   if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{7,127}$/.test(extensionId)) {
     throw statusError(400, 'Invalid Blue runtime extension ID');
   }
@@ -419,11 +518,40 @@ export async function completeBlueRuntimeTask(
   requestId: string,
   deviceId: string,
   outcome: 'completed' | 'failed' | 'stopped' | 'expired',
-  clientUsage: RuntimeClientUsage = {}
+  clientUsage: RuntimeClientUsage = {},
+  providerGenerationId = ''
 ): Promise<BlueRuntimeFinalization> {
-  const task = await requireTask(account.userId, requestId);
+  let task = await requireTask(account.userId, requestId);
   if (task.device_hash !== sha256(deviceId)) throw statusError(403, 'This Blue runtime belongs to another device');
-  return settleRuntimeTask(task, outcome, clientUsage);
+  const generationId = normalizeProviderGenerationId(providerGenerationId);
+
+  if (task.state === 'queued') {
+    if (outcome === 'completed') throw statusError(409, 'A queued Blue runtime cannot be completed before admission');
+    const terminalState: RuntimeTaskState = outcome === 'expired'
+      ? 'expired'
+      : outcome === 'stopped' ? 'cancelled' : 'failed';
+    const finishedAt = new Date().toISOString();
+    const { data, error } = await supabaseAdmin!
+      .from('blue_runtime_tasks')
+      .update({
+        state: terminalState,
+        terminal_reason: outcome,
+        provider_generation_id: generationId || null,
+        execution_released_at: finishedAt,
+        updated_at: finishedAt,
+        finished_at: finishedAt
+      })
+      .eq('request_id', requestId)
+      .eq('user_id', account.userId)
+      .eq('state', 'queued')
+      .select('*')
+      .maybeSingle();
+    if (error) throw statusError(500, `Could not cancel queued Blue runtime: ${error.message}`);
+    if (data) return existingSettlement(data as RuntimeTaskRow, await walletBalance(account.userId));
+    task = await requireTask(account.userId, requestId);
+  }
+
+  return settleRuntimeTask(task, outcome, clientUsage, generationId);
 }
 
 export async function reconcileBlueRuntimeTasks(options: {
@@ -445,13 +573,27 @@ export async function reconcileBlueRuntimeTasks(options: {
     .lte('expires_at', new Date().toISOString())
     .order('expires_at', { ascending: true })
     .limit(limit);
+  let staleHeartbeatQuery = supabaseAdmin
+    .from('blue_runtime_tasks')
+    .select('*')
+    .eq('state', 'active')
+    .lte('last_heartbeat_at', new Date(Date.now() - BLUE_RUNTIME_HEARTBEAT_STALE_MS).toISOString())
+    .order('last_heartbeat_at', { ascending: true })
+    .limit(limit);
   if (options.userId) {
     stoppingQuery = stoppingQuery.eq('user_id', options.userId);
     expiredQuery = expiredQuery.eq('user_id', options.userId);
+    staleHeartbeatQuery = staleHeartbeatQuery.eq('user_id', options.userId);
   }
-  const [stopping, expired] = await Promise.all([stoppingQuery, expiredQuery]);
-  if (stopping.error || expired.error) {
-    throw statusError(500, `Could not reconcile Blue runtime tasks: ${stopping.error?.message || expired.error?.message}`);
+  const [stopping, expired, staleHeartbeat] = await Promise.all([
+    stoppingQuery,
+    expiredQuery,
+    staleHeartbeatQuery
+  ]);
+  if (stopping.error || expired.error || staleHeartbeat.error) {
+    throw statusError(500, `Could not reconcile Blue runtime tasks: ${
+      stopping.error?.message || expired.error?.message || staleHeartbeat.error?.message
+    }`);
   }
   const byId = new Map<string, RuntimeTaskRow>();
   const now = Date.now();
@@ -459,7 +601,11 @@ export async function reconcileBlueRuntimeTasks(options: {
     !task.settlement_next_attempt_at
     || Date.parse(String(task.settlement_next_attempt_at)) <= now
   );
-  for (const task of [...readyStoppingTasks, ...(expired.data || [])] as RuntimeTaskRow[]) {
+  for (const task of [
+    ...readyStoppingTasks,
+    ...(expired.data || []),
+    ...(staleHeartbeat.data || [])
+  ] as RuntimeTaskRow[]) {
     byId.set(task.request_id, task);
   }
   const candidates = Array.from(byId.values()).slice(0, limit);
@@ -480,6 +626,7 @@ export async function reconcileBlueRuntimeTasks(options: {
     }
   }
   await cleanupDisabledCredentials(limit).catch(() => 0);
+  await promoteBlueRuntimeQueue().catch(() => undefined);
   return { inspected: candidates.length, settled, pending, failed };
 }
 
@@ -492,7 +639,8 @@ export async function blockedRuntimeModels(): Promise<Set<string>> {
 async function settleRuntimeTask(
   initialTask: RuntimeTaskRow,
   outcome: 'completed' | 'failed' | 'stopped' | 'expired',
-  clientUsage: RuntimeClientUsage
+  clientUsage: RuntimeClientUsage,
+  providerGenerationId = ''
 ): Promise<BlueRuntimeFinalization> {
   assertConfigured();
   let task = await requireTask(initialTask.user_id, initialTask.request_id);
@@ -515,6 +663,7 @@ async function settleRuntimeTask(
     prompt_tokens: promptTokens,
     completion_tokens: completionTokens,
     client_provider_cost_hint: clientProviderCostHint,
+    provider_generation_id: providerGenerationId || task.provider_generation_id || null,
     settlement_requested_at: requestedAt,
     settlement_next_attempt_at: null,
     settlement_attempts: Number(task.settlement_attempts || 0) + 1,
@@ -528,6 +677,7 @@ async function settleRuntimeTask(
     prompt_tokens: promptTokens,
     completion_tokens: completionTokens,
     client_provider_cost_hint: clientProviderCostHint,
+    provider_generation_id: providerGenerationId || task.provider_generation_id,
     settlement_requested_at: requestedAt,
     settlement_attempts: Number(task.settlement_attempts || 0) + 1
   };
@@ -550,6 +700,15 @@ async function settleRuntimeTask(
       }).eq('id', credential.id);
     }
   }
+
+  const executionReleasedAt = new Date().toISOString();
+  const { error: releaseError } = await supabaseAdmin!.from('blue_runtime_tasks').update({
+    execution_released_at: executionReleasedAt,
+    updated_at: executionReleasedAt
+  }).eq('request_id', task.request_id).eq('state', 'stopping');
+  if (releaseError) throw statusError(500, `Could not release the Blue runtime slot: ${releaseError.message}`);
+  task.execution_released_at = executionReleasedAt;
+  await promoteBlueRuntimeQueue();
 
   const { data: measuredRows, error: measuredError } = await supabaseAdmin!
     .from('blue_runtime_credentials')
@@ -581,6 +740,7 @@ async function settleRuntimeTask(
     }).eq('request_id', task.request_id).eq('state', 'stopping');
     if (pendingError) throw statusError(500, `Could not persist Blue settlement retry: ${pendingError.message}`);
     return {
+      runtime_protocol_version: BLUE_RUNTIME_PROTOCOL_VERSION,
       request_id: task.request_id,
       state: 'stopping',
       settlement_pending: true,
@@ -611,7 +771,9 @@ async function settleRuntimeTask(
   );
   const terminalState: RuntimeTaskState = effectiveOutcome === 'completed'
     ? 'completed'
-    : effectiveOutcome === 'expired' ? 'expired' : 'failed';
+    : effectiveOutcome === 'expired'
+      ? 'expired'
+      : effectiveOutcome === 'stopped' ? 'cancelled' : 'failed';
   const finishedAt = new Date().toISOString();
   const { error: finalError } = await supabaseAdmin!.from('blue_runtime_tasks').update({
     state: terminalState,
@@ -629,6 +791,7 @@ async function settleRuntimeTask(
   await Promise.all(measuredCredentials.map(credential => deleteSettledCredential(credential)));
   task = { ...task, state: terminalState, provider_cost: providerCost, prompt_tokens: promptTokens, completion_tokens: completionTokens };
   return {
+    runtime_protocol_version: BLUE_RUNTIME_PROTOCOL_VERSION,
     request_id: task.request_id,
     state: terminalState,
     reserved_blue_credits: Number(task.reserved_blue_credits),
@@ -731,6 +894,9 @@ async function activeOrProvision(task: RuntimeTaskRow): Promise<BlueRuntimeCrede
 }
 
 async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCredential | undefined> {
+  if (task.state !== 'provisioning' && task.state !== 'active') {
+    throw statusError(409, 'This Blue runtime has not received an execution slot');
+  }
   const remainingProviderAllowance = await remainingProviderAllowanceForTask(task);
   if (!task.is_free && remainingProviderAllowance <= 0) {
     throw statusError(402, 'This Blue task has reached its reserved provider allowance');
@@ -953,10 +1119,19 @@ function admissionPayload(
   model: ReturnType<typeof resolveModel> extends infer _T ? NonNullable<Awaited<ReturnType<typeof getOpenRouterModels>>[number]> : never
 ): BlueRuntimeAdmission {
   if (credential) credential.model = model.id;
+  const capacity = blueRuntimeCapacityConfig();
   return {
+    runtime_protocol_version: BLUE_RUNTIME_PROTOCOL_VERSION,
     request_id: task.request_id,
     state: credential ? 'active' : task.state,
     credential,
+    ...(task.state === 'queued' ? {
+      position: Math.max(1, Number(task.queue_position || 1)),
+      retry_after_ms: capacity.retryAfterMs,
+      ...(task.queue_expires_at ? { queue_expires_at: task.queue_expires_at } : {})
+    } : task.state === 'provisioning' && !credential ? {
+      retry_after_ms: capacity.retryAfterMs
+    } : {}),
     billing: {
       reserved_blue_credits: Number(task.reserved_blue_credits),
       remaining_blue_credits: Math.max(0, Number(remaining || 0)),
@@ -979,8 +1154,11 @@ function admissionPayload(
 function existingSettlement(task: RuntimeTaskRow, remaining: number): BlueRuntimeSettlement {
   const charged = Math.max(0, Number(task.charged_blue_credits || 0));
   return {
+    runtime_protocol_version: BLUE_RUNTIME_PROTOCOL_VERSION,
     request_id: task.request_id,
-    state: task.state === 'completed' || task.state === 'expired' ? task.state : 'failed',
+    state: task.state === 'completed' || task.state === 'cancelled' || task.state === 'expired'
+      ? task.state
+      : 'failed',
     reserved_blue_credits: Number(task.reserved_blue_credits),
     charged_blue_credits: charged,
     refunded_blue_credits: Math.max(0, roundCredits(Number(task.reserved_blue_credits) - charged)),
@@ -1012,6 +1190,18 @@ async function walletBalance(userId: string): Promise<number> {
   return Math.max(0, Number(data?.blue_credits || 0));
 }
 
+async function runtimeQueuePosition(task: RuntimeTaskRow): Promise<number> {
+  if (task.state !== 'queued' || !task.queued_at) return 0;
+  const { count, error } = await supabaseAdmin!
+    .from('blue_runtime_tasks')
+    .select('request_id', { count: 'exact', head: true })
+    .eq('state', 'queued')
+    .gt('queue_expires_at', new Date().toISOString())
+    .lte('queued_at', task.queued_at);
+  if (error) throw statusError(500, `Could not read Blue runtime queue position: ${error.message}`);
+  return Math.max(1, Number(count || 1));
+}
+
 async function isRuntimeModelBlocked(model: string): Promise<boolean> {
   const { data } = await supabaseAdmin!.from('blue_runtime_model_blocks').select('model').eq('model', model).maybeSingle();
   return Boolean(data?.model);
@@ -1023,6 +1213,15 @@ function validateAdmissionInput(input: BlueRuntimeAdmissionInput): void {
   if (input.mode !== 'normal' && input.mode !== 'ui_max') throw statusError(400, 'Invalid Blue runtime mode');
   if (!input.clientVersion || input.clientVersion.length > 64) throw statusError(400, 'A valid Blue client version is required');
   if (!input.deviceId || input.deviceId.length < 16 || input.deviceId.length > 256) throw statusError(400, 'A valid Blue device binding is required');
+  if (
+    input.runtimeProtocolVersion !== undefined
+    && input.runtimeProtocolVersion !== BLUE_RUNTIME_PROTOCOL_VERSION
+  ) {
+    throw statusError(
+      426,
+      `Unsupported Blue runtime protocol. Upgrade the extension to protocol ${BLUE_RUNTIME_PROTOCOL_VERSION}.`
+    );
+  }
 }
 
 function assertConfigured(): void {
@@ -1043,13 +1242,14 @@ export function publicBlueRuntimeError(error: unknown, fallback = 'Blue runtime 
 
 function mapDatabaseError(message: string): Error & { status: number } {
   if (/insufficient/i.test(message)) return statusError(402, 'Your Blue Credits are too low for this task');
+  if (/queue is full/i.test(message)) return statusError(429, 'Blue runtime capacity is full; retry shortly');
   if (/concurrency/i.test(message)) return statusError(429, 'Your Blue account already has the maximum number of active tasks');
   if (/belongs to another|conflict|does not match/i.test(message)) return statusError(409, message);
   return statusError(500, `Blue runtime admission failed: ${message}`);
 }
 
 function isTerminal(state: RuntimeTaskState): boolean {
-  return state === 'completed' || state === 'failed' || state === 'expired';
+  return state === 'completed' || state === 'cancelled' || state === 'failed' || state === 'expired';
 }
 
 function credentialExpiry(): string {
@@ -1089,6 +1289,20 @@ function boundedProviderCost(value: unknown): number {
 function positiveDuration(value: unknown, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : fallback;
+}
+
+function boundedInteger(value: unknown, fallback: number, minimum: number, maximum: number): number {
+  const parsed = Math.floor(Number(value));
+  return Number.isFinite(parsed) ? Math.max(minimum, Math.min(maximum, parsed)) : fallback;
+}
+
+function normalizeProviderGenerationId(value: unknown): string {
+  const generationId = String(value || '').trim();
+  if (!generationId) return '';
+  if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{3,199}$/.test(generationId)) {
+    throw statusError(400, 'Invalid provider generation ID');
+  }
+  return generationId;
 }
 
 function runtimeOutcome(value: unknown): 'completed' | 'failed' | 'stopped' | 'expired' | undefined {

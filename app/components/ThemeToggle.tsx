@@ -1,11 +1,12 @@
 "use client";
 
 import { useTheme, ThemePreference } from "../contexts/ThemeContext";
+import { Moon, Sun, SunMoon, type LucideIcon } from "lucide-react";
 
-const OPTIONS: { value: ThemePreference; icon: string; label: string }[] = [
-  { value: "light", icon: "fa-sun", label: "Light theme" },
-  { value: "system", icon: "fa-circle-half-stroke", label: "Match system theme" },
-  { value: "dark", icon: "fa-moon", label: "Dark theme" },
+const OPTIONS: { value: ThemePreference; icon: LucideIcon; label: string }[] = [
+  { value: "light", icon: Sun, label: "Light theme" },
+  { value: "system", icon: SunMoon, label: "Match system theme" },
+  { value: "dark", icon: Moon, label: "Dark theme" },
 ];
 
 export default function ThemeToggle() {
@@ -19,6 +20,7 @@ export default function ThemeToggle() {
     >
       {OPTIONS.map((opt) => {
         const active = theme === opt.value;
+        const Icon = opt.icon;
         return (
           <button
             key={opt.value}
@@ -30,7 +32,7 @@ export default function ThemeToggle() {
               active ? "bg-surface text-brand shadow-soft" : "text-ink-faint hover:text-ink-muted"
             }`}
           >
-            <i className={`fa-solid ${opt.icon} text-[11px]`} />
+            <Icon aria-hidden="true" className="h-3 w-3" />
           </button>
         );
       })}
