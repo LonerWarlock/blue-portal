@@ -836,7 +836,7 @@ export default function ConsolePage() {
                               <p className="text-xs font-semibold text-ink">{model}</p>
                               <p className="text-[10px] text-ink-faint">{data.requests} requests</p>
                             </div>
-                            <span className="text-xs font-mono text-brand">{data.totalCost.toFixed(4)} credits</span>
+                            <span className="text-xs font-mono text-brand">{Number(data.totalCost ?? data.blue_credits_used ?? 0).toFixed(4)} credits</span>
                           </div>
                         ))}
                       </div>
@@ -900,7 +900,7 @@ export default function ConsolePage() {
                             <td className="py-3 px-5 text-ink text-[10px] font-semibold">{row.model}</td>
                             <td className="py-3 px-5 text-right text-ink-muted font-mono text-[10px]">{row.prompt_tokens?.toLocaleString() || 0}</td>
                             <td className="py-3 px-5 text-right text-ink-muted font-mono text-[10px]">{row.completion_tokens?.toLocaleString() || 0}</td>
-                            <td className="py-3 px-5 text-right text-brand font-mono text-[10px]">{Number(row.blue_credits_cost || row.cost || 0).toFixed(6)}</td>
+                            <td className="py-3 px-5 text-right text-brand font-mono text-[10px]">{Number(row?.blue_credits_cost || row?.cost || 0).toFixed(6)}</td>
                           </tr>
                         ))}
                       </tbody>

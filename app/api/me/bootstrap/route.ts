@@ -161,15 +161,15 @@ export async function GET(request: Request) {
 }
 
 function summarizeUsageRows(rows: any[]) {
-  const modelBreakdown: Record<string, { requests: number; blue_credits_used: number }> = {};
+  const modelBreakdown: Record<string, { requests: number; totalCost: number }> = {};
   let totalBlueCreditsUsed = 0;
 
   for (const row of rows) {
     const model = String(row?.model || 'unknown');
     const cost = Math.max(0, Number(row?.blue_credits_cost ?? row?.cost ?? 0));
-    const current = modelBreakdown[model] || { requests: 0, blue_credits_used: 0 };
+    const current = modelBreakdown[model] || { requests: 0, totalCost: 0 };
     current.requests += 1;
-    current.blue_credits_used += cost;
+    current.totalCost += cost;
     modelBreakdown[model] = current;
     totalBlueCreditsUsed += cost;
   }
