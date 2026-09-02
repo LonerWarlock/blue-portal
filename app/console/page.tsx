@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Menu, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import VSCodeInstallSnippet from "../components/VSCodeInstallSnippet";
 import ThemeToggle from "../components/ThemeToggle";
@@ -16,6 +17,13 @@ const TIER_BADGE_COLORS: Record<string, string> = {
 const MODEL_CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
 const BLUE_WALLET_REFRESH_INTERVAL_MS = 60 * 1000;
 const MODEL_CATALOG_SESSION_KEY = 'blue.modelCatalog.v1';
+const CONSOLE_NAV_LINKS = [
+  { href: '/', label: 'Home' },
+  { href: '/subscribe', label: 'Subscribe' },
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/docs', label: 'Docs' },
+  { href: '/blog', label: 'Blog' },
+];
 let modelCatalogCache: any[] = [];
 let modelCatalogLoadedAt = 0;
 let modelCatalogRequest: Promise<any[]> | null = null;
@@ -90,6 +98,7 @@ export default function ConsolePage() {
   const [hasBlueCredits, setHasBlueCredits] = useState(false);
   const [accountLoading, setAccountLoading] = useState(false);
   const [accountError, setAccountError] = useState("");
+  const [consoleMenuOpen, setConsoleMenuOpen] = useState(false);
   const [proWallet, setProWallet] = useState<any>(null);
   const [proTransactions, setProTransactions] = useState<any[]>([]);
   const [proUsage, setProUsage] = useState<any>(null);
@@ -138,6 +147,15 @@ export default function ConsolePage() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!consoleMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setConsoleMenuOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [consoleMenuOpen]);
 
   useEffect(() => {
     if (user) {
@@ -304,6 +322,7 @@ export default function ConsolePage() {
   };
 
   const handleLogout = async () => {
+    setConsoleMenuOpen(false);
     await supabase.auth.signOut();
     setUser(null);
   };
@@ -459,19 +478,27 @@ export default function ConsolePage() {
 
   return (
     <>
-      <header className="w-full panel py-4 px-6 border-b border-line sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <a href="/" className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg bg-brand flex items-center justify-center shadow-lg">
+      {consoleMenuOpen && (
+        <button
+          type="button"
+          aria-label="Close console navigation"
+          className="fixed inset-0 z-40 bg-terminal/20 backdrop-blur-[1px] xl:hidden"
+          onClick={() => setConsoleMenuOpen(false)}
+        />
+      )}
+      <header className="sticky top-0 z-50 w-full border-b border-line panel">
+        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <a href="/" className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand shadow-lg sm:h-10 sm:w-10">
               <i className="fa-solid fa-robot text-lg text-white"></i>
             </div>
-            <div>
-              <span className="text-xl font-bold tracking-tight bg-brand bg-clip-text text-transparent">Blue AI</span>
-              <span className="text-xs block text-ink-faint font-medium">Developer Console</span>
+            <div className="min-w-0">
+              <span className="block truncate text-base font-bold tracking-tight text-brand sm:text-xl">Blue AI</span>
+              <span className="hidden text-xs text-ink-faint font-medium sm:block">Developer Console</span>
             </div>
           </a>
 
-          <nav className="hidden md:flex items-center space-x-6">
+          <nav className="hidden xl:flex items-center space-x-6" aria-label="Console navigation">
             <a href="/" className="text-sm text-ink-muted hover:text-ink transition">Home</a>
             <a href="/subscribe" className="text-sm text-ink-muted hover:text-ink transition">Subscribe</a>
             <a href="/pricing" className="text-sm text-ink-muted hover:text-ink transition">Pricing</a>
@@ -479,10 +506,10 @@ export default function ConsolePage() {
             <a href="/blog" className="text-sm text-ink-muted hover:text-ink transition">Blog</a>
           </nav>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <ThemeToggle />
               {user && (
-                <div className="flex items-center space-x-4">
+                <div className="hidden items-center space-x-4 xl:flex">
                   <span className="text-sm text-ink-muted font-medium hidden sm:inline">{user.email}</span>
                   {accountLoading ? (
                     <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-lg border border-line text-xs font-bold text-ink-muted">
@@ -521,11 +548,80 @@ export default function ConsolePage() {
                   </button>
                 </div>
               )}
+            <button
+              type="button"
+              aria-label={consoleMenuOpen ? "Close console navigation" : "Open console navigation"}
+              aria-expanded={consoleMenuOpen}
+              aria-controls="console-mobile-navigation"
+              onClick={() => setConsoleMenuOpen(open => !open)}
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-paper-alt text-ink transition hover:bg-paper-sunken xl:hidden"
+            >
+              {consoleMenuOpen
+                ? <X aria-hidden="true" className="h-4 w-4" />
+                : <Menu aria-hidden="true" className="h-4 w-4" />}
+            </button>
           </div>
         </div>
+
+        {consoleMenuOpen && (
+          <div id="console-mobile-navigation" className="absolute left-0 right-0 top-full border-b border-line bg-paper shadow-elevated xl:hidden">
+            <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
+              {user && (
+                <div className="mb-4 rounded-lg border border-line bg-paper-alt p-3">
+                  <p className="break-all text-xs font-medium text-ink-muted">{user.email}</p>
+                  <span className={`mt-2 inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-bold ${
+                    accountError
+                      ? 'border-warning/40 text-warning'
+                      : isProPayg || hasActiveSubscription
+                        ? 'border-brand/30 bg-brand/10 text-brand'
+                        : 'border-green-500/30 bg-green-950/60 text-green-400'
+                  }`}>
+                    {accountLoading
+                      ? 'Loading account…'
+                      : accountError
+                        ? 'Account unavailable'
+                        : isProPayg
+                          ? 'Blue Pro'
+                          : hasActiveSubscription
+                            ? 'Blue Active'
+                            : 'Blue Lite'}
+                  </span>
+                </div>
+              )}
+
+              <nav className="grid gap-1" aria-label="Mobile console navigation">
+                {CONSOLE_NAV_LINKS.map(link => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setConsoleMenuOpen(false)}
+                    className="rounded-md px-3 py-3 text-sm font-medium text-ink-muted transition hover:bg-paper-alt hover:text-ink"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </nav>
+
+              {user && (
+                <div className="mt-4 grid grid-cols-2 gap-2 border-t border-line pt-4">
+                  <a
+                    href={isProPayg ? '/blue-pro/checkout' : '/subscribe'}
+                    onClick={() => setConsoleMenuOpen(false)}
+                    className="btn btn-primary justify-center !py-2.5"
+                  >
+                    {isProPayg ? 'Add Credits' : 'Upgrade'}
+                  </a>
+                  <button type="button" onClick={handleLogout} className="btn btn-secondary justify-center !py-2.5">
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-12 flex flex-col justify-center items-center">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 sm:px-6 sm:py-12 flex flex-col justify-center items-center">
         {supabase.isMock && (
           <div className="w-full max-w-md mb-8 p-4 bg-amber-950/40 border border-amber-800/80 rounded-lg text-amber-300 text-sm text-center flex flex-col items-center gap-2">
             <div className="flex items-center gap-2 font-bold text-amber-400">

@@ -1,74 +1,43 @@
 import PageLayout from "@/app/components/PageLayout";
 
-const roles = [
-  {
-    title: "LLM Infrastructure Programmer",
-    description: "Optimize streaming latency, load-balancing gateway architectures, and payment integrations.",
-    icon: "fa-server",
-    gradient: "from-brand to-brand",
-  },
-  {
-    title: "UI/UX Product Designer",
-    description: "Build stunning developer tools, dashboard consoles, and interactive sidebar experiences.",
-    icon: "fa-pen-ruler",
-    gradient: "from-brand to-brand",
-  },
-  {
-    title: "Compiler Integration Engineer",
-    description: "Build language servers, autocomplete indexes, and type-checking engine components.",
-    icon: "fa-cubes",
-    gradient: "from-brand to-brand",
-  },
-];
-
 export default function CareersPage() {
   return (
     <PageLayout>
-      <section className="relative overflow-hidden pt-20 pb-32">
-        <div className="absolute inset-0 pointer-events-none">
-<div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-brand/10 rounded-full blur-[128px]"></div>
+      <section className="relative overflow-hidden px-4 pb-24 pt-16 sm:px-6 sm:pb-32 sm:pt-20">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute bottom-1/4 right-1/4 h-72 w-72 rounded-full bg-brand/10 blur-[112px] sm:h-96 sm:w-96 sm:blur-[128px]" />
         </div>
 
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-line-strong bg-paper eyebrow mb-8">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand"></span>
+        <div className="relative z-10 mx-auto max-w-5xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="eyebrow mb-6 inline-flex items-center gap-2 rounded-md border border-line-strong bg-paper px-3 py-1.5 sm:mb-8">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand" />
               Careers
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight">
-              <span className="text-ink">
-                Help us build the
-              </span>
+            <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl md:text-6xl">
+              <span className="text-ink">Build the future of</span>
               <br />
-              <span className="bg-brand bg-clip-text text-transparent">
-                future of coding
-              </span>
+              <span className="text-brand">coding agents</span>
             </h1>
-            <p className="mt-6 text-lg text-ink-muted max-w-3xl mx-auto leading-relaxed">
-              We are a remote-first team of applied researchers and engineers building agentic IDE tools.
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ink-muted sm:mt-6 sm:text-lg">
+              Blue is built by a remote-first team focused on affordable, capable coding agents.
             </p>
           </div>
 
-          <div className="mt-20 max-w-4xl mx-auto">
-            <h2 className="text-xl font-bold text-ink mb-8 text-center">Open Roles</h2>
-            <div className="space-y-4">
-              {roles.map((role) => (
-                <div
-                  key={role.title}
-                  className="p-6 rounded-lg panel border border-line hover:border-line-strong hover:bg-paper-alt transition duration-300 flex items-start gap-5 cursor-pointer group"
-                >
-                  <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${role.gradient} flex items-center justify-center shrink-0 shadow-lg`}>
-                    <i className={`fa-solid ${role.icon} text-lg text-white`}></i>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-ink group-hover:text-brand transition mb-2">{role.title}</h3>
-                    <p className="text-sm text-ink-muted leading-relaxed">{role.description}</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-brand text-sm font-semibold shrink-0 opacity-0 group-hover:opacity-100 transition">
-                    Apply <i className="fa-solid fa-arrow-right text-xs"></i>
-                  </div>
-                </div>
-              ))}
+          <div className="mx-auto mt-12 max-w-2xl rounded-xl border border-line bg-paper-alt p-6 text-center shadow-soft sm:mt-16 sm:p-10">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-brand/30 bg-brand/10 text-brand">
+              <i className="fa-solid fa-briefcase" aria-hidden="true" />
+            </div>
+            <p className="eyebrow mt-5">Hiring status</p>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+              No open roles right now
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-ink-muted sm:text-base">
+              We are not accepting job applications at this time. When a position becomes available, it will be published on this page.
+            </p>
+            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-medium text-ink-muted">
+              <span className="h-2 w-2 rounded-full bg-ink-faint" />
+              Please check back later
             </div>
           </div>
         </div>
