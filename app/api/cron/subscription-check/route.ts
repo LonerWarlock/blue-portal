@@ -102,7 +102,7 @@ async function handleSubscriptionCheck(req: Request) {
       }
 
       // AESTHETIC CONSTANTS
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
       const formattedDate = new Date(sub.current_period_end).toLocaleDateString('en-IN', {
         day: 'numeric',
         month: 'long',

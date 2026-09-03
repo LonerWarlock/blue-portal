@@ -90,7 +90,7 @@ async function handleMarketingCampaign(req: Request) {
     }
 
     const now = Date.now();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3005';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
     let processedCount = 0;
     const details: any[] = [];
 
