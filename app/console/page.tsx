@@ -187,7 +187,10 @@ export default function ConsolePage() {
       const [walletRes, packRes, subRes, proRes] = await Promise.all([
         fetch('/api/user/wallet', { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch('/api/blue-pro/pack-config'),
-        fetch(`/api/user/subscription?email=${encodeURIComponent(session.user.email || '')}`),
+        fetch('/api/user/subscription', {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store'
+        }),
         fetch('/api/blue-pro/wallet', {
           headers: { 'Authorization': `Bearer ${token}` },
           cache: 'no-store'

@@ -76,8 +76,11 @@ export default function SubscribePage() {
   const [imrBalance, setImrBalance] = useState<number>(0);
 
   useEffect(() => {
-    if (user?.email) {
-      fetch(`/api/user/subscription?email=${encodeURIComponent(user.email)}`)
+    if (session?.access_token) {
+      fetch('/api/user/subscription', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        cache: 'no-store'
+      })
         .then(res => res.json())
         .then(data => {
           if (data.plan) {
