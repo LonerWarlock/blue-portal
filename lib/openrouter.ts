@@ -1,6 +1,9 @@
 import { unstable_cache } from 'next/cache.js';
 
-const OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models';
+// Unlike the public catalogue, /models/user is filtered by the account's
+// provider preferences, privacy policy, and guardrails. Blue must never offer
+// a model its own OpenRouter workspace cannot actually route.
+const OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models/user';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const STALE_FALLBACK_TTL_MS = 24 * 60 * 60 * 1000;
 const PROVIDER_TIMEOUT_MS = 8 * 1000;
@@ -78,7 +81,7 @@ const getSharedOpenRouterModels = unstable_cache(
     if (models.length === 0) throw new Error('OpenRouter returned an empty model catalog');
     return models;
   },
-  ['blue-openrouter-model-catalog-v2'],
+  ['blue-openrouter-model-catalog-v3'],
   { revalidate: 300, tags: ['openrouter-model-catalog'] }
 );
 
@@ -114,9 +117,22 @@ export async function getOpenRouterModels(): Promise<OpenRouterModel[]> {
 export function normalizeOpenRouterModels(models: OpenRouterModel[]): OpenRouterModel[] {
   const normalized = new Map<string, OpenRouterModel>();
 
-  for (const raw of models) {
+  // Permanent catalogue rows must win over moving aliases even when the API
+  // happens to return the alias first. This prevents stale alias pricing or
+  // capabilities from overriding the concrete model's metadata.
+  const permanentFirst = [...models].sort((left, right) =>
+    Number(String(left.id || '').trim().startsWith('~'))
+      - Number(String(right.id || '').trim().startsWith('~'))
+  );
+  for (const raw of permanentFirst) {
+    // Meta-router IDs choose a different concrete model after admission. That
+    // cannot be combined safely with Blue's exact-model child-key guardrail.
+    // Blue exposes the concrete models instead.
+    if (isProviderRouterModel(raw.id)) continue;
+    if (!(raw.supported_parameters || []).includes('tools')) continue;
     const canonical = canonicalModelId(raw);
     if (!canonical) continue;
+    if (isProviderRouterModel(canonical)) continue;
 
     const rawId = String(raw.id || '').trim();
     const aliases = new Set<string>([
@@ -162,6 +178,10 @@ export function isProviderModelSlug(value: unknown): value is string {
     && !/\s/.test(model);
 }
 
+export function isProviderRouterModel(value: unknown): boolean {
+  return String(value || '').trim().toLowerCase().startsWith('openrouter/');
+}
+
 export function publicModel(model: OpenRouterModel): BlueModel {
   const modelId = canonicalModelId(model);
   if (!modelId) throw new Error('Blue model catalogue contains an invalid model identifier');
@@ -172,12 +192,14 @@ export function publicModel(model: OpenRouterModel): BlueModel {
     upstreamModel: modelId,
     displayName: model.name || modelId.split('/').at(-1) || modelId,
     description: publicBlueDescription(model.description),
-    isFree: inputPerToken === 0 && outputPerToken === 0,
+    isFree: isExplicitlyFree(model),
     inputPrice: (inputPerToken * 1_000_000).toFixed(6),
     outputPrice: (outputPerToken * 1_000_000).toFixed(6),
     contextLength: Math.max(0, Number(model.context_length || 0)),
     supportedParameters: model.supported_parameters || [],
-    highConsumption: inputPerToken >= 0.000001 || outputPerToken >= 0.000004
+    highConsumption: hasVariablePricing(model)
+      || inputPerToken >= 0.000001
+      || outputPerToken >= 0.000004
   };
 }
 
@@ -191,11 +213,36 @@ function publicBlueDescription(value: unknown): string {
 }
 
 export function modelsForAccess(models: OpenRouterModel[], accessTier: string): OpenRouterModel[] {
-  if (accessTier === 'full') return models;
-  return models.filter(model =>
-    TRIAL_MODEL_IDS.has(canonicalModelId(model) || '') ||
-    (price(model.pricing?.prompt) === 0 && price(model.pricing?.completion) === 0)
+  const concrete = models.filter(model =>
+    !isProviderRouterModel(canonicalModelId(model)) &&
+    (model.supported_parameters || []).includes('tools')
   );
+  if (accessTier === 'full') return concrete;
+  return concrete.filter(model =>
+    TRIAL_MODEL_IDS.has(canonicalModelId(model) || '') ||
+    isExplicitlyFree(model)
+  );
+}
+
+function isExplicitlyFree(model: OpenRouterModel): boolean {
+  const pricing = model.pricing;
+  if (pricing?.prompt === undefined || pricing.completion === undefined) return false;
+  const values = [
+    pricing.prompt,
+    pricing.completion,
+    pricing.request,
+    pricing.image,
+    pricing.web_search,
+    pricing.internal_reasoning,
+    pricing.input_cache_read,
+    pricing.input_cache_write,
+    pricing.output_cache_read
+  ].filter(value => value !== undefined);
+  return values.every(value => Number.isFinite(Number(value)) && Number(value) === 0);
+}
+
+function hasVariablePricing(model: OpenRouterModel): boolean {
+  return Number(model.pricing?.prompt) < 0 || Number(model.pricing?.completion) < 0;
 }
 
 export function resolveModel(models: OpenRouterModel[], requested: string): OpenRouterModel | undefined {

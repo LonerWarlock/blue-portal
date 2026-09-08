@@ -14,6 +14,17 @@ export interface CreatedOpenRouterKey {
   data: OpenRouterManagedKey;
 }
 
+interface OpenRouterGuardrail {
+  id: string;
+  workspace_id?: string;
+  allowed_models: string[] | null;
+}
+
+interface OpenRouterKeyModel {
+  id?: string;
+  canonical_slug?: string;
+}
+
 function managementKey(): string {
   const value = String(process.env.OPENROUTER_MANAGEMENT_API_KEY || '')
     .trim()
@@ -35,16 +46,26 @@ async function managementRequest<T>(
 ): Promise<T> {
   let lastError: Error | undefined;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    const response = await fetch(`${OPENROUTER_MANAGEMENT_BASE}${path}`, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${managementKey()}`,
-        'Content-Type': 'application/json',
-        ...(init.headers || {})
-      },
-      cache: 'no-store',
-      signal: init.signal || AbortSignal.timeout(10_000)
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${OPENROUTER_MANAGEMENT_BASE}${path}`, {
+        ...init,
+        headers: {
+          Authorization: `Bearer ${managementKey()}`,
+          'Content-Type': 'application/json',
+          ...(init.headers || {})
+        },
+        cache: 'no-store',
+        signal: init.signal || AbortSignal.timeout(10_000)
+      });
+    } catch (error) {
+      lastError = error instanceof Error
+        ? new Error(`OpenRouter management connection failed: ${error.message}`)
+        : new Error('OpenRouter management connection failed');
+      if (attempt === attempts) break;
+      await new Promise(resolve => setTimeout(resolve, Math.min(4_000, 350 * (2 ** (attempt - 1)))));
+      continue;
+    }
     if (response.ok) return await response.json() as T;
 
     const retryAfter = Number(response.headers.get('retry-after') || 0);
@@ -79,7 +100,7 @@ export async function createManagedKey(input: {
       expires_at: input.expiresAt,
       workspace_id: openRouterWorkspaceId()
     })
-  });
+  }, 1);
 }
 
 export async function getManagedKey(hash: string): Promise<OpenRouterManagedKey> {
@@ -119,9 +140,75 @@ export async function createModelGuardrail(model: string): Promise<string> {
       allowed_providers: null,
       workspace_id: openRouterWorkspaceId()
     })
-  });
+  }, 1);
   if (!payload.data?.id) throw new Error('OpenRouter did not return a guardrail ID');
   return payload.data.id;
+}
+
+/** Read-only validation: never mutate a guardrail that may still protect live keys. */
+export async function exactModelGuardrailMatches(guardrailId: string, model: string): Promise<boolean> {
+  const canonicalModel = requireCanonicalModelSlug(model);
+  let guardrail: OpenRouterGuardrail;
+  try {
+    const payload = await managementRequest<{ data: OpenRouterGuardrail }>(
+      `/guardrails/${encodeURIComponent(guardrailId)}`
+    );
+    guardrail = payload.data;
+  } catch (error) {
+    if (Number((error as { status?: number })?.status) === 404) return false;
+    throw error;
+  }
+
+  return guardrail.workspace_id === openRouterWorkspaceId()
+    && guardrail.allowed_models?.length === 1
+    && guardrail.allowed_models[0] === canonicalModel;
+}
+
+/**
+ * Assignment can be eventually consistent. Verify the short-lived child key
+ * against OpenRouter's key-filtered catalogue before Blue returns it to a PC.
+ * This endpoint performs no inference and therefore consumes no model credit.
+ */
+export async function assertManagedKeyCanUseModel(
+  key: string,
+  model: string,
+  aliases: string[] = []
+): Promise<void> {
+  const canonicalModel = requireCanonicalModelSlug(model);
+  const acceptedModels = new Set([canonicalModel, ...aliases]
+    .map(value => String(value || '').trim())
+    .filter(value => value && !value.startsWith('~') && !value.toLowerCase().startsWith('openrouter/')));
+  let lastError: Error | undefined;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/models/user', {
+        headers: { Authorization: `Bearer ${key}` },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(8_000)
+      });
+      if (response.ok) {
+        const payload = await response.json() as { data?: OpenRouterKeyModel[] };
+        const availableModels = new Set((payload.data || []).map(candidate =>
+          String(candidate.canonical_slug || candidate.id || '').trim()
+        ).filter(Boolean));
+        let hasSelectedModel = false;
+        availableModels.forEach(candidate => {
+          if (acceptedModels.has(candidate)) hasSelectedModel = true;
+        });
+        if (availableModels.size === 1 && hasSelectedModel) return;
+        lastError = new Error(hasSelectedModel
+          ? 'The temporary provider credential is not restricted to the selected model'
+          : 'The temporary provider credential cannot access the selected model');
+      } else {
+        lastError = new Error(`OpenRouter credential verification failed (${response.status})`);
+        if (response.status < 500 && response.status !== 429) break;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('OpenRouter credential verification failed');
+    }
+    if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 250));
+  }
+  throw lastError || new Error('The temporary provider credential cannot access the selected model');
 }
 
 function requireCanonicalModelSlug(value: string): string {
@@ -131,6 +218,7 @@ function requireCanonicalModelSlug(value: string): string {
     model.length > 200 ||
     !model.includes('/') ||
     model.startsWith('~') ||
+    model.toLowerCase().startsWith('openrouter/') ||
     /\s/.test(model)
   ) {
     throw new Error('Blue model catalogue did not provide a canonical model identifier');
@@ -139,13 +227,16 @@ function requireCanonicalModelSlug(value: string): string {
 }
 
 export async function assignKeyGuardrail(guardrailId: string, keyHash: string): Promise<void> {
-  await managementRequest<{ assigned_count: number }>(
+  const result = await managementRequest<{ assigned_count: number }>(
     `/guardrails/${encodeURIComponent(guardrailId)}/assignments/keys`,
     {
       method: 'POST',
       body: JSON.stringify({ key_hashes: [keyHash] })
     }
   );
+  if (result.assigned_count !== 1) {
+    throw new Error('OpenRouter did not confirm the temporary key guardrail assignment');
+  }
 }
 
 export async function deleteGuardrail(guardrailId: string): Promise<void> {

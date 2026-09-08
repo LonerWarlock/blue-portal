@@ -31,7 +31,7 @@ const getSharedPublicCatalog = unstable_cache(
       .sort((left, right) => left.displayName.localeCompare(right.displayName));
     return { models, access_tier: 'catalog' };
   },
-  ['blue-public-model-catalog-v2'],
+  ['blue-public-model-catalog-v3'],
   { revalidate: 300, tags: ['blue-public-model-catalog'] }
 );
 
