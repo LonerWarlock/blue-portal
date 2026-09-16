@@ -306,6 +306,10 @@ export default function HackathonPage() {
               <a href="/hackathon" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-brand font-semibold text-white text-sm shadow transition">
                 <i className="fa-solid fa-arrow-left"></i> Register Another Team
               </a>
+              <a href="https://chat.whatsapp.com/FoSPsmLcS3fKtj6sCKx54a" target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-green-500 hover:bg-green-600 font-semibold text-white text-sm shadow transition mt-3">
+                <i className="fa-brands fa-whatsapp text-lg"></i> Join WhatsApp Group
+              </a>
             </>
           ) : (
             <>

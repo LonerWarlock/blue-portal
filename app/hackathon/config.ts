@@ -1,4 +1,4 @@
-export const HACKATHON_FEE_PER_PERSON = 0.5; // TEMPORARY: ₹0.50 for testing. Revert to 100 after test.
+export const HACKATHON_FEE_PER_PERSON = 100;
 export const HACKATHON_FEE_PER_PERSON_STR = `\u20B9${HACKATHON_FEE_PER_PERSON}`;
 
 /** Calculate total fee based on team size (₹100 per person) */
