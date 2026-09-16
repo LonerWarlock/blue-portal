@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { createHash } from 'crypto';
 import nodemailer from 'nodemailer';
-import { HACKATHON_FEE } from '@/app/hackathon/config';
+import { HACKATHON_FEE_PER_PERSON, EVENT_NAME } from '@/app/hackathon/config';
 
 export async function POST(req: Request) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
@@ -103,7 +103,7 @@ export async function POST(req: Request) {
         leaderEmail: email,
         leaderPhone: data.phone || '',
         teamName: 'Untitled Team',
-        teamSize: 2,
+        teamSize: 1,
         teamMembers: [],
         degree: '',
         declarationAccepted: true,
@@ -111,6 +111,8 @@ export async function POST(req: Request) {
       };
 
       const leaderEmail = (fd.leaderEmail || email).toLowerCase().trim();
+      const teamSize = Number(fd.teamSize) || 1;
+      const totalFee = teamSize * HACKATHON_FEE_PER_PERSON;
 
       // 4. Idempotency check: already in hackathon_registrations as success?
       const { data: existing } = await supabaseAdmin
@@ -139,7 +141,7 @@ export async function POST(req: Request) {
         .from('hackathon_registrations')
         .insert({
           team_name: (fd.teamName || 'Untitled Team').trim(),
-          team_size: Number(fd.teamSize) || 2,
+          team_size: teamSize,
           leader_first_name: (fd.leaderFirstName || firstname || '').trim(),
           leader_last_name: (fd.leaderLastName || '').trim(),
           leader_email: leaderEmail,
@@ -151,7 +153,7 @@ export async function POST(req: Request) {
           declaration_accepted: fd.declarationAccepted ?? true,
           terms_accepted: fd.termsAccepted ?? true,
           payment_txn_id: payuMoneyId || txnid,
-          payment_amount: Number(amount) || HACKATHON_FEE,
+          payment_amount: Number(amount) || totalFee,
           payment_status: 'success',
         });
 
@@ -181,33 +183,34 @@ export async function POST(req: Request) {
 
           const leaderName = `${(fd.leaderFirstName || firstname || '').trim()} ${(fd.leaderLastName || '').trim()}`.trim();
           const teamMembersList = (fd.teamMembers || []).map((m: any, i: number) => 
-            `<tr><td style="padding:6px 0;font-weight:bold;color:#475569;width:140px;">Member ${i + 1}:</td><td style="padding:6px 0;">${(m.firstName || '').trim()} ${(m.lastName || '').trim()} (${(m.email || '').trim()})</td></tr>`
+            `<tr><td style="padding:6px 0;font-weight:bold;color:#475569;width:140px;">Member ${i + 2}:</td><td style="padding:6px 0;">${(m.firstName || '').trim()} ${(m.lastName || '').trim()} (${(m.email || '').trim()})</td></tr>`
           ).join('');
 
           transporter.sendMail({
-            from: `"IGNITE PVPIT 2026" <${user}>`,
+            from: `"${EVENT_NAME}" <${user}>`,
             to: leaderEmail,
-            subject: 'Registration Confirmed — IGNITE PVPIT 2026',
+            subject: `Registration Confirmed — ${EVENT_NAME}`,
             html: `
               <div style="font-family:Arial,sans-serif;color:#333;line-height:1.6;background:#f8fafb;padding:20px;">
                 <div style="max-width:600px;margin:0 auto;background:#fff;padding:30px;border-radius:8px;border:1px solid #e2e8f0;">
                   <h2 style="margin-top:0;color:#1e3c72;border-bottom:2px solid #f1f5f9;padding-bottom:10px;">Hackathon Registration Confirmed</h2>
                   <p>Hi <strong>${leaderName}</strong>,</p>
-                  <p>Your team <strong>${(fd.teamName || '').trim()}</strong> has been successfully registered for <strong>IGNITE PVPIT 2026</strong>. Your payment of <strong>\u20B9${HACKATHON_FEE}</strong> has been received.</p>
+                  <p>Your ${teamSize === 1 ? 'solo registration' : `team <strong>${(fd.teamName || '').trim()}</strong>`} has been successfully registered for <strong>${EVENT_NAME}</strong>. Your payment of <strong>\u20B9${totalFee}</strong> (${teamSize} ${teamSize === 1 ? 'person' : 'persons'} × \u20B9${HACKATHON_FEE_PER_PERSON}) has been received.</p>
                   <table style="width:100%;border-collapse:collapse;margin:20px 0;">
                     <tr><td style="padding:8px 0;font-weight:bold;color:#475569;width:140px;">Team Name:</td><td style="padding:8px 0;">${(fd.teamName || '').trim()}</td></tr>
-                    <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Team Size:</td><td style="padding:8px 0;">${fd.teamSize || 2} members</td></tr>
-                    <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Team Leader:</td><td style="padding:8px 0;">${leaderName}</td></tr>
+                    <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Team Size:</td><td style="padding:8px 0;">${teamSize} ${teamSize === 1 ? 'member' : 'members'}</td></tr>
+                    <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">${teamSize === 1 ? 'Participant' : 'Team Leader'}:</td><td style="padding:8px 0;">${leaderName}</td></tr>
                     <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Email:</td><td style="padding:8px 0;">${leaderEmail}</td></tr>
                     <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Phone:</td><td style="padding:8px 0;">${(fd.leaderPhone || '').trim()}</td></tr>
                     ${teamMembersList}
+                    <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Amount Paid:</td><td style="padding:8px 0;color:#16a34a;font-weight:bold;">\u20B9${totalFee}</td></tr>
                     <tr><td style="padding:8px 0;font-weight:bold;color:#475569;">Transaction ID:</td><td style="padding:8px 0;">${payuMoneyId || txnid}</td></tr>
                   </table>
                   <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:20px 0;">
                     <h3 style="margin-top:0;color:#166534;font-size:16px;">Hackathon Timeline</h3>
-                    <p style="margin:4px 0;color:#334155;"><strong>Problem Statement Release &amp; Hackathon Begins:</strong> 1 August 2026, 9:00 PM</p>
-                    <p style="margin:4px 0;color:#334155;"><strong>Hackathon Ends:</strong> 3 August 2026, 9:00 PM</p>
-                    <p style="margin:4px 0;color:#334155;"><strong>Project Submission Deadline:</strong> 3 August 2026, 11:59 PM</p>
+                    <p style="margin:4px 0;color:#334155;"><strong>Registration:</strong> 20 – 24 September 2026</p>
+                    <p style="margin:4px 0;color:#334155;"><strong>Hackathon Starts:</strong> 25 September 2026</p>
+                    <p style="margin:4px 0;color:#334155;"><strong>Hackathon Ends:</strong> 26 September 2026</p>
                   </div>
                   <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;margin:20px 0;">
                     <h3 style="margin-top:0;color:#1e40af;font-size:16px;">What to Submit</h3>
@@ -216,7 +219,11 @@ export async function POST(req: Request) {
                       <li>A screen recording demonstrating the working website</li>
                     </ul>
                   </div>
-                  <p style="color:#475569;">Join the WhatsApp group for updates: <a href="https://chat.whatsapp.com/HHRjpE4pPH61nwDVTvDw2B" style="color:#2563eb;">Click here</a></p>
+                  <div style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:16px;margin:20px 0;">
+                    <h3 style="margin-top:0;color:#92400e;font-size:16px;">Build with Blue AI</h3>
+                    <p style="margin:4px 0;color:#334155;">Use <strong>Blue AI Coding Assistant</strong> to help you build your project faster. AI tools, LLMs, and coding assistants are fully permitted.</p>
+                  </div>
+                  <p style="color:#475569;">Join the WhatsApp group for updates: <a href="https://chat.whatsapp.com/FoSPsmLcS3fKtj6sCKx54a" style="color:#2563eb;">Click here</a></p>
                   <p style="color:#475569;">For queries: Om Karande (+91 93226 11145) | Soham Phatak (+91 74987 87848)</p>
                   <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
                   <p style="font-size:12px;color:#94a3b8;">Organized by Imergene &ndash; <a href="https://www.imergene.in" style="color:#2563eb;">www.imergene.in</a></p>

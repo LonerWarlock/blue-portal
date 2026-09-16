@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { createHash } from 'crypto';
-import { HACKATHON_FEE_PAYU } from '@/app/hackathon/config';
+import { getTeamFeePayU, EVENT_NAME } from '@/app/hackathon/config';
 
 export async function POST(request: Request) {
   try {
@@ -33,10 +33,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to initialize registration' }, { status: 500 });
     }
 
-    // Use sessionId as txnid
+    // Calculate amount based on team size (₹100 per person)
+    const teamSize = Number(formData.teamSize) || 1;
     const txnid = sessionId;
-    const amount = HACKATHON_FEE_PAYU;
-    const productinfo = 'IGNITE PVPIT 2026 - Hackathon Registration';
+    const amount = getTeamFeePayU(teamSize);
+    const productinfo = `${EVENT_NAME} - Hackathon Registration`;
     const firstname = formData.leaderFirstName || 'Participant';
     const email = formData.leaderEmail || '';
 

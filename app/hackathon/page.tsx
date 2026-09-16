@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { HACKATHON_FEE_STR, REGISTRATION_DEADLINE } from './config';
+import { HACKATHON_FEE_PER_PERSON_STR, REGISTRATION_DEADLINE, EVENT_NAME, getTeamFeeStr } from './config';
 
 type PaymentResult = 'success' | 'failed' | null;
 
@@ -51,7 +51,7 @@ const initial: FormData = {
   leaderBranch: '',
   leaderYear: '',
   teamName: '',
-  teamSize: 2,
+  teamSize: 1,
   teamMembers: [],
   degree: 'B.Tech',
   declarationAccepted: false,
@@ -93,15 +93,15 @@ function generateSessionId(): string {
 }
 
 const TERMS = [
-  'A non-refundable registration fee of \u20B9100 per team is required to confirm your registration for IGNITE PVPIT 2026.',
+  `A non-refundable registration fee of ${HACKATHON_FEE_PER_PERSON_STR} per person is required to confirm your registration for ${EVENT_NAME}. The total amount depends on your team size.`,
   'The registration fee is strictly non-refundable under all circumstances.',
-  'The hackathon is open exclusively to students of PVPIT.',
-  'Team size must be between 2 and 5 members. Only one registration per group is required.',
+  `The hackathon is open exclusively to students of PVPIT.`,
+  'Team size must be between 1 and 4 members. Solo participation is allowed. Only one registration per team is required.',
   'The hackathon is online mode. Participants must build from their respective homes.',
   'Participants must submit a public GitHub repository link and a screen recording demonstrating the working website.',
-  'The problem statement will be shared at the start of the hackathon (1 August 2026, 9:00 PM).',
+  `The problem statement will be shared at the start of the hackathon (25 September 2026).`,
   'All team members must be currently enrolled at PVPIT.',
-  'The use of AI tools, LLMs, and AI coding agents is permitted.',
+  'The use of AI tools, LLMs, and AI coding agents (including Blue AI Coding Assistant) is permitted and encouraged.',
   'Judging criteria: effectiveness in solving the problem statement, originality and innovation, UI/UX and overall user experience.',
   'Prizes: 1st Place \u20B91,500 | 2nd Place \u20B91,000 | 3rd Place \u20B9500.',
   'All information provided during registration must be true and accurate. False or misleading information may result in disqualification.',
@@ -116,7 +116,7 @@ export default function HackathonPage() {
   const [form, setForm] = useState<FormData>(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [resultData, setResultData] = useState<{ teamName: string; leaderName: string; email: string } | null>(null);
+  const [resultData, setResultData] = useState<{ teamName: string; leaderName: string; email: string; amountPaid: string } | null>(null);
   const [isDeadlinePassed, setIsDeadlinePassed] = useState(false);
 
   useEffect(() => {
@@ -137,6 +137,7 @@ export default function HackathonPage() {
           teamName: record.teamName,
           leaderName: `${record.leaderFirstName} ${record.leaderLastName}`,
           email: record.leaderEmail,
+          amountPaid: getTeamFeeStr(record.teamSize),
         });
         removePendingRegistration(`pending_${txnid}`);
       }
@@ -149,11 +150,12 @@ export default function HackathonPage() {
   // Initialize team members array when team size changes
   useEffect(() => {
     setForm(f => {
+      const membersNeeded = Math.max(0, f.teamSize - 1);
       const members = [...f.teamMembers];
-      while (members.length < f.teamSize - 1) {
+      while (members.length < membersNeeded) {
         members.push(createEmptyMember());
       }
-      return { ...f, teamMembers: members.slice(0, f.teamSize - 1) };
+      return { ...f, teamMembers: members.slice(0, membersNeeded) };
     });
   }, [form.teamSize]);
 
@@ -184,17 +186,17 @@ export default function HackathonPage() {
       case 1:
         if (!form.teamName.trim()) return 'Team name is required.';
         if (form.teamName.trim().length < 2) return 'Team name must be at least 2 characters.';
-        if (form.teamSize < 2 || form.teamSize > 5) return 'Team size must be between 2 and 5.';
+        if (form.teamSize < 1 || form.teamSize > 4) return 'Team size must be between 1 and 4.';
         for (let i = 0; i < form.teamMembers.length; i++) {
           const m = form.teamMembers[i];
-          if (!m.firstName.trim()) return `Member ${i + 1}: First name is required.`;
-          if (!m.lastName.trim()) return `Member ${i + 1}: Last name is required.`;
-          if (!m.email.trim()) return `Member ${i + 1}: Email is required.`;
-          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.email.trim())) return `Member ${i + 1}: Invalid email address.`;
-          if (!m.phone.trim()) return `Member ${i + 1}: Phone number is required.`;
-          if (!/^\d{10}$/.test(m.phone.trim())) return `Member ${i + 1}: Phone must be exactly 10 digits.`;
-          if (!m.branch) return `Member ${i + 1}: Please select branch.`;
-          if (!m.year) return `Member ${i + 1}: Please select year.`;
+          if (!m.firstName.trim()) return `Member ${i + 2}: First name is required.`;
+          if (!m.lastName.trim()) return `Member ${i + 2}: Last name is required.`;
+          if (!m.email.trim()) return `Member ${i + 2}: Email is required.`;
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.email.trim())) return `Member ${i + 2}: Invalid email address.`;
+          if (!m.phone.trim()) return `Member ${i + 2}: Phone number is required.`;
+          if (!/^\d{10}$/.test(m.phone.trim())) return `Member ${i + 2}: Phone must be exactly 10 digits.`;
+          if (!m.branch) return `Member ${i + 2}: Please select branch.`;
+          if (!m.year) return `Member ${i + 2}: Please select year.`;
         }
         return null;
       case 2:
@@ -214,6 +216,8 @@ export default function HackathonPage() {
   };
 
   const prevStep = () => { setError(''); setStep(s => Math.max(s - 1, 0)); };
+
+  const totalFeeStr = getTeamFeeStr(form.teamSize);
 
   const handlePayment = async () => {
     setError('');
@@ -286,7 +290,7 @@ export default function HackathonPage() {
               </div>
               <h1 className="text-2xl font-bold text-gray-800 mb-3">Registration Complete!</h1>
               <p className="text-ink-faint text-sm mb-6">
-                Your team has been successfully registered for <span className="text-brand font-semibold">IGNITE PVPIT 2026</span>.
+                Your team has been successfully registered for <span className="text-brand font-semibold">{EVENT_NAME}</span>.
                 
               </p>
               <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 text-left text-xs text-ink-faint space-y-1 mb-6">
@@ -297,7 +301,7 @@ export default function HackathonPage() {
                     <p><span className="text-ink-muted">Email:</span> <span className="text-gray-700">{resultData.email}</span></p>
                   </>
                 )}
-                <p><span className="text-ink-muted">Amount Paid:</span> <span className="text-green-500 font-semibold">{HACKATHON_FEE_STR}</span></p>
+                <p><span className="text-ink-muted">Amount Paid:</span> <span className="text-green-500 font-semibold">{resultData?.amountPaid || totalFeeStr}</span></p>
               </div>
               <a href="/hackathon" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-brand font-semibold text-white text-sm shadow transition">
                 <i className="fa-solid fa-arrow-left"></i> Register Another Team
@@ -339,7 +343,7 @@ export default function HackathonPage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-3">Registration Closed</h1>
           <p className="text-ink-faint text-sm mb-6">
-            The registration deadline for <span className="text-brand font-semibold">IGNITE PVPIT 2026</span> has been reached.
+            The registration deadline for <span className="text-brand font-semibold">{EVENT_NAME}</span> has been reached.
             We are no longer accepting new registrations.
           </p>
           <p className="text-xs text-ink-muted mb-6">
@@ -358,8 +362,8 @@ export default function HackathonPage() {
     switch (step) {
       case 0: return (
         <div className="space-y-4">
-          <h2 className="text-lg font-bold text-gray-800 mb-1">Team Leader Details</h2>
-          <p className="text-xs text-ink-muted mb-4">Tell us about the team leader.</p>
+          <h2 className="text-lg font-bold text-gray-800 mb-1">{form.teamSize === 1 ? 'Participant Details' : 'Team Leader Details'}</h2>
+          <p className="text-xs text-ink-muted mb-4">{form.teamSize === 1 ? 'Tell us about yourself.' : 'Tell us about the team leader.'}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>First Name {reqMark}</label>
@@ -401,7 +405,7 @@ export default function HackathonPage() {
       case 1: return (
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-gray-800 mb-1">Team Details</h2>
-          <p className="text-xs text-ink-muted mb-4">Add your team name and member details.</p>
+          <p className="text-xs text-ink-muted mb-4">Add your team name and member details. Solo participation is also allowed.</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -411,16 +415,21 @@ export default function HackathonPage() {
             <div>
               <label className={labelClass}>Team Size {reqMark}</label>
               <select className={inputClass} value={form.teamSize} onChange={e => set('teamSize', Number(e.target.value))}>
-                {[2, 3, 4, 5].map(n => (
-                  <option key={n} value={n}>{n} members</option>
+                {[1, 2, 3, 4].map(n => (
+                  <option key={n} value={n}>{n} {n === 1 ? 'member (Solo)' : 'members'}</option>
                 ))}
               </select>
             </div>
           </div>
 
+          {/* Fee breakdown info */}
           <div className="rounded-lg bg-paper-alt border border-line p-4 text-xs text-brand">
             <i className="fa-solid fa-circle-info mr-1.5"></i>
-            Only one registration per group is required. Fill in details for all {form.teamSize} members including yourself as team leader.
+            Registration fee is {HACKATHON_FEE_PER_PERSON_STR} per person.
+            {form.teamSize > 1
+              ? <> Your team of {form.teamSize} will pay <strong>{totalFeeStr}</strong> ({HACKATHON_FEE_PER_PERSON_STR} × {form.teamSize}).</>
+              : <> As a solo participant, your fee is <strong>{totalFeeStr}</strong>.</>
+            }
           </div>
 
           {form.teamMembers.slice(0, form.teamSize - 1).map((member, i) => (
@@ -477,12 +486,25 @@ export default function HackathonPage() {
 
           <div className="rounded-lg bg-gray-50 border border-gray-200 overflow-hidden">
             <div className="sticky top-0 z-10 bg-white/95 border-b border-gray-200 px-4 py-2.5">
-              <h3 className="text-sm font-bold text-gray-700">IGNITE PVPIT 2026 &mdash; Terms & Conditions</h3>
+              <h3 className="text-sm font-bold text-gray-700">{EVENT_NAME} &mdash; Terms & Conditions</h3>
             </div>
             <div className="max-h-48 overflow-y-auto px-4 py-3 space-y-2">
               <ol className="text-xs text-ink-faint list-decimal list-inside space-y-1.5">
                 {TERMS.map((t, i) => <li key={i} className="leading-relaxed">{t}</li>)}
               </ol>
+            </div>
+          </div>
+
+          {/* Fee summary */}
+          <div className="rounded-lg bg-green-50 border border-green-200 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-green-800">Payment Summary</p>
+                <p className="text-xs text-green-600 mt-1">
+                  {form.teamSize} {form.teamSize === 1 ? 'person' : 'persons'} × {HACKATHON_FEE_PER_PERSON_STR}
+                </p>
+              </div>
+              <p className="text-2xl font-bold text-green-700">{totalFeeStr}</p>
             </div>
           </div>
 
@@ -517,18 +539,19 @@ export default function HackathonPage() {
             Register for Hackathon
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-800">
-            <span className="bg-brand bg-clip-text text-transparent">IGNITE PVPIT 2026</span>
+            <span className="bg-brand bg-clip-text text-transparent">{EVENT_NAME}</span>
           </h1>
           <p className="text-ink-faint text-sm mt-2">48-Hour Online Hackathon &mdash; Build Solutions for Real-Life Problems</p>
+          <p className="text-xs text-ink-muted mt-1">Using <strong className="text-brand">Blue AI Coding Assistant</strong></p>
         </div>
 
         {/* Hackathon Info Section */}
         <div className="rounded-lg bg-white border border-gray-200 p-6 sm:p-8 shadow-sm mb-8">
           <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <i className="fa-solid fa-fire text-orange-400"></i> About IGNITE PVPIT 2026
+            <i className="fa-solid fa-fire text-orange-400"></i> About {EVENT_NAME}
           </h2>
           <p className="text-sm text-ink-faint mb-5">
-            Think you have what it takes to turn an idea into a working product? Participate in <strong>IGNITE PVPIT 2026</strong>, a 48-hour online hackathon where you&apos;ll solve real-world problems by building innovative web applications.
+            Think you have what it takes to turn an idea into a working product? Participate in <strong>{EVENT_NAME}</strong>, a 48-hour online hackathon where you&apos;ll solve real-world problems by building innovative web applications using <strong>Blue AI Coding Assistant</strong>.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
@@ -538,10 +561,10 @@ export default function HackathonPage() {
                 <i className="fa-solid fa-calendar-days text-xs"></i> Timeline
               </h3>
               <ul className="text-xs text-ink-faint space-y-1.5">
-                <li><span className="font-medium text-gray-700">Last Date to Register:</span> 01/08/2026, 8:00 PM</li>
-                <li><span className="font-medium text-gray-700">Hackathon Starts:</span> 01/08/2026, 9:00 PM</li>
-                <li><span className="font-medium text-gray-700">Hackathon Ends:</span> 03/08/2026, 9:00 PM</li>
-                <li><span className="font-medium text-gray-700">Submission Deadline:</span> 03/08/2026, 11:59 PM</li>
+                <li><span className="font-medium text-gray-700">Registration Opens:</span> 20/09/2026</li>
+                <li><span className="font-medium text-gray-700">Last Date to Register:</span> 24/09/2026, 11:59 PM</li>
+                <li><span className="font-medium text-gray-700">Hackathon Starts:</span> 25/09/2026</li>
+                <li><span className="font-medium text-gray-700">Hackathon Ends:</span> 26/09/2026</li>
               </ul>
             </div>
 
@@ -553,8 +576,8 @@ export default function HackathonPage() {
               <ul className="text-xs text-ink-faint space-y-1.5">
                 <li><span className="font-medium text-gray-700">Mode:</span> Online (Build from Home)</li>
                 <li><span className="font-medium text-gray-700">Eligibility:</span> Open to all branches & years, exclusively for PVPIT students</li>
-                <li><span className="font-medium text-gray-700">Team Size:</span> 2 to 5 members</li>
-                <li><span className="font-medium text-gray-700">Fee:</span> ₹100 per group (non-refundable)</li>
+                <li><span className="font-medium text-gray-700">Team Size:</span> 1 to 4 members (solo allowed)</li>
+                <li><span className="font-medium text-gray-700">Fee:</span> ₹100 per person (non-refundable)</li>
               </ul>
             </div>
 
@@ -566,7 +589,7 @@ export default function HackathonPage() {
               <ul className="text-xs text-ink-faint space-y-1.5">
                 <li>Develop a <span className="font-medium text-gray-700">web application</span> that solves the given problem statement</li>
                 <li><span className="font-medium text-gray-700">Submit:</span> Public GitHub repo + screen recording</li>
-                <li><span className="font-medium text-gray-700">AI Policy:</span> AI tools, LLMs, and AI coding agents are permitted</li>
+                <li><span className="font-medium text-gray-700">AI Policy:</span> AI tools, LLMs, and Blue AI Coding Assistant are permitted</li>
               </ul>
             </div>
 
@@ -613,7 +636,7 @@ export default function HackathonPage() {
               </h3>
               <ul className="text-xs text-ink-faint space-y-1.5">
                 <li>
-                  <a href="https://chat.whatsapp.com/HHRjpE4pPH61nwDVTvDw2B" target="_blank" rel="noopener noreferrer" className="text-brand hover:text-brand underline">
+                  <a href="https://chat.whatsapp.com/FoSPsmLcS3fKtj6sCKx54a" target="_blank" rel="noopener noreferrer" className="text-brand hover:text-brand underline">
                     Join the WhatsApp Group
                   </a>
                 </li>
@@ -684,7 +707,7 @@ export default function HackathonPage() {
                   </>
                 ) : (
                   <>
-                    <i className="fa-solid fa-lock"></i> Pay {HACKATHON_FEE_STR} &amp; Register
+                    <i className="fa-solid fa-lock"></i> Pay {totalFeeStr} &amp; Register
                   </>
                 )}
               </button>
