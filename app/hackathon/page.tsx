@@ -639,11 +639,7 @@ export default function HackathonPage() {
                 <i className="fa-solid fa-link text-xs text-brand"></i> Links
               </h3>
               <ul className="text-xs text-ink-faint space-y-1.5">
-                <li>
-                  <a href="https://chat.whatsapp.com/FoSPsmLcS3fKtj6sCKx54a" target="_blank" rel="noopener noreferrer" className="text-brand hover:text-brand underline">
-                    Join the WhatsApp Group
-                  </a>
-                </li>
+
                 <li>
                   <a href="https://www.imergene.in" target="_blank" rel="noopener noreferrer" className="text-brand hover:text-brand underline">
                     Checkout the Imergene Website
