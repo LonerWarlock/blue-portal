@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { HACKATHON_FEE_PER_PERSON_STR, REGISTRATION_DEADLINE, EVENT_NAME, getTeamFeeStr } from './config';
+import DataCollectionNotice from '@/app/components/DataCollectionNotice';
 
 type PaymentResult = 'success' | 'failed' | null;
 
@@ -649,6 +650,12 @@ export default function HackathonPage() {
             </div>
           </div>
         </div>
+
+        <DataCollectionNotice
+          dataCollected="Name, email, phone number, branch, year of study, and team member details"
+          purpose="To process your hackathon registration and send confirmation details"
+          className="mb-6"
+        />
 
         {/* Progress Bar */}
         <div className="flex items-center gap-1 mb-8 px-2">

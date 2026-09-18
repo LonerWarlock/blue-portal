@@ -36,6 +36,9 @@ ${body}
     <span style="color: #4b5563;">Founder @ <a href="${siteUrl}" style="color: #2563eb; text-decoration: none;">Blue AI</a></span><br/>
     <span style="color: #9ca3af;">Pune, India</span>
   </p>
+  <p style="margin-top: 16px; padding-top: 12px; border-top: 1px dashed #e5e7eb; color: #9ca3af; font-size: 11px; line-height: 1.5;">
+    You are receiving this transactional or service notice as a registered user of Blue Portal in accordance with India&apos;s DPDP Act, 2023. If you wish to stop receiving promotional communications, you may <a href="${siteUrl}/privacy" style="color: #6b7280; text-decoration: underline;">manage your preferences</a> or reply directly with &quot;UNSUBSCRIBE&quot;.
+  </p>
 </div>
   `.trim();
 }

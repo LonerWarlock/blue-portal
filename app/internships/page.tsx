@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { INTERNSHIP_FEE_STR } from './config';
+import DataCollectionNotice from '@/app/components/DataCollectionNotice';
 
 type PaymentResult = 'success' | 'failed' | null;
 
@@ -572,6 +573,14 @@ export default function InternshipsPage() {
             <span className="text-ink">Register for </span>
             <span className="bg-brand bg-clip-text text-transparent">Internship</span>
           </h1>
+        </div>
+
+        {/* Data Collection Notice for DPDP Compliance */}
+        <div className="mb-6">
+          <DataCollectionNotice
+            dataCollected="personal, academic, contact details, and payment information"
+            purpose="internship registration, communication, certificate processing, and verification"
+          />
         </div>
 
         {/* Progress Bar */}

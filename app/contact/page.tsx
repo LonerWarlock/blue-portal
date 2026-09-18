@@ -3,6 +3,7 @@
 import Script from "next/script";
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageLayout from "@/app/components/PageLayout";
+import DataCollectionNotice from "@/app/components/DataCollectionNotice";
 
 declare global {
   interface Window {
@@ -215,6 +216,11 @@ export default function ContactPage() {
 
                 <div className="bg-paper-alt p-6 rounded-lg border border-line">
                   <h3 className="text-lg font-bold text-ink mb-4">Send a Message</h3>
+                  <DataCollectionNotice
+                    dataCollected="Your name, email address, and message"
+                    purpose="To respond to your inquiry and provide customer support"
+                    className="mb-4"
+                  />
 
                   {status === "success" && (
                     <div aria-live="polite" className="mb-4 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm">

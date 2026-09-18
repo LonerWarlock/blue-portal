@@ -1,4 +1,7 @@
+'use client';
+
 import Link from "next/link";
+import { useCookieConsent } from "../contexts/CookieConsentContext";
 
 const footerLinks = {
   Product: [
@@ -18,7 +21,7 @@ const footerLinks = {
     { label: "Careers", href: "/careers" },
     { label: "Blog", href: "/blog" },
     { label: "Security", href: "/security" },
-    { label: "Privacy", href: "/privacy" },
+    { label: "Privacy & DPDP", href: "/privacy" },
     { label: "Terms", href: "/terms" },
     { label: "Contact", href: "/contact" },
     { label: "Refund", href: "/refund" },
@@ -26,6 +29,8 @@ const footerLinks = {
 };
 
 export default function Footer() {
+  const { resetConsent } = useCookieConsent();
+
   return (
     <footer className="w-full bg-paper-alt px-6 py-12 border-t border-line">
       <div className="max-w-7xl mx-auto">
@@ -59,6 +64,14 @@ export default function Footer() {
                     {link.label}
                   </Link>
                 ))}
+                {category === 'Company' && (
+                  <button
+                    onClick={resetConsent}
+                    className="text-sm text-ink-muted hover:text-ink transition-colors duration-150 text-left cursor-pointer"
+                  >
+                    Cookie Preferences
+                  </button>
+                )}
               </nav>
             </div>
           ))}

@@ -430,3 +430,15 @@ html[data-theme="dark"] :is(.text-amber-700, .text-yellow-700) {
     animation: none;
   }
 }
+
+/* Cookie consent banner slide-up animation */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
