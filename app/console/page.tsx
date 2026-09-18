@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import VSCodeInstallSnippet from "../components/VSCodeInstallSnippet";
 import ThemeToggle from "../components/ThemeToggle";
+import ClaimCouponModal from "../components/ClaimCouponModal";
 
 const TIER_BADGE_COLORS: Record<string, string> = {
   "Low Cost": "bg-green-950/60 text-green-400 border border-green-900/60",
@@ -104,6 +105,7 @@ export default function ConsolePage() {
   const [proUsage, setProUsage] = useState<any>(null);
   const [proPackConfig, setProPackConfig] = useState<any>({ priceINR: 100, credits: 1 });
   const [proTab, setProTab] = useState<"overview" | "purchases" | "usage">("overview");
+  const [isClaimCouponOpen, setIsClaimCouponOpen] = useState(false);
 
   // Model catalog search and category filtering
   const [searchQuery, setSearchQuery] = useState("");
@@ -760,11 +762,11 @@ export default function ConsolePage() {
                   <span className="text-xs text-ink-faint mt-1 block">Refilled from Imergene Promo</span>
                   <span className="text-[20px] text-ink-faint mt-2 block font-mono">1 IMR = ₹0.50 (INR)</span>
                 </div>
-                <div className="mt-6 flex space-x-3">
+                <div className="mt-6 flex flex-wrap sm:flex-nowrap gap-2.5">
                   {hasBlueCredits ? null : hasActiveSubscription ? (
                     <a
                       href="/subscribe"
-                      className="flex-1 py-2.5 px-4 rounded-lg border border-line text-brand text-sm font-semibold hover:bg-brand/10 transition duration-200 inline-flex items-center justify-center gap-2"
+                      className="flex-1 py-2.5 px-3 rounded-lg border border-line text-brand text-xs font-semibold hover:bg-brand/10 transition duration-200 inline-flex items-center justify-center gap-1.5"
                     >
                       <i className="fa-solid fa-check text-xs"></i>
                       Active Plan
@@ -772,14 +774,18 @@ export default function ConsolePage() {
                   ) : (
                     <a
                       href="/subscribe"
-                      className="flex-1 py-2.5 px-4 rounded-lg bg-brand text-sm font-semibold text-white shadow-md transition duration-200 inline-flex items-center justify-center gap-2"
+                      className="flex-1 py-2.5 px-3 rounded-lg bg-brand text-xs font-semibold text-white shadow-md transition duration-200 inline-flex items-center justify-center gap-1.5"
                     >
                       <i className="fa-solid fa-crown text-xs"></i>
                       Upgrade
                     </a>
                   )}
-                  <button className="py-2.5 px-4 rounded-lg border border-line text-sm font-semibold text-ink-muted hover:text-ink hover:bg-paper-sunken transition">
-                    History
+                  <button
+                    onClick={() => setIsClaimCouponOpen(true)}
+                    className="flex-1 py-2.5 px-3 rounded-lg border border-brand/30 bg-brand/10 text-brand text-xs font-bold hover:bg-brand/20 transition duration-200 inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <i className="fa-solid fa-ticket text-xs"></i>
+                    Claim Coupon
                   </button>
                 </div>
                 {isProPayg && !hasBlueCredits ? (
@@ -1268,6 +1274,17 @@ export default function ConsolePage() {
           </div>
         </div>
       )}
+      <ClaimCouponModal
+        isOpen={isClaimCouponOpen}
+        onClose={() => setIsClaimCouponOpen(false)}
+        onSuccess={(newBal, rewardAmount) => {
+          setBalance(newBal);
+          showSuccess(
+            "Coupon Claimed!",
+            `Successfully credited ${rewardAmount} IMR credits to your balance! New balance: ${newBal} IMR.`
+          );
+        }}
+      />
     </>
   );
 }

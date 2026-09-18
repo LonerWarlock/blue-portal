@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 import PageLayout from "@/app/components/PageLayout";
 import Link from "next/link";
+import ClaimCouponModal from "@/app/components/ClaimCouponModal";
 
 const allFeatures = [
   "AI Chat",
@@ -74,6 +75,7 @@ export default function SubscribePage() {
   const [subscribing, setSubscribing] = useState(false);
   const [activePlan, setActivePlan] = useState<string>("lite");
   const [imrBalance, setImrBalance] = useState<number>(0);
+  const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
 
   useEffect(() => {
     if (user?.email) {
@@ -166,9 +168,19 @@ export default function SubscribePage() {
               Start free, choose the ₹149 monthly plan, or try paid models with the renewable ₹100 Blue Pro trial.
             </p>
             {user && (
-              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand/10 border border-line text-brand text-sm font-semibold">
-                <i className="fa-solid fa-wallet"></i>
-                <span>Your Balance: {imrBalance.toFixed(0)} IMR</span>
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand/10 border border-line text-brand text-sm font-semibold">
+                  <i className="fa-solid fa-wallet"></i>
+                  <span>Your Balance: {imrBalance.toFixed(0)} IMR</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsClaimModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold shadow-md hover:bg-brand/90 transition cursor-pointer"
+                >
+                  <i className="fa-solid fa-ticket"></i>
+                  <span>Claim Coupon</span>
+                </button>
               </div>
             )}
           </div>
@@ -322,6 +334,14 @@ export default function SubscribePage() {
           </div>
         </div>
       </section>
+
+      <ClaimCouponModal
+        isOpen={isClaimModalOpen}
+        onClose={() => setIsClaimModalOpen(false)}
+        onSuccess={(newBalance) => {
+          setImrBalance(newBalance);
+        }}
+      />
     </PageLayout>
   );
 }
