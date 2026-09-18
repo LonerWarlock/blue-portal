@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ClaimCouponModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface ClaimCouponModalProps {
 }
 
 export default function ClaimCouponModal({ isOpen, onClose, onSuccess }: ClaimCouponModalProps) {
+  const { invalidateAccount } = useAuth();
   const [couponCode, setCouponCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -25,6 +27,7 @@ export default function ClaimCouponModal({ isOpen, onClose, onSuccess }: ClaimCo
 
     setLoading(true);
     setError('');
+    let attempted = false;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -34,6 +37,7 @@ export default function ClaimCouponModal({ isOpen, onClose, onSuccess }: ClaimCo
         return;
       }
 
+      attempted = true;
       const res = await fetch('/api/user/claim-coupon', {
         method: 'POST',
         headers: {
@@ -54,6 +58,9 @@ export default function ClaimCouponModal({ isOpen, onClose, onSuccess }: ClaimCo
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
+      // A response can be lost after the transaction commits. Revalidate even
+      // on an uncertain transport failure instead of displaying an old balance.
+      if (attempted) void invalidateAccount();
       setLoading(false);
     }
   };

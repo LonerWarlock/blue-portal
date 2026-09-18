@@ -29,9 +29,9 @@ export async function GET(request: Request) {
       .single();
 
     return NextResponse.json({
-      eligible: true,
+      eligible: account.balance > 0,
       account_type: 'pro_payg',
-      access_tier: account.accessTier,
+      access_tier: account.balance > 0 ? account.accessTier : 'none',
       blue_credits: account.balance,
       total_purchased: Number(profile?.total_credits_purchased || 0),
       total_used: Number(profile?.total_credits_used || 0),

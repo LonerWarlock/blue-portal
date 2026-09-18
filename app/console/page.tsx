@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import VSCodeInstallSnippet from "../components/VSCodeInstallSnippet";
 import ThemeToggle from "../components/ThemeToggle";
 import ClaimCouponModal from "../components/ClaimCouponModal";
+import { useAuth } from "../contexts/AuthContext";
 
 const TIER_BADGE_COLORS: Record<string, string> = {
   "Low Cost": "bg-green-950/60 text-green-400 border border-green-900/60",
@@ -16,7 +18,6 @@ const TIER_BADGE_COLORS: Record<string, string> = {
 };
 
 const MODEL_CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
-const BLUE_WALLET_REFRESH_INTERVAL_MS = 60 * 1000;
 const MODEL_CATALOG_SESSION_KEY = 'blue.modelCatalog.v1';
 const CONSOLE_NAV_LINKS = [
   { href: '/', label: 'Home' },
@@ -79,8 +80,12 @@ function modelTier(inputCredits: number, outputCredits: number) {
 }
 
 export default function ConsolePage() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const auth = useAuth();
+  const [demoUser, setDemoUser] = useState<any>(null);
+  const user = auth.user || demoUser;
+  const loading = auth.loading;
+  const accountLoading = auth.accountLoading;
+  const accountError = auth.accountError;
   const router = useRouter();
   
   // Auth Form State
@@ -89,16 +94,15 @@ export default function ConsolePage() {
 
   // Console State
   const [currentApiKey, setCurrentApiKey] = useState("");
+  const oneTimeKey = useRef<{ userId: string; key: string } | null>(null);
   const [apiKeyMasked, setApiKeyMasked] = useState(false);
   const [apiKeyVisible, setApiKeyVisible] = useState(false);
-  const [balance, setBalance] = useState(0);
+  const [balance, setBalance] = useState(() => Number(auth.account?.wallet.balance || 0));
   const [copySuccess, setCopySuccess] = useState(false);
-  const [plan, setPlan] = useState<string>("lite");
+  const [plan, setPlan] = useState<string>(() => auth.account?.subscription.plan || "lite");
   const [discount, setDiscount] = useState<number>(0);
-  const [isProPayg, setIsProPayg] = useState(false);
+  const [isProPayg, setIsProPayg] = useState(() => auth.account?.subscription.is_pro === true);
   const [hasBlueCredits, setHasBlueCredits] = useState(false);
-  const [accountLoading, setAccountLoading] = useState(false);
-  const [accountError, setAccountError] = useState("");
   const [consoleMenuOpen, setConsoleMenuOpen] = useState(false);
   const [proWallet, setProWallet] = useState<any>(null);
   const [proTransactions, setProTransactions] = useState<any[]>([]);
@@ -120,34 +124,6 @@ export default function ConsolePage() {
       setModelsList(modelCatalogCache);
       setModelsLoading(false);
     }
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: any } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadUserData(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadUserData(session.user.id);
-      } else {
-        setCurrentApiKey("");
-        setApiKeyMasked(false);
-        setBalance(0);
-        setPlan("lite");
-        setDiscount(0);
-        setIsProPayg(false);
-        setHasBlueCredits(false);
-        setProWallet(null);
-        setAccountError("");
-        setAccountLoading(false);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -175,9 +151,10 @@ export default function ConsolePage() {
     const paymentStatus = params.get('payment');
     if (paymentStatus) {
       if (paymentStatus === 'success') {
+        void auth.invalidateAccount();
         showSuccess(
-          "Subscription Active!", 
-          "Your Blue plan subscription has been successfully activated. You now have full access to premium orchestration models!"
+          "Payment Received",
+          "Payment returned successfully. Refreshing your verified plan and wallet balance."
         );
       } else if (paymentStatus === 'failed') {
         showError(
@@ -206,91 +183,28 @@ export default function ConsolePage() {
     }
   };
 
-  const loadUserData = async (_userId: string) => {
-    setAccountLoading(true);
-    setAccountError("");
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Your session has expired. Please sign in again.');
-      const token = session.access_token;
-
-      void refreshModelCatalog();
-
-      const response = await fetch('/api/me/bootstrap', {
-        headers: { 'Authorization': `Bearer ${token}` },
-        cache: 'no-store'
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || 'Account data could not be loaded.');
-
-      const bluePro = data.blue_pro;
-      const nextProWallet = bluePro?.wallet || null;
-      setBalance(Number(data.wallet?.balance || 0));
-      setProPackConfig(data.pack_config || { priceINR: 100, credits: 1 });
-      setPlan(data.subscription?.plan || 'lite');
-      setDiscount(Number(data.subscription?.discount || 0));
-      setIsProPayg(Boolean(data.subscription?.is_pro || bluePro));
-      setProWallet(nextProWallet);
-      setHasBlueCredits(Number(nextProWallet?.blue_credits || 0) > 0);
-      setCurrentApiKey(bluePro?.key?.key || '');
-      setApiKeyMasked(Boolean(bluePro?.key?.masked));
-      setProTransactions(bluePro?.transactions || []);
-      setProUsage(bluePro?.usage || null);
-    } catch (err) {
-      console.error("Error loading user data:", err);
-      setAccountError(err instanceof Error
-        ? err.message
-        : 'Account data could not be loaded. Please retry.');
-    } finally {
-      setAccountLoading(false);
-    }
-  };
+  const loadUserData = async (_userId: string) => { await auth.invalidateAccount(); };
 
   useEffect(() => {
-    if (!user?.id) return;
+    const data = auth.account;
+    const bluePro = data?.blue_pro;
+    const nextProWallet = bluePro?.wallet || null;
+    setBalance(Number(data?.wallet.balance || 0));
+    setProPackConfig(data?.pack_config || { priceINR: 100, credits: 1 });
+    setPlan(data?.subscription.plan || "lite");
+    setDiscount(Number(data?.subscription.discount || 0));
+    setIsProPayg(data?.subscription.is_pro === true);
+    setProWallet(nextProWallet);
+    setHasBlueCredits(Number(nextProWallet?.blue_credits || 0) > 0);
+    if (oneTimeKey.current?.userId !== auth.user?.id) oneTimeKey.current = null;
+    const keyOverride = oneTimeKey.current;
+    setCurrentApiKey(keyOverride?.key || bluePro?.key?.key || "");
+    setApiKeyMasked(keyOverride ? false : Boolean(bluePro?.key?.masked));
+    setProTransactions(bluePro?.transactions || []);
+    setProUsage(bluePro?.usage || null);
+  }, [auth.account]);
 
-    let disposed = false;
-    let refreshInFlight = false;
-
-    const refreshBlueWallet = async () => {
-      if (disposed || refreshInFlight || document.visibilityState === 'hidden') return;
-      refreshInFlight = true;
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session || disposed) return;
-
-        const response = await fetch(`/api/blue-pro/wallet?t=${Date.now()}`, {
-          headers: { 'Authorization': `Bearer ${session.access_token}` },
-          cache: 'no-store'
-        });
-        if (!response.ok || disposed) return;
-
-        const wallet = await response.json();
-        if (!wallet.eligible || wallet.account_type !== 'pro_payg') return;
-        setProWallet(wallet);
-        setHasBlueCredits(Number(wallet.blue_credits || 0) > 0);
-      } catch (error) {
-        console.error('Error refreshing Blue Credits:', error);
-      } finally {
-        refreshInFlight = false;
-      }
-    };
-
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === 'visible') void refreshBlueWallet();
-    };
-
-    const interval = window.setInterval(() => void refreshBlueWallet(), BLUE_WALLET_REFRESH_INTERVAL_MS);
-    window.addEventListener('focus', refreshWhenVisible);
-    document.addEventListener('visibilitychange', refreshWhenVisible);
-
-    return () => {
-      disposed = true;
-      window.clearInterval(interval);
-      window.removeEventListener('focus', refreshWhenVisible);
-      document.removeEventListener('visibilitychange', refreshWhenVisible);
-    };
-  }, [user?.id]);
+  useEffect(() => { if (user?.id) void refreshModelCatalog(); }, [user?.id]);
 
   const handleGoogleLogin = async () => {
     setAuthError("");
@@ -300,7 +214,7 @@ export default function ConsolePage() {
         setAuthStatusMessage("Demo Mode: Logging in with Google...");
         setTimeout(() => {
           const demoUser = { id: "demo_google_user", email: "team.imergene@gmail.com" };
-          setUser(demoUser);
+          setDemoUser(demoUser);
           setCurrentApiKey("blue_demo_key_google_123");
           setApiKeyMasked(false);
           setBalance(1.00);
@@ -325,8 +239,8 @@ export default function ConsolePage() {
 
   const handleLogout = async () => {
     setConsoleMenuOpen(false);
-    await supabase.auth.signOut();
-    setUser(null);
+    await auth.signOut();
+    setDemoUser(null);
   };
 
   const handleCopyKey = () => {
@@ -399,8 +313,10 @@ export default function ConsolePage() {
           });
           const keyData = await keyRes.json();
           if (!keyRes.ok || keyData.error) throw new Error(keyData.error || 'Failed to rotate key');
+          oneTimeKey.current = { userId: session.user.id, key: keyData.key };
           setCurrentApiKey(keyData.key);
           setApiKeyMasked(false);
+          await auth.invalidateAccount();
           setAuthStatusMessage("");
           showSuccess("Key Rotated", "API key successfully rotated!");
         } catch (err: any) {
@@ -457,6 +373,7 @@ export default function ConsolePage() {
 
           setBalance(data.newBalance);
           setDiscount(data.discount || 50);
+          void auth.invalidateAccount();
           showSuccess("Discount Applied", "Successfully redeemed 100 IMR! A ₹50 discount has been applied to your next Blue subscription checkout.");
         } catch (err: any) {
           showError("Redemption Failed", err.message);
@@ -490,7 +407,7 @@ export default function ConsolePage() {
       )}
       <header className="sticky top-0 z-50 w-full border-b border-line panel">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <a href="/" className="flex min-w-0 items-center gap-2.5">
+          <Link prefetch={false} href="/" className="flex min-w-0 items-center gap-2.5">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand shadow-lg sm:h-10 sm:w-10">
               <i className="fa-solid fa-robot text-lg text-white"></i>
             </div>
@@ -498,14 +415,14 @@ export default function ConsolePage() {
               <span className="block truncate text-base font-bold tracking-tight text-brand sm:text-xl">Blue AI</span>
               <span className="hidden text-xs text-ink-faint font-medium sm:block">Developer Console</span>
             </div>
-          </a>
+          </Link>
 
           <nav className="hidden xl:flex items-center space-x-6" aria-label="Console navigation">
-            <a href="/" className="text-sm text-ink-muted hover:text-ink transition">Home</a>
-            <a href="/subscribe" className="text-sm text-ink-muted hover:text-ink transition">Subscribe</a>
-            <a href="/pricing" className="text-sm text-ink-muted hover:text-ink transition">Pricing</a>
-            <a href="/docs" className="text-sm text-ink-muted hover:text-ink transition">Docs</a>
-            <a href="/blog" className="text-sm text-ink-muted hover:text-ink transition">Blog</a>
+            <Link prefetch={false} href="/" className="text-sm text-ink-muted hover:text-ink transition">Home</Link>
+            <Link prefetch={false} href="/subscribe" className="text-sm text-ink-muted hover:text-ink transition">Subscribe</Link>
+            <Link prefetch={false} href="/pricing" className="text-sm text-ink-muted hover:text-ink transition">Pricing</Link>
+            <Link prefetch={false} href="/docs" className="text-sm text-ink-muted hover:text-ink transition">Docs</Link>
+            <Link prefetch={false} href="/blog" className="text-sm text-ink-muted hover:text-ink transition">Blog</Link>
           </nav>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -536,13 +453,13 @@ export default function ConsolePage() {
                       <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-lg bg-green-950/60 border border-green-500/30 text-[10px] font-bold text-green-400">
                         Blue Lite
                       </span>
-                      <a
+                      <Link prefetch={false}
                         href="/subscribe"
                         className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg border border-brand/30 text-sm font-semibold text-brand hover:text-brand hover:bg-brand/10 transition duration-200"
                       >
                         <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
                         Upgrade
-                      </a>
+                      </Link>
                     </>
                   )}
                   <button onClick={handleLogout} className="px-4 py-1.5 rounded-lg border border-line text-sm font-semibold hover:bg-paper-sunken hover:text-ink transition duration-200">
@@ -593,14 +510,14 @@ export default function ConsolePage() {
 
               <nav className="grid gap-1" aria-label="Mobile console navigation">
                 {CONSOLE_NAV_LINKS.map(link => (
-                  <a
+                  <Link prefetch={false}
                     key={link.href}
                     href={link.href}
                     onClick={() => setConsoleMenuOpen(false)}
                     className="rounded-md px-3 py-3 text-sm font-medium text-ink-muted transition hover:bg-paper-alt hover:text-ink"
                   >
                     {link.label}
-                  </a>
+                  </Link>
                 ))}
               </nav>
 
@@ -719,17 +636,17 @@ export default function ConsolePage() {
                     )}
                   </div>
                   <div className="mt-6 flex space-x-3">
-                    <a href="/blue-pro/checkout"
+                    <Link prefetch={false} href="/blue-pro/checkout"
                       className="flex-1 py-2.5 px-4 rounded-lg bg-brand text-sm font-semibold text-white shadow-md transition inline-flex items-center justify-center gap-2">
                       <i className="fa-solid fa-cart-plus text-xs"></i>
                       Add Credits
-                    </a>
+                    </Link>
                   </div>
                   {!hasBlueCredits && (
-                    <a href="/blue-pro" className="mt-2 inline-flex items-center gap-1.5 text-[10px] text-brand hover:text-brand transition">
+                    <Link prefetch={false} href="/blue-pro" className="mt-2 inline-flex items-center gap-1.5 text-[10px] text-brand hover:text-brand transition">
                       <i className="fa-solid fa-circle-info"></i>
                       Learn about Blue Pro
-                    </a>
+                    </Link>
                   )}
                 </div>
               )}
@@ -764,21 +681,21 @@ export default function ConsolePage() {
                 </div>
                 <div className="mt-6 flex flex-wrap sm:flex-nowrap gap-2.5">
                   {hasBlueCredits ? null : hasActiveSubscription ? (
-                    <a
+                    <Link prefetch={false}
                       href="/subscribe"
                       className="flex-1 py-2.5 px-3 rounded-lg border border-line text-brand text-xs font-semibold hover:bg-brand/10 transition duration-200 inline-flex items-center justify-center gap-1.5"
                     >
                       <i className="fa-solid fa-check text-xs"></i>
                       Active Plan
-                    </a>
+                    </Link>
                   ) : (
-                    <a
+                    <Link prefetch={false}
                       href="/subscribe"
                       className="flex-1 py-2.5 px-3 rounded-lg bg-brand text-xs font-semibold text-white shadow-md transition duration-200 inline-flex items-center justify-center gap-1.5"
                     >
                       <i className="fa-solid fa-crown text-xs"></i>
                       Upgrade
-                    </a>
+                    </Link>
                   )}
                   <button
                     onClick={() => setIsClaimCouponOpen(true)}
@@ -789,15 +706,15 @@ export default function ConsolePage() {
                   </button>
                 </div>
                 {isProPayg && !hasBlueCredits ? (
-                  <a href="/blue-pro/checkout" className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-brand hover:text-brand transition">
+                  <Link prefetch={false} href="/blue-pro/checkout" className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-brand hover:text-brand transition">
                     <i className="fa-solid fa-cart-plus"></i>
                     Buy your first Blue Credits pack
-                  </a>
+                  </Link>
                 ) : !isProPayg && (
-                  <a href="/blue-pro" className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-brand hover:text-brand transition">
+                  <Link prefetch={false} href="/blue-pro" className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-brand hover:text-brand transition">
                     <i className="fa-solid fa-bolt"></i>
                     Try Blue Pro for ₹100 — no subscription or expiry
-                  </a>
+                  </Link>
                 )}
               </div>
 
@@ -811,10 +728,10 @@ export default function ConsolePage() {
                     <p className="text-xs text-ink-muted max-w-sm mt-1.5 leading-relaxed">
                       Start with the renewable ₹100 trial or choose the ₹1,500 full-access pack.
                     </p>
-                    <a href="/blue-pro/checkout?pack=starter" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-bold text-white">
+                    <Link prefetch={false} href="/blue-pro/checkout?pack=starter" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-bold text-white">
                       <i className="fa-solid fa-cart-plus"></i>
                       Buy ₹100 Trial
-                    </a>
+                    </Link>
                   </div>
                 )}
 
@@ -866,11 +783,11 @@ export default function ConsolePage() {
                   </h3>
                   <p className="text-xs text-ink-faint mt-1">Credit usage and purchase history</p>
                 </div>
-                <a href="/blue-pro/checkout"
+                <Link prefetch={false} href="/blue-pro/checkout"
                   className="px-5 py-2 rounded-lg bg-brand font-bold text-white shadow-lg shadow-sm transition text-sm">
                   <i className="fa-solid fa-cart-plus mr-2"></i>
                   Add Credits
-                </a>
+                </Link>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

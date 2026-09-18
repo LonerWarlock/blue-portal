@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 import PageLayout from "@/app/components/PageLayout";
@@ -70,42 +70,13 @@ const plans = [
 ];
 
 export default function SubscribePage() {
-  const { user, session } = useAuth();
+  const { user, session, account, accountLoading, accountError, invalidateAccount } = useAuth();
   const router = useRouter();
   const [subscribing, setSubscribing] = useState(false);
-  const [activePlan, setActivePlan] = useState<string>("lite");
-  const [imrBalance, setImrBalance] = useState<number>(0);
+  const activePlan = account?.subscription.plan || "lite";
+  const imrBalance = Number(account?.wallet.balance || 0);
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (user?.email) {
-      fetch(`/api/user/subscription?email=${encodeURIComponent(user.email)}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.plan) {
-            setActivePlan(data.plan);
-          }
-        })
-        .catch(err => console.error("Error loading subscription plan:", err));
-
-      const token = session?.access_token;
-      if (token) {
-        fetch('/api/user/wallet', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-          .then(res => res.json())
-          .then(data => {
-            if (data && data.balance !== undefined) {
-              setImrBalance(data.balance);
-            }
-          })
-          .catch(err => console.error("Error loading wallet balance:", err));
-      }
-    } else {
-      setActivePlan("lite");
-      setImrBalance(0);
-    }
-  }, [user, session]);
 
   const handleSubscribe = async () => {
     if (!user) {
@@ -167,6 +138,8 @@ export default function SubscribePage() {
             <p className="mt-6 text-lg text-ink-muted max-w-3xl mx-auto leading-relaxed">
               Start free, choose the ₹149 monthly plan, or try paid models with the renewable ₹100 Blue Pro trial.
             </p>
+            {accountLoading && !account && <p role="status" className="mt-4 text-ink-muted">Loading account…</p>}
+            {accountError && <p role="alert" className="mt-4 text-red-500">{accountError} <button type="button" onClick={() => void invalidateAccount()}>Retry</button></p>}
             {user && (
               <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand/10 border border-line text-brand text-sm font-semibold">
@@ -189,7 +162,7 @@ export default function SubscribePage() {
             {plans.map((plan) => {
               const isCurrentPlan = (plan.name === "Blue Lite" && activePlan === "lite") || 
                                     (plan.name === "Blue" && activePlan === "blue") ||
-                                    (plan.name === "Blue Pro" && (activePlan === "blue_pro" || activePlan === "pro_payg"));
+                                    (plan.name === "Blue Pro" && activePlan === "blue_pro");
               
               let planBadge = plan.badge;
               let planBadgeStyle = plan.badgeStyle;
@@ -338,9 +311,7 @@ export default function SubscribePage() {
       <ClaimCouponModal
         isOpen={isClaimModalOpen}
         onClose={() => setIsClaimModalOpen(false)}
-        onSuccess={(newBalance) => {
-          setImrBalance(newBalance);
-        }}
+        onSuccess={() => {}}
       />
     </PageLayout>
   );

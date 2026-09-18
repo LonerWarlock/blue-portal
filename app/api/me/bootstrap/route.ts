@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getBearerToken, statusError } from '@/lib/bluePayg';
+import { statusError } from '@/lib/bluePayg';
+import { verifiedSessionUser } from '@/lib/accountEntitlements';
 import { getPackCatalog, getPackConfig } from '@/lib/exchangeRate';
 import { isLowBalance, lowBalanceThreshold } from '@/lib/openrouter';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getOrCreateUserKey } from '@/lib/userKey';
+import { effectiveAccountPlan } from '@/lib/accountPlan';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,12 +20,7 @@ const PRIVATE_NO_STORE_HEADERS = {
 export async function GET(request: Request) {
   try {
     if (!supabaseAdmin) throw statusError(503, 'Database is not configured');
-    const token = getBearerToken(request);
-    if (!token) throw statusError(401, 'Unauthorized: Missing token');
-
-    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !authData.user) throw statusError(401, 'Unauthorized: Invalid token');
-    const userId = authData.user.id;
+    const userId = await verifiedSessionUser(request);
 
     const [walletResult, profileResult, subscriptionResult] = await Promise.all([
       supabaseAdmin
@@ -47,20 +44,32 @@ export async function GET(request: Request) {
       throw statusError(500, 'Failed to load account data');
     }
 
-    if (subscriptionResult.error) {
-      console.warn('[bootstrap] subscription metadata is unavailable');
-    }
+    if (subscriptionResult.error) throw statusError(503, 'Subscription lookup temporarily unavailable');
 
     const wallet = walletResult.data;
     const profile = profileResult.data;
     const subscription = subscriptionResult.error ? null : subscriptionResult.data;
-    const subscriptionExpired = subscription?.current_period_end
-      ? new Date(subscription.current_period_end).getTime() <= Date.now()
-      : false;
-    const activeLegacySubscription = subscription?.status === 'active' && !subscriptionExpired;
+    const effectivePlan = effectiveAccountPlan(wallet, profile, subscription);
     const activeBluePro = wallet?.account_type === 'pro_payg'
       && profile?.status === 'active';
     const discount = Number(subscription?.metadata?.imr_discount || 0);
+
+    // Balance revalidation skips keys, purchase history and usage queries.
+    if (new URL(request.url).searchParams.get('scope') === 'wallet') {
+      const balance = Math.max(0, Number(wallet?.blue_credits || 0));
+      const threshold = lowBalanceThreshold(Math.max(0, Number(profile?.last_top_up_credits || 0)) || 1);
+      return NextResponse.json({
+        user_id: userId, wallet: { balance: Number(wallet?.balance || 0) },
+        subscription: { ...effectivePlan, discount },
+        blue_pro: activeBluePro ? { wallet: {
+          eligible: effectivePlan.is_pro, account_type: 'pro_payg', status: profile?.status,
+          access_tier: effectivePlan.is_pro ? profile?.access_tier === 'full' ? 'full' : 'trial' : 'none',
+          blue_credits: balance, exhausted: balance <= 0,
+          low_balance_threshold: threshold, low_balance: isLowBalance(balance, threshold),
+          renewal_url: '/blue-pro/checkout',
+        } } : null,
+      }, { headers: PRIVATE_NO_STORE_HEADERS });
+    }
 
     let bluePro = null;
     if (activeBluePro) {
@@ -109,9 +118,9 @@ export async function GET(request: Request) {
         : summaryResult.data;
       bluePro = {
         wallet: {
-          eligible: true,
+          eligible: effectivePlan.is_pro,
           account_type: 'pro_payg',
-          access_tier: profile?.access_tier === 'full' ? 'full' : 'trial',
+          access_tier: effectivePlan.is_pro ? profile?.access_tier === 'full' ? 'full' : 'trial' : 'none',
           blue_credits: balance,
           total_purchased: Number(profile?.total_credits_purchased || 0),
           total_used: Number(profile?.total_credits_used || 0),
@@ -137,15 +146,10 @@ export async function GET(request: Request) {
       };
     }
 
-    const plan = activeBluePro
-      ? 'blue_pro'
-      : activeLegacySubscription
-        ? String(subscription?.plan || 'lite')
-        : 'lite';
-
     return NextResponse.json({
+      user_id: userId,
       wallet: { balance: Number(wallet?.balance || 0) },
-      subscription: { plan, is_pro: activeBluePro, discount },
+      subscription: { ...effectivePlan, discount },
       blue_pro: bluePro,
       pack_config: {
         ...getPackConfig('starter'),
