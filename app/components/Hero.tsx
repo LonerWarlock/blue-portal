@@ -39,15 +39,14 @@ export default function Hero() {
               Get Started for Free
               <i className="fa-solid fa-arrow-right ml-2" />
             </Link>
-            <Link
-              prefetch={false}
+            <a
               href="/download/desktop"
               className="btn btn-secondary text-base"
               aria-label="Download Blue Desktop for Windows"
             >
               <Download aria-hidden="true" className="mr-2 h-4 w-4" />
               Download Blue Desktop
-            </Link>
+            </a>
             <Link prefetch={false} href="/contact" className="btn btn-ghost text-base">
               Book a Demo
             </Link>
