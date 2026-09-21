@@ -41,6 +41,7 @@ export default function Hero() {
             </Link>
             <a
               href="/download/desktop"
+              download
               className="btn btn-secondary text-base"
               aria-label="Download Blue Desktop for Windows"
             >
