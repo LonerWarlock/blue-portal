@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Download } from "lucide-react";
 import VSCodeInstallSnippet from "./VSCodeInstallSnippet";
 
 export default function Hero() {
@@ -38,10 +39,23 @@ export default function Hero() {
               Get Started for Free
               <i className="fa-solid fa-arrow-right ml-2" />
             </Link>
-            <Link prefetch={false} href="/contact" className="btn btn-secondary text-base">
+            <Link
+              prefetch={false}
+              href="/download/desktop"
+              className="btn btn-secondary text-base"
+              aria-label="Download Blue Desktop for Windows"
+            >
+              <Download aria-hidden="true" className="mr-2 h-4 w-4" />
+              Download Blue Desktop
+            </Link>
+            <Link prefetch={false} href="/contact" className="btn btn-ghost text-base">
               Book a Demo
             </Link>
           </div>
+
+          <p className="mt-3 text-xs text-ink-faint">
+            Blue Desktop for Windows 10 and 11 &middot; 64-bit &middot; Updates automatically
+          </p>
 
           <p className="mt-4 text-sm text-ink-faint">
             <Link prefetch={false} href="/subscribe" className="hover:text-ink-muted transition-colors duration-150">
