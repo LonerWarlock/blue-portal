@@ -11,6 +11,8 @@ const PROVIDER_TIMEOUT_MS = 8 * 1000;
 export interface OpenRouterModel {
   id: string;
   canonical_slug?: string;
+  /** The live provider route used for guardrails and model inference. */
+  provider_route_id?: string;
   /** Internal compatibility identifiers returned by older catalogue responses. */
   aliases?: string[];
   name?: string;
@@ -81,7 +83,7 @@ const getSharedOpenRouterModels = unstable_cache(
     if (models.length === 0) throw new Error('OpenRouter returned an empty model catalog');
     return models;
   },
-  ['blue-openrouter-model-catalog-v3'],
+  ['blue-openrouter-model-catalog-v4'],
   { revalidate: 300, tags: ['openrouter-model-catalog'] }
 );
 
@@ -111,8 +113,9 @@ export async function getOpenRouterModels(): Promise<OpenRouterModel[]> {
 
 /**
  * Provider catalogues can expose moving aliases in `id` (for example
- * `~vendor/model-latest`). Exact-model guardrails accept the permanent
- * `canonical_slug`, so Blue normalizes the catalogue before it is consumed.
+ * `~vendor/model-latest`). Keep canonical identifiers for billing compatibility,
+ * and retain the actual provider route: some guardrails reject a dated
+ * canonical_slug when the only available route is a :free variant.
  */
 export function normalizeOpenRouterModels(models: OpenRouterModel[]): OpenRouterModel[] {
   const normalized = new Map<string, OpenRouterModel>();
@@ -150,6 +153,7 @@ export function normalizeOpenRouterModels(models: OpenRouterModel[]): OpenRouter
         ...raw,
         id: canonical,
         canonical_slug: canonical,
+        provider_route_id: isProviderModelSlug(rawId) ? rawId : canonical,
         aliases: Array.from(aliases)
       });
     } else {
@@ -176,6 +180,11 @@ export function isProviderModelSlug(value: unknown): value is string {
     && model.includes('/')
     && !model.startsWith('~')
     && !/\s/.test(model);
+}
+
+export function providerModelId(model: OpenRouterModel): string | undefined {
+  const route = String(model.provider_route_id || '').trim();
+  return isProviderModelSlug(route) ? route : canonicalModelId(model);
 }
 
 export function isProviderRouterModel(value: unknown): boolean {

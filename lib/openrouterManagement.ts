@@ -189,7 +189,9 @@ export async function assertManagedKeyCanUseModel(
       if (response.ok) {
         const payload = await response.json() as { data?: OpenRouterKeyModel[] };
         const availableModels = new Set((payload.data || []).map(candidate =>
-          String(candidate.canonical_slug || candidate.id || '').trim()
+          // Route variants can share a canonical slug. Count public routes so
+          // access to both a paid and a free variant cannot look like one model.
+          String(candidate.id || candidate.canonical_slug || '').trim()
         ).filter(Boolean));
         let hasSelectedModel = false;
         availableModels.forEach(candidate => {

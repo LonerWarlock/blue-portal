@@ -12,7 +12,7 @@ import {
   getManagedKey,
   updateManagedKey
 } from '@/lib/openrouterManagement';
-import { getOpenRouterModels, modelsForAccess, price, publicModel, resolveModel } from '@/lib/openrouter';
+import { getOpenRouterModels, modelsForAccess, price, providerModelId, publicModel, resolveModel } from '@/lib/openrouter';
 import {
   decideRuntimeSettlement,
   DEFAULT_USAGE_OBSERVATION_INTERVAL_MS,
@@ -132,6 +132,7 @@ export interface BlueRuntimeAdmission {
   runtime_protocol_version: typeof BLUE_RUNTIME_PROTOCOL_VERSION;
   request_id: string;
   state: RuntimeTaskState;
+  terminal_reason?: string;
   credential?: BlueRuntimeCredential;
   position?: number;
   retry_after_ms?: number;
@@ -158,6 +159,7 @@ export interface BlueRuntimeSettlement {
   runtime_protocol_version: typeof BLUE_RUNTIME_PROTOCOL_VERSION;
   request_id: string;
   state: 'completed' | 'cancelled' | 'failed' | 'expired';
+  terminal_reason?: string;
   reserved_blue_credits: number;
   charged_blue_credits: number;
   refunded_blue_credits: number;
@@ -926,7 +928,9 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
   try {
     const providerModel = resolveModel(await getOpenRouterModels(), task.model);
     if (!providerModel) throw new Error('The selected Blue model is no longer available');
-    const guardrailId = await ensureModelGuardrail(providerModel.id);
+    const providerRoute = providerModelId(providerModel);
+    if (!providerRoute) throw new Error('The selected Blue model has no valid provider route');
+    const guardrailId = await ensureModelGuardrail(providerRoute);
     const created = await createManagedKey({
       name: `Blue ${task.request_id}`.slice(0, 200),
       // This is a task-scoped credential, not an unrestricted copy of our
@@ -945,7 +949,7 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     }).eq('id', placeholder.id).eq('state', 'provisioning').select('id').maybeSingle();
     if (metadataError || !metadata?.id) throw metadataError || new Error('Credential metadata update lost its provisioning lease');
     await assignKeyGuardrail(guardrailId, keyHash);
-    await assertManagedKeyCanUseModel(created.key, providerModel.id, providerModel.aliases);
+    await assertManagedKeyCanUseModel(created.key, providerRoute, [providerModel.id]);
 
     const encrypted = encryptRuntimeSecret(created.key, credentialAad(task.request_id, placeholder.id));
     const now = new Date().toISOString();
@@ -977,7 +981,7 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
       token: created.key,
       expires_at: expiresAt,
       base_url: OPENROUTER_BASE_URL,
-      model: providerModel.id
+      model: providerRoute
     };
   } catch (error) {
     if (keyHash) {
@@ -1171,13 +1175,14 @@ function admissionPayload(
   remaining: number,
   model: ReturnType<typeof resolveModel> extends infer _T ? NonNullable<Awaited<ReturnType<typeof getOpenRouterModels>>[number]> : never
 ): BlueRuntimeAdmission {
-  if (credential) credential.model = model.id;
+  if (credential) credential.model = providerModelId(model) || model.id;
   const capacity = blueRuntimeCapacityConfig();
   return {
     runtime_protocol_version: BLUE_RUNTIME_PROTOCOL_VERSION,
     request_id: task.request_id,
     state: credential ? 'active' : task.state,
     credential,
+    ...publicTerminalReason(task),
     ...(task.state === 'queued' ? {
       position: Math.max(1, Number(task.queue_position || 1)),
       retry_after_ms: capacity.retryAfterMs,
@@ -1212,6 +1217,7 @@ function existingSettlement(task: RuntimeTaskRow, remaining: number): BlueRuntim
     state: task.state === 'completed' || task.state === 'cancelled' || task.state === 'expired'
       ? task.state
       : 'failed',
+    ...publicTerminalReason(task),
     reserved_blue_credits: Number(task.reserved_blue_credits),
     charged_blue_credits: charged,
     refunded_blue_credits: Math.max(0, roundCredits(Number(task.reserved_blue_credits) - charged)),
@@ -1241,6 +1247,15 @@ async function loadBillingAccount(userId: string, fallbackThreshold: number, all
 async function walletBalance(userId: string): Promise<number> {
   const { data } = await supabaseAdmin!.from('wallets').select('blue_credits').eq('user_id', userId).maybeSingle();
   return Math.max(0, Number(data?.blue_credits || 0));
+}
+
+function publicTerminalReason(task: RuntimeTaskRow): { terminal_reason?: string } {
+  if (task.state !== 'failed' || !task.terminal_reason) return {};
+  const reason = task.terminal_reason
+    .replace(/\bsk-[A-Za-z0-9_-]{12,}\b/g, '[redacted key]')
+    .replace(/\bBearer\s+[^\s"'`]+/gi, 'Bearer [redacted]')
+    .replace(/\b(api[_-]?key|token)\s*[:=]\s*[^\s,;}"']+/gi, '$1=[redacted]');
+  return { terminal_reason: reason.slice(0, 500) };
 }
 
 async function runtimeQueuePosition(task: RuntimeTaskRow): Promise<number> {
