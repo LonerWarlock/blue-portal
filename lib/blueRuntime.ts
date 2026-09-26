@@ -390,13 +390,13 @@ export async function getBlueRuntimeTask(
     if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(account.userId));
     if (task.state === 'queued') {
       task.queue_position = await runtimeQueuePosition(task);
-      const queuedModel = resolveModel(await getOpenRouterModels(), task.model);
+      const queuedModel = resolveModel(await getOpenRouterModels(), task.model, task.is_free);
       if (!queuedModel) throw statusError(503, 'The selected Blue model is no longer available');
       return admissionPayload(task, undefined, await walletBalance(account.userId), queuedModel);
     }
   }
 
-  const model = resolveModel(await getOpenRouterModels(), task.model);
+  const model = resolveModel(await getOpenRouterModels(), task.model, task.is_free);
   if (!model) throw statusError(503, 'The selected Blue model is no longer available');
   let active = await getActiveCredential(requestId);
   if (active?.state === 'active' && Date.parse(active.expires_at) - Date.now() <= BLUE_RUNTIME_ROTATION_WINDOW_MS) {
@@ -469,7 +469,7 @@ export async function extendBlueRuntimeTask(
     throw statusError(400, 'Invalid Blue runtime extension ID');
   }
   if (task.is_free) {
-    const model = resolveModel(await getOpenRouterModels(), task.model);
+    const model = resolveModel(await getOpenRouterModels(), task.model, task.is_free);
     if (!model) throw statusError(503, 'The selected Blue model is no longer available');
     const credential = await activeOrProvision(task);
     return admissionPayload(task, credential, await walletBalance(account.userId), model);
@@ -505,7 +505,7 @@ export async function extendBlueRuntimeTask(
       active.provider_limit = providerLimit;
     }
     const updatedTask = await requireTask(account.userId, requestId);
-    const model = resolveModel(await getOpenRouterModels(), updatedTask.model);
+    const model = resolveModel(await getOpenRouterModels(), updatedTask.model, updatedTask.is_free);
     if (!model) throw new Error('The selected model is no longer available');
     const credential = active ? decryptCredential(active) : await provisionCredential(updatedTask);
     return admissionPayload(updatedTask, credential, Number(data?.remaining || 0), model);
@@ -926,7 +926,7 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
   const placeholder = inserted as RuntimeCredentialRow;
   let keyHash = '';
   try {
-    const providerModel = resolveModel(await getOpenRouterModels(), task.model);
+    const providerModel = resolveModel(await getOpenRouterModels(), task.model, task.is_free);
     if (!providerModel) throw new Error('The selected Blue model is no longer available');
     const providerRoute = providerModelId(providerModel);
     if (!providerRoute) throw new Error('The selected Blue model has no valid provider route');

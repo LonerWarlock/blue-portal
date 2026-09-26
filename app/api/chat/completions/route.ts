@@ -8,7 +8,7 @@ import {
   unregisterBlueGatewayClientRequest,
   unregisterBlueGatewayRequest
 } from '@/lib/blueRequestCancellation';
-import { estimatePromptTokens, getOpenRouterModels, modelsForAccess, openRouterApiKey, price, publicModel, resolveModel } from '@/lib/openrouter';
+import { estimatePromptTokens, getOpenRouterModels, modelsForAccess, openRouterApiKey, price, providerModelId, publicModel, resolveModel } from '@/lib/openrouter';
 import { normalizedUsage, UsageData, UsagePricing } from '@/lib/usageAccounting';
 
 // Standard Node.js Serverless Runtime for full header & streaming compatibility
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
 
     const upstreamPayload = {
       ...body,
-      model: model.id,
+      model: providerModelId(model),
       max_tokens: maxTokens,
       stream: body.stream !== false,
       stream_options: { include_usage: true }

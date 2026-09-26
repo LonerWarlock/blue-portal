@@ -83,7 +83,7 @@ const getSharedOpenRouterModels = unstable_cache(
     if (models.length === 0) throw new Error('OpenRouter returned an empty model catalog');
     return models;
   },
-  ['blue-openrouter-model-catalog-v4'],
+  ['blue-openrouter-model-catalog-v5'],
   { revalidate: 300, tags: ['openrouter-model-catalog'] }
 );
 
@@ -124,25 +124,32 @@ export function normalizeOpenRouterModels(models: OpenRouterModel[]): OpenRouter
   // happens to return the alias first. This prevents stale alias pricing or
   // capabilities from overriding the concrete model's metadata.
   const permanentFirst = [...models].sort((left, right) =>
-    Number(String(left.id || '').trim().startsWith('~'))
-      - Number(String(right.id || '').trim().startsWith('~'))
+    Number(String(left?.id || '').trim().startsWith('~'))
+      - Number(String(right?.id || '').trim().startsWith('~'))
   );
   for (const raw of permanentFirst) {
     // Meta-router IDs choose a different concrete model after admission. That
     // cannot be combined safely with Blue's exact-model child-key guardrail.
     // Blue exposes the concrete models instead.
-    if (isProviderRouterModel(raw.id)) continue;
-    if (!(raw.supported_parameters || []).includes('tools')) continue;
+    if (!raw || typeof raw !== 'object' || isProviderRouterModel(raw.id)) continue;
+    const rawId = String(raw.id || '').trim();
+    // Batch routes cannot stream an interactive agent turn, even if they share
+    // a canonical slug and advertise the same tools as their normal variant.
+    if (modelVariant(rawId) === ':batch') continue;
+    if (!Array.isArray(raw.supported_parameters) || !raw.supported_parameters.includes('tools')) continue;
     const canonical = canonicalModelId(raw);
     if (!canonical) continue;
     if (isProviderRouterModel(canonical)) continue;
 
-    const rawId = String(raw.id || '').trim();
+    const existing = normalized.get(canonical);
+    // A moving alias is not proof that its dated canonical slug is itself a
+    // routable provider ID. Restore aliases only onto an observed concrete row.
+    if (rawId.startsWith('~') && !existing) continue;
+    if (!rawId.startsWith('~') && !isProviderModelSlug(rawId)) continue;
     const aliases = new Set<string>([
-      ...(raw.aliases || []).map(value => String(value || '').trim()),
+      ...(Array.isArray(raw.aliases) ? raw.aliases : []).map(value => String(value || '').trim()),
       rawId
     ].filter(value => value && value !== canonical));
-    const existing = normalized.get(canonical);
     for (const alias of existing?.aliases || []) aliases.add(alias);
 
     // If both entries exist, prefer the permanent record's metadata. The old
@@ -161,16 +168,35 @@ export function normalizeOpenRouterModels(models: OpenRouterModel[]): OpenRouter
     }
   }
 
-  return Array.from(normalized.values());
+  const result = Array.from(normalized.values());
+  for (const model of result) {
+    const route = providerModelId(model)!;
+    const variant = modelVariant(route);
+    // Never trust aliases belonging to another billing/route variant.
+    model.aliases = (model.aliases || []).filter(alias =>
+      modelVariant(alias) === variant
+      && (!result.some(other => other !== model && canonicalModelId(other) === alias))
+    );
+  }
+  return result;
 }
 
 export function canonicalModelId(
   model: Pick<OpenRouterModel, 'id' | 'canonical_slug'>
 ): string | undefined {
   const permanent = String(model.canonical_slug || '').trim();
-  if (isProviderModelSlug(permanent)) return permanent;
   const id = String(model.id || '').trim();
+  if (isProviderModelSlug(permanent)) {
+    const variant = modelVariant(id);
+    // A provider can reuse one canonical_slug for paid and free routes. Their
+    // identities, pricing and allowances must remain separate from admission.
+    return variant ? permanent.replace(/:[^/:]+$/, '') + variant : permanent;
+  }
   return isProviderModelSlug(id) ? id : undefined;
+}
+
+function modelVariant(value: string): string {
+  return String(value || '').match(/:[^/:]+$/)?.[0] || '';
 }
 
 export function isProviderModelSlug(value: unknown): value is string {
@@ -183,8 +209,8 @@ export function isProviderModelSlug(value: unknown): value is string {
 }
 
 export function providerModelId(model: OpenRouterModel): string | undefined {
-  const route = String(model.provider_route_id || '').trim();
-  return isProviderModelSlug(route) ? route : canonicalModelId(model);
+  const route = String(model.provider_route_id ?? model.id ?? '').trim();
+  return isProviderModelSlug(route) && modelVariant(route) !== ':batch' ? route : undefined;
 }
 
 export function isProviderRouterModel(value: unknown): boolean {
@@ -192,7 +218,7 @@ export function isProviderRouterModel(value: unknown): boolean {
 }
 
 export function publicModel(model: OpenRouterModel): BlueModel {
-  const modelId = canonicalModelId(model);
+  const modelId = providerModelId(model);
   if (!modelId) throw new Error('Blue model catalogue contains an invalid model identifier');
   const inputPerToken = price(model.pricing?.prompt);
   const outputPerToken = price(model.pricing?.completion);
@@ -254,15 +280,25 @@ function hasVariablePricing(model: OpenRouterModel): boolean {
   return Number(model.pricing?.prompt) < 0 || Number(model.pricing?.completion) < 0;
 }
 
-export function resolveModel(models: OpenRouterModel[], requested: string): OpenRouterModel | undefined {
-    const clean = String(requested || '').trim();
-    if (!clean) return undefined;
-    // Permanent identifiers are authoritative. Aliases are accepted only to
-    // migrate a model selection saved from an older catalogue response.
-    return models.find(model =>
-      canonicalModelId(model) === clean ||
-      (model.aliases || []).includes(clean)
-    );
+export function resolveModel(models: OpenRouterModel[], requested: string, expectedFree?: boolean): OpenRouterModel | undefined {
+  const clean = String(requested || '').trim();
+  if (!clean || modelVariant(clean) === ':batch') return undefined;
+  // An actual observed public route is authoritative, not an alias pointing to
+  // another row's dated canonical identifier.
+  const exact = models.filter(model => providerModelId(model) === clean);
+  if (exact.length === 1) {
+    return expectedFree === undefined || isExplicitlyFree(exact[0]) === expectedFree ? exact[0] : undefined;
+  }
+  if (exact.length > 1) return undefined;
+  const matches = models.filter(model => (
+    canonicalModelId(model) === clean || (model.aliases || []).includes(clean)
+    // Older catalogues omitted :free from their dated billing identifier.
+    || (!modelVariant(clean) && canonicalModelId(model)?.replace(/:[^/:]+$/, '') === clean)
+  ) && (expectedFree === undefined || isExplicitlyFree(model) === expectedFree));
+  // Only a persisted, authenticated task supplies expectedFree. Its billing
+  // classification disambiguates historical canonical IDs without allowing a
+  // new client selection to silently change its paid/free variant.
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 export function estimatePromptTokens(messages: unknown, tools: unknown): number {
