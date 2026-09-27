@@ -476,8 +476,11 @@ export async function extendBlueRuntimeTask(
   }
 
   const refreshed = await loadBillingAccount(account.userId, account.threshold);
-  const amount = roundCredits(Math.min(BLUE_RUNTIME_EXTENSION_ALLOWANCE, refreshed.balance));
-  if (amount < MIN_PAID_ALLOWANCE) throw statusError(402, 'Your Blue Credits are too low to continue this task');
+  // Let the atomic RPC recognize an already-applied extension before checking
+  // funds. A retry after an ambiguous provider timeout may have reserved the
+  // wallet's last credits already. Distinct IDs still require sufficient funds
+  // inside the RPC; this minimum is not permission to overdraw the wallet.
+  const amount = roundCredits(Math.max(MIN_PAID_ALLOWANCE, Math.min(BLUE_RUNTIME_EXTENSION_ALLOWANCE, refreshed.balance)));
   const expiresAt = credentialExpiry();
   const { data, error } = await supabaseAdmin!.rpc('extend_blue_runtime_task', {
     user_id_param: account.userId,
