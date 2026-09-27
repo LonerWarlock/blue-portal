@@ -1001,11 +1001,12 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
 }
 
 async function ensureModelGuardrail(model: string): Promise<string> {
-  const { data: existing } = await supabaseAdmin!
+  const { data: existing, error: lookupError } = await supabaseAdmin!
     .from('blue_model_guardrails')
     .select('guardrail_id')
     .eq('model', model)
     .maybeSingle();
+  if (lookupError) throw lookupError;
   if (existing?.guardrail_id) {
     const existingId = String(existing.guardrail_id);
     if (await exactModelGuardrailMatches(existingId, model)) return existingId;

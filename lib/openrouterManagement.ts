@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 const OPENROUTER_MANAGEMENT_BASE = 'https://openrouter.ai/api/v1';
 
 export interface OpenRouterManagedKey {
@@ -131,18 +133,31 @@ export async function deleteManagedKey(hash: string): Promise<void> {
 
 export async function createModelGuardrail(model: string): Promise<string> {
   const canonicalModel = requireCanonicalModelSlug(model);
-  const payload = await managementRequest<{ data: { id: string } }>('/guardrails', {
-    method: 'POST',
-    body: JSON.stringify({
-      name: `Blue model ${canonicalModel}`.slice(0, 200),
-      description: 'Blue runtime exact-model credential guardrail.',
-      allowed_models: [canonicalModel],
-      allowed_providers: null,
-      workspace_id: openRouterWorkspaceId()
-    })
-  }, 1);
-  if (!payload.data?.id) throw new Error('OpenRouter did not return a guardrail ID');
-  return payload.data.id;
+  // A guardrail name identifies one policy instance, not the model. The old
+  // deterministic name collides when a DB mapping is stale, an earlier policy
+  // was orphaned, or two requests provision the same model concurrently.
+  // Keep the random suffix even when the model slug is near the name limit.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const suffix = randomUUID();
+    const name = `${`Blue model ${canonicalModel}`.slice(0, 200 - suffix.length - 1)}-${suffix}`;
+    try {
+      const payload = await managementRequest<{ data: { id: string } }>('/guardrails', {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          description: 'Blue runtime exact-model credential guardrail.',
+          allowed_models: [canonicalModel],
+          allowed_providers: null,
+          workspace_id: openRouterWorkspaceId()
+        })
+      }, 1);
+      if (!payload.data?.id) throw new Error('OpenRouter did not return a guardrail ID');
+      return payload.data.id;
+    } catch (error) {
+      if (Number((error as { status?: number })?.status) !== 409 || attempt === 2) throw error;
+    }
+  }
+  throw new Error('OpenRouter could not create a unique model guardrail');
 }
 
 /** Read-only validation: never mutate a guardrail that may still protect live keys. */
