@@ -6,7 +6,7 @@ import {
   requestIp,
   verifyTurnstile,
 } from '@/lib/trafficControl';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createSupabaseAuthClient } from '@/lib/supabaseAdmin';
 
 export const runtime = 'nodejs';
 
@@ -33,7 +33,8 @@ export async function POST(request: Request) {
     if (!validEmail(email)) {
       return NextResponse.json({ error: 'A valid email is required' }, { status: 400 });
     }
-    if (!supabaseAdmin) {
+    const authClient = createSupabaseAuthClient();
+    if (!authClient) {
       return NextResponse.json({ error: 'Authentication is temporarily unavailable' }, { status: 503 });
     }
 
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
 
     // Supabase Auth owns OTP generation, hashing, expiration, attempt limits,
     // user creation, and SMTP delivery. No application table stores the code.
-    const { error } = await supabaseAdmin.auth.signInWithOtp({
+    const { error } = await authClient.auth.signInWithOtp({
       email,
       options: { shouldCreateUser: true },
     });

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkRateLimit, rateLimitHeaders, requestIp } from '@/lib/trafficControl';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { createSupabaseAuthClient } from '@/lib/supabaseAdmin';
 
 export const runtime = 'nodejs';
 
@@ -20,7 +20,8 @@ export async function POST(request: Request) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{6,8}$/.test(code)) {
       return NextResponse.json({ error: 'Email and a valid verification code are required' }, { status: 400 });
     }
-    if (!supabaseAdmin) {
+    const authClient = createSupabaseAuthClient();
+    if (!authClient) {
       return NextResponse.json({ error: 'Authentication is temporarily unavailable' }, { status: 503 });
     }
 
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data, error } = await supabaseAdmin.auth.verifyOtp({
+    const { data, error } = await authClient.auth.verifyOtp({
       email,
       token: code,
       type: 'email',
