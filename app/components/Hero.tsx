@@ -1,19 +1,10 @@
 import Link from "next/link";
 import VSCodeInstallSnippet from "./VSCodeInstallSnippet";
+import LaserFlowHero from "./LaserFlowHero";
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden pt-20 pb-28 bg-paper-alt border-b border-line">
-      {/* Faint blueprint-grid texture, hero only */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-[0.05]"
-        style={{
-          backgroundImage:
-            "linear-gradient(var(--line-strong) 1px, transparent 1px), linear-gradient(90deg, var(--line-strong) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
-        }}
-      />
-
+    <section className="relative overflow-hidden pt-20 bg-paper-alt border-b border-line">
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="text-center max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-line-strong bg-paper eyebrow mb-8">
@@ -59,6 +50,7 @@ export default function Hero() {
           </div>
         </div>
       </div>
+      <LaserFlowHero />
     </section>
   );
 }

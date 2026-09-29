@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3005",
     "build": "next build",
+    "test:hero": "node scripts/test-laser-flow-hero.cjs",
     "test:billing": "node --experimental-strip-types --test lib/usageAccounting.test.mjs lib/blueRuntimeContracts.test.mjs lib/scalingSecurity.test.mjs",
     "test:account": "node --experimental-strip-types --test lib/accountCache.test.mjs lib/accountPlan.test.mjs lib/couponTransactions.test.mjs lib/supabaseAdmin.test.mjs",
     "start": "next start",
@@ -22,14 +23,17 @@
     "posthog-js": "^1.417.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tailwind-merge": "^2.3.0"
+    "tailwind-merge": "^2.3.0",
+    "three": "0.180.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.3.14",
     "@types/node": "^20.14.2",
     "@types/nodemailer": "^6.4.14",
     "@types/react": "19.2.17",
+    "@types/three": "0.180.0",
     "autoprefixer": "^10.4.19",
+    "playwright": "1.63.0",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.4.5"

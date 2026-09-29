@@ -116,6 +116,19 @@ button fill; gradients are removed entirely except one subtle radial tint
   scroll-triggered parallax. `AnimatedBackground3D`/`PageBackground3D`
   are reduced to a static, near-invisible texture (see components).
 
+### Approved homepage exception (2026-09-29)
+
+The homepage may use one full-width React Bits Laser Flow section below the
+existing hero copy and actions, without an outer rounded box. Use Blue's
+blue/navy palette and a pointer spotlight revealing “Blue Desktop. Launching
+soon” above the beam's separator line. Place the current Desktop renderer
+image with an empty preview account below the separator, always visible,
+not an invented app mockup. Keep it
+separate from navigation, checkout, account pages, and critical controls.
+Lazy-load the renderer; honor reduced motion and data saving, provide a
+static WebGL fallback and an accessible pause control, and pause rendering
+when offscreen or hidden. This does not restore global decorative backgrounds.
+
 ## Responsive principles
 
 - Mobile-first stacking; nav collapses to existing mobile menu pattern.
