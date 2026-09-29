@@ -68,7 +68,7 @@ export default function Features() {
         </div>
 
         <div className="text-center mt-12">
-          <Link href="/subscribe" className="btn btn-secondary">
+          <Link href="/pricing" className="btn btn-secondary">
             <i className="fa-solid fa-crown mr-2 text-accent"></i>
             See All Plans
             <i className="fa-solid fa-arrow-right ml-2 text-xs"></i>

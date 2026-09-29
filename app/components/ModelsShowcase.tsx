@@ -79,7 +79,7 @@ export default function ModelsShowcase() {
 
         <div className="text-center mt-10 flex items-center justify-center gap-6">
           <Link
-            href="/subscribe"
+            href="/pricing"
             className="inline-flex items-center gap-2 text-sm text-ink font-semibold hover:text-brand transition-colors duration-150"
           >
             <i className="fa-solid fa-crown text-xs text-accent"></i> See Plans

@@ -35,7 +35,7 @@ export default function Hero() {
           </div>
 
           <p className="mt-4 text-sm text-ink-faint">
-            <Link prefetch={false} href="/subscribe" className="hover:text-ink-muted transition-colors duration-150">
+            <Link prefetch={false} href="/pricing" className="hover:text-ink-muted transition-colors duration-150">
               See plans &amp; pricing
             </Link>
             <span className="mx-2">&middot;</span>

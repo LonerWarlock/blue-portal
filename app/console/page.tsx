@@ -21,7 +21,6 @@ const MODEL_CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODEL_CATALOG_SESSION_KEY = 'blue.modelCatalog.v1';
 const CONSOLE_NAV_LINKS = [
   { href: '/', label: 'Home' },
-  { href: '/subscribe', label: 'Subscribe' },
   { href: '/pricing', label: 'Pricing' },
   { href: '/docs', label: 'Docs' },
   { href: '/blog', label: 'Blog' },
@@ -419,7 +418,6 @@ export default function ConsolePage() {
 
           <nav className="hidden xl:flex items-center space-x-6" aria-label="Console navigation">
             <Link prefetch={false} href="/" className="text-sm text-ink-muted hover:text-ink transition">Home</Link>
-            <Link prefetch={false} href="/subscribe" className="text-sm text-ink-muted hover:text-ink transition">Subscribe</Link>
             <Link prefetch={false} href="/pricing" className="text-sm text-ink-muted hover:text-ink transition">Pricing</Link>
             <Link prefetch={false} href="/docs" className="text-sm text-ink-muted hover:text-ink transition">Docs</Link>
             <Link prefetch={false} href="/blog" className="text-sm text-ink-muted hover:text-ink transition">Blog</Link>
@@ -454,7 +452,7 @@ export default function ConsolePage() {
                         Blue Lite
                       </span>
                       <Link prefetch={false}
-                        href="/subscribe"
+                        href="/pricing"
                         className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-lg border border-brand/30 text-sm font-semibold text-brand hover:text-brand hover:bg-brand/10 transition duration-200"
                       >
                         <i className="fa-solid fa-crown mr-1.5 text-[10px]"></i>
@@ -524,7 +522,7 @@ export default function ConsolePage() {
               {user && (
                 <div className="mt-4 grid grid-cols-2 gap-2 border-t border-line pt-4">
                   <a
-                    href={isProPayg ? '/blue-pro/checkout' : '/subscribe'}
+                    href={isProPayg ? '/blue-pro/checkout' : '/pricing'}
                     onClick={() => setConsoleMenuOpen(false)}
                     className="btn btn-primary justify-center !py-2.5"
                   >
@@ -682,7 +680,7 @@ export default function ConsolePage() {
                 <div className="mt-6 flex flex-wrap sm:flex-nowrap gap-2.5">
                   {hasBlueCredits ? null : hasActiveSubscription ? (
                     <Link prefetch={false}
-                      href="/subscribe"
+                      href="/pricing"
                       className="flex-1 py-2.5 px-3 rounded-lg border border-line text-brand text-xs font-semibold hover:bg-brand/10 transition duration-200 inline-flex items-center justify-center gap-1.5"
                     >
                       <i className="fa-solid fa-check text-xs"></i>
@@ -690,7 +688,7 @@ export default function ConsolePage() {
                     </Link>
                   ) : (
                     <Link prefetch={false}
-                      href="/subscribe"
+                      href="/pricing"
                       className="flex-1 py-2.5 px-3 rounded-lg bg-brand text-xs font-semibold text-white shadow-md transition duration-200 inline-flex items-center justify-center gap-1.5"
                     >
                       <i className="fa-solid fa-crown text-xs"></i>

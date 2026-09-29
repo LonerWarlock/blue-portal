@@ -253,7 +253,7 @@ function getWarningEmailTemplate(daysLeft: string, formattedDate: string, siteUr
 
             <!-- Action Button -->
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${siteUrl}/subscribe" style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff; text-decoration: none; padding: 14px 30px; font-size: 15px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); border: 1px solid rgba(255,255,255,0.1);">
+              <a href="${siteUrl}/pricing" style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff; text-decoration: none; padding: 14px 30px; font-size: 15px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); border: 1px solid rgba(255,255,255,0.1);">
                 Renew Subscription Now
               </a>
             </div>
@@ -305,7 +305,7 @@ function getExpiredEmailTemplate(formattedDate: string, siteUrl: string) {
 
             <!-- Action Button -->
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${siteUrl}/subscribe" style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff; text-decoration: none; padding: 14px 30px; font-size: 15px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); border: 1px solid rgba(255,255,255,0.1);">
+              <a href="${siteUrl}/pricing" style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff; text-decoration: none; padding: 14px 30px; font-size: 15px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); border: 1px solid rgba(255,255,255,0.1);">
                 Resubscribe to Blue Premium
               </a>
             </div>

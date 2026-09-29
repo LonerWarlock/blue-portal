@@ -16,7 +16,7 @@ export default function CtaSection() {
               Get Started Free
               <i className="fa-solid fa-arrow-right ml-2"></i>
             </Link>
-            <Link href="/subscribe" className="btn btn-secondary text-base">
+            <Link href="/pricing" className="btn btn-secondary text-base">
               <i className="fa-solid fa-crown mr-2 text-accent"></i>
               See Plans
             </Link>

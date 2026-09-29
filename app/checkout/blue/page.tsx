@@ -35,8 +35,8 @@ export default async function CheckoutBluePage({ searchParams }: Props) {
     return (
       <ErrorState
         message="Missing checkout session. Please return to Blue Portal and try subscribing again."
-        linkHref="/subscribe"
-        linkText="Back to Subscribe Page"
+        linkHref="/pricing"
+        linkText="Back to Pricing"
       />
     );
   }
@@ -45,7 +45,7 @@ export default async function CheckoutBluePage({ searchParams }: Props) {
     return (
       <ErrorState
         message="Database connection error. Please try again later."
-        linkHref="/subscribe"
+        linkHref="/pricing"
       />
     );
   }
@@ -60,8 +60,8 @@ export default async function CheckoutBluePage({ searchParams }: Props) {
     return (
       <ErrorState
         message="This checkout link is invalid. Please return to Blue Portal and try subscribing again."
-        linkHref="/subscribe"
-        linkText="Back to Subscribe Page"
+        linkHref="/pricing"
+        linkText="Back to Pricing"
       />
     );
   }
@@ -80,8 +80,8 @@ export default async function CheckoutBluePage({ searchParams }: Props) {
     return (
       <ErrorState
         message="This checkout session has expired. Please return to Blue Portal and try subscribing again."
-        linkHref="/subscribe"
-        linkText="Back to Subscribe Page"
+        linkHref="/pricing"
+        linkText="Back to Pricing"
       />
     );
   }

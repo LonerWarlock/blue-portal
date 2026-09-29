@@ -10,7 +10,6 @@ import ThemeToggle from "./ThemeToggle";
 const NAV_LINKS = [
   { href: "/product/agents", label: "Agents" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/subscribe", label: "Subscribe" },
   { href: "/docs", label: "Docs" },
   { href: "/blog", label: "Blog" },
 ];
@@ -84,7 +83,7 @@ export default function Navbar() {
             {user ? (
               <>
               <Link prefetch={false}
-                href="/subscribe"
+                href="/pricing"
                 className="btn btn-secondary !py-1.5"
               >
                 <Crown aria-hidden="true" className="mr-1.5 h-3 w-3 text-accent" />
@@ -101,7 +100,7 @@ export default function Navbar() {
             ) : (
               <>
               <Link prefetch={false}
-                href="/subscribe"
+                href="/pricing"
                 className="btn btn-secondary !py-1.5"
               >
                 <Crown aria-hidden="true" className="mr-1.5 h-3 w-3 text-accent" />
@@ -157,7 +156,7 @@ export default function Navbar() {
               ))}
             </nav>
             <div className="mt-4 grid grid-cols-2 gap-2 border-t border-line pt-4">
-              <Link prefetch={false} href="/subscribe" onClick={() => setMobileMenuOpen(false)} className="btn btn-secondary justify-center !py-2.5">
+              <Link prefetch={false} href="/pricing" onClick={() => setMobileMenuOpen(false)} className="btn btn-secondary justify-center !py-2.5">
                 <Crown aria-hidden="true" className="mr-1.5 h-3.5 w-3.5 text-accent" />
                 Upgrade
               </Link>
