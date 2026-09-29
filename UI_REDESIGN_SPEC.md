@@ -129,6 +129,15 @@ Lazy-load the renderer; honor reduced motion and data saving, provide a
 static WebGL fallback and an accessible pause control, and pause rendering
 when offscreen or hidden. This does not restore global decorative backgrounds.
 
+### Approved testimonials exception (2026-09-29)
+
+Use the user-requested React Bits Stack JavaScript/CSS interaction for public
+Marketplace testimonials. Spring rotation/stack transforms are permitted only
+in this user-controlled card stack, not as global hover effects. Keep cards
+opaque and token-colored in both themes, without gradients or colored shadows.
+Do not autoplay reviews. Provide arrows, keyboard navigation and a read-all
+view, keep mobile scrolling intact, and disable transforms for reduced motion.
+
 ## Responsive principles
 
 - Mobile-first stacking; nav collapses to existing mobile menu pattern.

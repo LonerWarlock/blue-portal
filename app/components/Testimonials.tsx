@@ -1,59 +1,70 @@
-const testimonials = [
-  {
-    quote: "Best in the era where coding agents are not affordable. its affordable, powerful and easy to use.",
-    name: "Om Karande",
-    date: "August 6, 2026",
-    rating: 5,
-  },
-  {
-    quote: "A very nice and affordable alternative to all the AI agents out there. Very nice product for students and startup developers.",
-    name: "Soham Phatak",
-    date: "July 20, 2026",
-    rating: 5,
-  },
-  {
-    quote: "In the era of claude and codex, i prefer blue. It is cheap and very powerful. Worth using.",
-    name: "Om Mali",
-    date: "July 17, 2026",
-    rating: 5,
-  },
-];
+"use client";
+
+import { useMemo, useState } from "react";
+import { ArrowLeft, ArrowRight, ExternalLink, Quote, Star } from "lucide-react";
+import Stack from "./react-bits/Stack";
+import { MARKETPLACE_REVIEW_URL, marketplaceTestimonials, type MarketplaceTestimonial } from "@/lib/marketplaceTestimonials";
+import styles from "./Testimonials.module.css";
+
+function ReviewCard({ review }: { review: MarketplaceTestimonial }) {
+  const initials = review.name.split(/\s+/).map(part => part[0]).slice(0, 2).join("").toUpperCase();
+  return (
+    <article className={styles.review} data-review-id={review.id}>
+      <div className={styles.cardTop}>
+        <span className={styles.stars} role="img" aria-label={`${review.rating} out of 5 stars`}>{Array.from({ length: review.rating }, (_, i) => <Star key={i} size={16} fill="currentColor" aria-hidden="true" />)}</span>
+        <Quote size={27} className={styles.quoteIcon} aria-hidden="true" />
+      </div>
+      <blockquote className={styles.quote}>&ldquo;{review.quote}&rdquo;</blockquote>
+      <div className={styles.author}>
+        <span className={styles.avatar} aria-hidden="true">{initials}</span>
+        <div><p>{review.name}</p><time dateTime={review.dateISO}>{review.date}</time></div>
+        {review.excerpt && <span className={styles.excerpt}>Review excerpt</span>}
+      </div>
+    </article>
+  );
+}
 
 export default function Testimonials() {
-  return (
-    <section id="testimonials" className="py-24 bg-paper-alt border-y border-line">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <span className="eyebrow">// testimonials</span>
-          <h2 className="mt-3 text-3xl md:text-4xl font-display font-bold tracking-tight text-ink">
-            What Blue users are saying.
-          </h2>
-          <p className="mt-4 text-ink-muted max-w-2xl mx-auto">
-            Feedback from developers using Blue for affordable, agent-powered coding.
-          </p>
-        </div>
+  const [activeIndex, setActiveIndex] = useState(0);
+  const reviews = marketplaceTestimonials;
+  const cards = useMemo(() => reviews.map(review => <ReviewCard key={review.id} review={review} />), [reviews]);
+  const average = (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1);
+  const current = reviews[activeIndex];
+  const change = (delta: number) => setActiveIndex(index => (index + delta + reviews.length) % reviews.length);
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {testimonials.map((t, i) => (
-            <div key={i} className="panel bg-paper p-6 flex flex-col justify-between min-h-[220px]">
-              <div>
-                <div className="mb-4 flex items-center gap-2" aria-label={`${t.rating} out of 5 stars`}>
-                  <span className="text-sm tracking-[0.18em] text-amber-500" aria-hidden="true">
-                    {"★".repeat(t.rating)}
-                  </span>
-                  <span className="text-xs text-ink-muted">{t.rating}.0</span>
-                </div>
-                <p className="text-sm text-ink leading-relaxed">
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-line">
-                <p className="text-sm font-semibold text-ink">{t.name}</p>
-                <p className="text-xs text-ink-muted">{t.date}</p>
-              </div>
+  return (
+    <section id="testimonials" className={styles.section} aria-labelledby="testimonials-heading">
+      <div className={styles.container}>
+        <div className={styles.layout}>
+          <div className={styles.intro}>
+            <span className="eyebrow">// testimonials</span>
+            <h2 id="testimonials-heading">What Blue users are saying.</h2>
+            <p className={styles.description}>Real feedback from developers on the Visual Studio Marketplace.</p>
+            <div className={styles.summary}>
+              <strong>{average}<span> / 5</span></strong>
+              <div><span className={styles.stars} aria-hidden="true">{Array.from({ length: 5 }, (_, i) => <Star key={i} size={15} fill="currentColor" />)}</span><p>{reviews.length} public Marketplace reviews</p></div>
             </div>
-          ))}
+            <a className={styles.source} href={MARKETPLACE_REVIEW_URL} target="_blank" rel="noopener noreferrer">Read the original reviews <ExternalLink size={14} aria-hidden="true" /></a>
+            <p className={styles.checked}>Checked September 29, 2026. Longer reviews are shown as excerpts.</p>
+          </div>
+
+          <div className={styles.carousel}>
+            <div className={styles.stackFrame}>
+              <Stack cards={cards} activeIndex={activeIndex} onActiveIndexChange={setActiveIndex} randomRotation sensitivity={180} sendToBackOnClick mobileClickOnly autoplay={false} animationConfig={{ stiffness: 260, damping: 20 }} ariaLabel="Blue Marketplace reviews" describedBy="reviews-instructions" />
+            </div>
+            <p id="reviews-instructions" className={styles.instructions}>Click a card or use the arrows to read the next review.<span className={styles.desktopHint}> You can drag, too.</span><span className="sr-only">When the stack has focus, use left and right arrow keys.</span></p>
+            <div className={styles.controls}>
+              <button type="button" className={styles.arrow} onClick={() => change(-1)} aria-label="Previous review"><ArrowLeft size={18} aria-hidden="true" /></button>
+              <div className={styles.dots} aria-label="Choose a review">{reviews.map((review, index) => <button type="button" key={review.id} aria-label={`Show review by ${review.name}`} aria-current={index === activeIndex ? "true" : undefined} onClick={() => setActiveIndex(index)}><span /></button>)}</div>
+              <button type="button" className={styles.arrow} onClick={() => change(1)} aria-label="Next review"><ArrowRight size={18} aria-hidden="true" /></button>
+            </div>
+            <p className={styles.position} aria-live="polite" aria-atomic="true">{activeIndex + 1} / {reviews.length} <span>— {current.name}</span></p>
+          </div>
         </div>
+        <details className={styles.allReviews}>
+          <summary>Read all {reviews.length} reviews</summary>
+          <div className={styles.reviewList}>{reviews.map(review => <ReviewCard key={review.id} review={review} />)}</div>
+        </details>
       </div>
     </section>
   );
