@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getBearerToken, getBluePaygAccount, statusError } from '@/lib/bluePayg';
 import { isLowBalance } from '@/lib/openrouter';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { getBlueCreditSummary } from '@/lib/blueCreditSummary';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,13 +23,17 @@ export async function GET(request: Request) {
     if (error || !data.user) throw statusError(401, 'Unauthorized: Invalid token');
 
     const account = await getBluePaygAccount(data.user.id);
-    const { data: profile } = await supabaseAdmin
-      .from('blue_profiles')
-      .select('total_credits_purchased, total_credits_used, status, access_tier, created_at')
-      .eq('user_id', data.user.id)
-      .single();
+    const [{ data: profile }, creditSummary] = await Promise.all([
+      supabaseAdmin
+        .from('blue_profiles')
+        .select('total_credits_purchased, total_credits_used, status, access_tier, created_at')
+        .eq('user_id', data.user.id)
+        .single(),
+      getBlueCreditSummary(supabaseAdmin, data.user.id)
+    ]);
 
     return NextResponse.json({
+      ...(creditSummary ? { credit_summary: creditSummary } : {}),
       eligible: account.balance > 0,
       account_type: 'pro_payg',
       access_tier: account.balance > 0 ? account.accessTier : 'none',

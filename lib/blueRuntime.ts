@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { BluePaygAccount, BLUE_CREDIT_MULTIPLIER, releaseUsage, settleUsage, statusError } from '@/lib/bluePayg';
+import { BluePaygAccount, BLUE_CREDIT_MULTIPLIER, settleUsage, statusError } from '@/lib/bluePayg';
 import { decryptRuntimeSecret, encryptRuntimeSecret } from '@/lib/blueRuntimeCrypto';
 import {
   assertManagedKeyCanUseModel,
@@ -84,6 +84,7 @@ interface RuntimeTaskRow {
   queue_expires_at: string | null;
   provisioning_started_at: string | null;
   execution_released_at: string | null;
+  unprovisioned_release_pending: boolean;
   provider_generation_id: string | null;
   finished_at: string | null;
   queue_position?: number;
@@ -319,11 +320,12 @@ export async function admitBlueRuntimeTask(
     throw statusError(409, 'This Blue task ID was already used with different runtime settings');
   }
 
-  const task = await getTaskForUser(refreshedAccount.userId, input.requestId);
+  let task = await getTaskForUser(refreshedAccount.userId, input.requestId);
   if (!task && data?.accepted === false) {
     throw statusError(409, 'Blue could not safely recover this task admission. Start a new task; no additional credits were reserved.');
   }
   if (!task) throw statusError(500, 'Blue runtime admission was not persisted');
+  if (task.unprovisioned_release_pending) task = await recoverUnprovisionedTask(task);
   if (task.state === 'queued') {
     task.queue_position = Number(data?.queue_position || 0) || await runtimeQueuePosition(task);
   }
@@ -381,6 +383,7 @@ export async function getBlueRuntimeTask(
   let task = await getTaskForUser(account.userId, requestId);
   if (!task) throw statusError(404, 'Blue runtime task not found');
   if (task.device_hash !== sha256(deviceId)) throw statusError(403, 'This Blue runtime belongs to another device');
+  if (task.unprovisioned_release_pending) task = await recoverUnprovisionedTask(task);
   if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(account.userId));
   if (task.state === 'stopping') throw statusError(409, 'This Blue runtime task is being settled');
 
@@ -530,6 +533,10 @@ export async function completeBlueRuntimeTask(
 ): Promise<BlueRuntimeFinalization> {
   let task = await requireTask(account.userId, requestId);
   if (task.device_hash !== sha256(deviceId)) throw statusError(403, 'This Blue runtime belongs to another device');
+  if (task.unprovisioned_release_pending) {
+    task = await recoverUnprovisionedTask(task);
+    return existingSettlement(task, await walletBalance(account.userId));
+  }
   const generationId = normalizeProviderGenerationId(providerGenerationId);
 
   if (task.state === 'queued') {
@@ -567,6 +574,13 @@ export async function reconcileBlueRuntimeTasks(options: {
 } = {}): Promise<{ inspected: number; settled: number; pending: number; failed: number }> {
   if (!supabaseAdmin) return { inspected: 0, settled: 0, pending: 0, failed: 0 };
   const limit = Math.max(1, Math.min(250, options.limit || 100));
+  let initialReleaseQuery = supabaseAdmin
+    .from('blue_runtime_tasks')
+    .select('*')
+    .eq('state', 'provisioning')
+    .eq('unprovisioned_release_pending', true)
+    .order('updated_at', { ascending: true })
+    .limit(limit);
   let stoppingQuery = supabaseAdmin
     .from('blue_runtime_tasks')
     .select('*')
@@ -588,18 +602,20 @@ export async function reconcileBlueRuntimeTasks(options: {
     .order('last_heartbeat_at', { ascending: true })
     .limit(limit);
   if (options.userId) {
+    initialReleaseQuery = initialReleaseQuery.eq('user_id', options.userId);
     stoppingQuery = stoppingQuery.eq('user_id', options.userId);
     expiredQuery = expiredQuery.eq('user_id', options.userId);
     staleHeartbeatQuery = staleHeartbeatQuery.eq('user_id', options.userId);
   }
-  const [stopping, expired, staleHeartbeat] = await Promise.all([
+  const [initialRelease, stopping, expired, staleHeartbeat] = await Promise.all([
+    initialReleaseQuery,
     stoppingQuery,
     expiredQuery,
     staleHeartbeatQuery
   ]);
-  if (stopping.error || expired.error || staleHeartbeat.error) {
+  if (initialRelease.error || stopping.error || expired.error || staleHeartbeat.error) {
     throw statusError(500, `Could not reconcile Blue runtime tasks: ${
-      stopping.error?.message || expired.error?.message || staleHeartbeat.error?.message
+      initialRelease.error?.message || stopping.error?.message || expired.error?.message || staleHeartbeat.error?.message
     }`);
   }
   const byId = new Map<string, RuntimeTaskRow>();
@@ -609,6 +625,7 @@ export async function reconcileBlueRuntimeTasks(options: {
     || Date.parse(String(task.settlement_next_attempt_at)) <= now
   );
   for (const task of [
+    ...(initialRelease.data || []),
     ...readyStoppingTasks,
     ...(expired.data || []),
     ...(staleHeartbeat.data || [])
@@ -651,6 +668,7 @@ async function settleRuntimeTask(
 ): Promise<BlueRuntimeFinalization> {
   assertConfigured();
   let task = await requireTask(initialTask.user_id, initialTask.request_id);
+  if (task.unprovisioned_release_pending) task = await recoverUnprovisionedTask(task);
   if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(task.user_id));
 
   const now = new Date();
@@ -901,6 +919,10 @@ async function activeOrProvision(task: RuntimeTaskRow): Promise<BlueRuntimeCrede
 }
 
 async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCredential | undefined> {
+  if (task.unprovisioned_release_pending) {
+    await recoverUnprovisionedTask(task);
+    throw statusError(502, 'The initial Blue credential failed; its temporary hold was released');
+  }
   if (task.state !== 'provisioning' && task.state !== 'active') {
     throw statusError(409, 'This Blue runtime has not received an execution slot');
   }
@@ -978,6 +1000,7 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     const { data: activatedTask, error: taskError } = await supabaseAdmin!.from('blue_runtime_tasks').update({
       state: 'active', expires_at: expiresAt, updated_at: now, last_heartbeat_at: now
     }).eq('request_id', task.request_id).in('state', ['provisioning', 'active'])
+      .eq('unprovisioned_release_pending', false)
       .select('request_id').maybeSingle();
     if (taskError || !activatedTask?.request_id) throw taskError || new Error('Runtime task activation lost its execution lease');
     return {
@@ -991,10 +1014,13 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
       try { await updateManagedKey(keyHash, { disabled: true }); } catch {}
       try { await deleteManagedKey(keyHash); } catch {}
     }
-    await supabaseAdmin!.from('blue_runtime_credentials').update({
+    const { error: failedCredentialError } = await supabaseAdmin!.from('blue_runtime_credentials').update({
       state: 'failed', encrypted_key: null, encryption_iv: null, encryption_tag: null,
       encryption_version: null, updated_at: new Date().toISOString()
     }).eq('id', placeholder.id);
+    if (failedCredentialError) {
+      throw statusError(503, `Could not persist the failed initial credential yet: ${failedCredentialError.message}`);
+    }
     await failUnprovisionedTask(task, safeMessage(error));
     throw statusError(502, `Blue could not provision a provider credential: ${safeMessage(error)}`);
   }
@@ -1116,14 +1142,26 @@ async function extendRuntimeExpiry(requestId: string): Promise<void> {
 
 async function failUnprovisionedTask(task: RuntimeTaskRow, reason: string): Promise<void> {
   const { data: failedTask, error: failError } = await supabaseAdmin!.from('blue_runtime_tasks').update({
-    state: 'failed', terminal_reason: reason.slice(0, 500),
-    updated_at: new Date().toISOString(), finished_at: new Date().toISOString()
+    unprovisioned_release_pending: true, terminal_reason: reason.slice(0, 500),
+    updated_at: new Date().toISOString()
   }).eq('request_id', task.request_id).eq('state', 'provisioning')
     .select('request_id').maybeSingle();
   if (failError) throw failError;
   if (!failedTask?.request_id) return;
-  const account = await loadBillingAccount(task.user_id, 0.15, true);
-  await releaseUsage(account, task.request_id);
+  await recoverUnprovisionedTask({ ...task, unprovisioned_release_pending: true });
+}
+
+async function recoverUnprovisionedTask(task: RuntimeTaskRow): Promise<RuntimeTaskRow> {
+  const { error } = await supabaseAdmin!.rpc('release_unprovisioned_blue_runtime_task', {
+    user_id_param: task.user_id,
+    request_id_param: task.request_id
+  });
+  if (error) throw statusError(503, `Could not release the initial Blue hold yet: ${error.message}`);
+  const updatedTask = await requireTask(task.user_id, task.request_id);
+  if (!isTerminal(updatedTask.state)) {
+    throw statusError(503, 'The initial Blue hold is still being recovered');
+  }
+  return updatedTask;
 }
 
 async function getTaskForUser(userId: string, requestId: string): Promise<RuntimeTaskRow | undefined> {

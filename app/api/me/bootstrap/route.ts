@@ -6,6 +6,7 @@ import { isLowBalance, lowBalanceThreshold } from '@/lib/openrouter';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getOrCreateUserKey } from '@/lib/userKey';
 import { effectiveAccountPlan } from '@/lib/accountPlan';
+import { getBlueCreditSummary } from '@/lib/blueCreditSummary';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
     if (!supabaseAdmin) throw statusError(503, 'Database is not configured');
     const userId = await verifiedSessionUser(request);
 
-    const [walletResult, profileResult, subscriptionResult] = await Promise.all([
+    const [walletResult, profileResult, subscriptionResult, creditSummary] = await Promise.all([
       supabaseAdmin
         .from('wallets')
         .select('balance, account_type, blue_credits')
@@ -38,6 +39,7 @@ export async function GET(request: Request) {
         .select('plan, status, current_period_end, metadata')
         .eq('user_id', userId)
         .maybeSingle(),
+      getBlueCreditSummary(supabaseAdmin, userId),
     ]);
 
     if (walletResult.error || profileResult.error) {
@@ -60,6 +62,7 @@ export async function GET(request: Request) {
       const threshold = lowBalanceThreshold(Math.max(0, Number(profile?.last_top_up_credits || 0)) || 1);
       return NextResponse.json({
         user_id: userId, wallet: { balance: Number(wallet?.balance || 0) },
+        ...(creditSummary ? { credit_summary: creditSummary } : {}),
         subscription: { ...effectivePlan, discount },
         blue_pro: activeBluePro ? { wallet: {
           eligible: effectivePlan.is_pro, account_type: 'pro_payg', status: profile?.status,
@@ -148,6 +151,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       user_id: userId,
+      ...(creditSummary ? { credit_summary: creditSummary } : {}),
       wallet: { balance: Number(wallet?.balance || 0) },
       subscription: { ...effectivePlan, discount },
       blue_pro: bluePro,
