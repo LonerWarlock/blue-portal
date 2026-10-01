@@ -3,12 +3,15 @@ import { BluePaygAccount, BLUE_CREDIT_MULTIPLIER, settleUsage, statusError } fro
 import { decryptRuntimeSecret, encryptRuntimeSecret } from '@/lib/blueRuntimeCrypto';
 import {
   assertManagedKeyCanUseModel,
+  assertManagedKeyCanUseModelSet,
   assignKeyGuardrail,
   createManagedKey,
   createModelGuardrail,
+  createModelSetGuardrail,
   deleteGuardrail,
   deleteManagedKey,
   exactModelGuardrailMatches,
+  exactModelSetGuardrailMatches,
   getManagedKey,
   updateManagedKey
 } from '@/lib/openrouterManagement';
@@ -21,6 +24,7 @@ import {
   nextStableUsageObservation
 } from '@/lib/runtimeSettlement';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { approvalReviewerFromCatalog, normalizeApprovalReviewer, reviewedRuntimeReplayAllowance, runtimeAllowedModelSet, runtimeTaskIsBillable } from '@/lib/approvalReviewer';
 
 export const BLUE_RUNTIME_NORMAL_ALLOWANCE = 0.20;
 export const BLUE_RUNTIME_UI_MAX_ALLOWANCE = 0.35;
@@ -62,6 +66,7 @@ interface RuntimeTaskRow {
   model: string;
   mode: RuntimeMode;
   is_free: boolean;
+  reviewer_model?: string | null;
   access_tier: 'trial' | 'full';
   state: RuntimeTaskState;
   reserved_blue_credits: number | string;
@@ -116,6 +121,7 @@ export interface BlueRuntimeAdmissionInput {
   requestId: string;
   model: string;
   mode: RuntimeMode;
+  approvalReviewerModel?: unknown;
   requestedCreditCeiling?: number;
   clientVersion: string;
   deviceId: string;
@@ -127,6 +133,7 @@ export interface BlueRuntimeCredential {
   expires_at: string;
   base_url: typeof OPENROUTER_BASE_URL;
   model: string;
+  approval_reviewer_model?: string;
 }
 
 export interface BlueRuntimeAdmission {
@@ -145,6 +152,7 @@ export interface BlueRuntimeAdmission {
     extension_blue_credits: number;
     multiplier: number;
     free_model: boolean;
+    billable_task?: boolean;
   };
   rate_card: {
     prompt: number;
@@ -153,6 +161,10 @@ export interface BlueRuntimeAdmission {
     cache_read: number;
     cache_write: number;
     reasoning: number;
+  };
+  approval_reviewer?: {
+    model: string;
+    rate_card: BlueRuntimeAdmission['rate_card'];
   };
 }
 
@@ -235,7 +247,16 @@ export async function admitBlueRuntimeTask(
   assertConfigured();
   validateAdmissionInput(input);
   const refreshedAccount = await loadBillingAccount(account.userId, account.threshold);
-  const availableModels = modelsForAccess(await getOpenRouterModels(), refreshedAccount.accessTier);
+  const catalogue = await getOpenRouterModels();
+  const reviewerModel = normalizeApprovalReviewer(input.approvalReviewerModel);
+  if (reviewerModel) {
+    try { approvalReviewerFromCatalog(catalogue, reviewerModel); }
+    catch (error) { throw statusError(503, safeMessage(error)); }
+    if (await isRuntimeModelBlocked(reviewerModel)) {
+      throw statusError(503, 'The Blue approval reviewer is temporarily unavailable');
+    }
+  }
+  const availableModels = modelsForAccess(catalogue, refreshedAccount.accessTier);
   const model = resolveModel(availableModels, input.model);
   if (!model) {
     throw statusError(400, refreshedAccount.accessTier === 'trial'
@@ -254,23 +275,40 @@ export async function admitBlueRuntimeTask(
     ? Math.min(modeDefault, Number(input.requestedCreditCeiling))
     : modeDefault;
   const requestedCeiling = roundCredits(requested);
-  const allowance = publicInfo.isFree
+  const billableTask = runtimeTaskIsBillable({ is_free: publicInfo.isFree, reviewer_model: reviewerModel });
+  let allowance = !billableTask
     ? 0
     : roundCredits(Math.min(requested, refreshedAccount.balance));
-  if (!publicInfo.isFree && allowance < MIN_PAID_ALLOWANCE) {
-    throw statusError(402, 'Your Blue Credits are too low to start another provider turn');
-  }
 
   const deviceHash = sha256(input.deviceId);
   const payloadHash = sha256(stableJson({
     requestId: input.requestId,
     model: model.id,
+    ...(reviewerModel ? { approvalReviewerModel: reviewerModel } : {}),
     mode: input.mode,
     requestedCeiling,
     clientVersion: input.clientVersion,
     runtimeProtocolVersion: input.runtimeProtocolVersion || BLUE_RUNTIME_PROTOCOL_VERSION,
     deviceHash
   }));
+  if (reviewerModel && allowance < MIN_PAID_ALLOWANCE) {
+    const existing = await getTaskForUser(refreshedAccount.userId, input.requestId);
+    if (existing) {
+      try {
+        // The v3 RPC independently rechecks identity under its transaction lock.
+        // This restores only the original request allowance, never a new hold.
+        allowance = reviewedRuntimeReplayAllowance(existing, {
+          device_hash: deviceHash, payload_hash: payloadHash, model: model.id,
+          mode: input.mode, is_free: publicInfo.isFree, reviewer_model: reviewerModel
+        });
+      } catch (error) {
+        throw statusError(409, safeMessage(error));
+      }
+    }
+  }
+  if (billableTask && allowance < MIN_PAID_ALLOWANCE) {
+    throw statusError(402, 'Your Blue Credits are too low to start another provider turn');
+  }
   const expiresAt = credentialExpiry();
   const capacity = blueRuntimeCapacityConfig();
   const queueExpiresAt = new Date(Date.now() + capacity.queueTimeoutSeconds * 1000).toISOString();
@@ -300,12 +338,13 @@ export async function admitBlueRuntimeTask(
   } catch {
     // Non-blocking fallback for pre-admission cleanup
   }
-  const { data, error } = await supabaseAdmin!.rpc('admit_blue_runtime_task_v2', {
+  const { data, error } = await supabaseAdmin!.rpc(reviewerModel ? 'admit_blue_runtime_task_v3' : 'admit_blue_runtime_task_v2', {
     user_id_param: refreshedAccount.userId,
     request_id_param: input.requestId,
     device_hash_param: deviceHash,
     payload_hash_param: payloadHash,
     model_param: model.id,
+    ...(reviewerModel ? { reviewer_model_param: reviewerModel } : {}),
     mode_param: input.mode,
     is_free_param: publicInfo.isFree,
     access_tier_param: refreshedAccount.accessTier,
@@ -471,7 +510,7 @@ export async function extendBlueRuntimeTask(
   if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{7,127}$/.test(extensionId)) {
     throw statusError(400, 'Invalid Blue runtime extension ID');
   }
-  if (task.is_free) {
+  if (!runtimeTaskIsBillable(task)) {
     const model = resolveModel(await getOpenRouterModels(), task.model, task.is_free);
     if (!model) throw statusError(503, 'The selected Blue model is no longer available');
     const credential = await activeOrProvision(task);
@@ -778,7 +817,7 @@ async function settleRuntimeTask(
 
   const providerCost = decision.providerCost;
 
-  if (task.is_free && providerCost > 0) {
+  if (!runtimeTaskIsBillable(task) && providerCost > 0) {
     await supabaseAdmin!.from('blue_runtime_model_blocks').upsert({
       model: task.model,
       reason: `OpenRouter reported ${providerCost} USD for a model catalogued as free`,
@@ -790,7 +829,7 @@ async function settleRuntimeTask(
   const settlement = await settleUsage(
     billingAccount,
     task.request_id,
-    task.is_free ? 0 : providerCost,
+    runtimeTaskIsBillable(task) ? providerCost : 0,
     promptTokens,
     completionTokens
   );
@@ -927,11 +966,11 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     throw statusError(409, 'This Blue runtime has not received an execution slot');
   }
   const remainingProviderAllowance = await remainingProviderAllowanceForTask(task);
-  if (!task.is_free && remainingProviderAllowance <= 0) {
+  if (runtimeTaskIsBillable(task) && remainingProviderAllowance <= 0) {
     throw statusError(402, 'This Blue task has reached its reserved provider allowance');
   }
   const expiresAt = credentialExpiry();
-  const providerLimit = task.is_free
+  const providerLimit = !runtimeTaskIsBillable(task)
     ? Math.max(0.000001, remainingProviderAllowance)
     : roundProvider(remainingProviderAllowance);
   const { data: inserted, error: insertError } = await supabaseAdmin!
@@ -955,7 +994,12 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     if (!providerModel) throw new Error('The selected Blue model is no longer available');
     const providerRoute = providerModelId(providerModel);
     if (!providerRoute) throw new Error('The selected Blue model has no valid provider route');
-    const guardrailId = await ensureModelGuardrail(providerRoute);
+    const reviewer = task.reviewer_model
+      ? approvalReviewerFromCatalog(await getOpenRouterModels(), task.reviewer_model) : undefined;
+    const reviewerRoute = reviewer ? providerModelId(reviewer) : undefined;
+    const allowedModels = runtimeAllowedModelSet(providerRoute, reviewerRoute);
+    const guardrailId = task.reviewer_model
+      ? await ensureModelSetGuardrail(allowedModels) : await ensureModelGuardrail(providerRoute);
     const created = await createManagedKey({
       name: `Blue ${task.request_id}`.slice(0, 200),
       // This is a task-scoped credential, not an unrestricted copy of our
@@ -974,7 +1018,14 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     }).eq('id', placeholder.id).eq('state', 'provisioning').select('id').maybeSingle();
     if (metadataError || !metadata?.id) throw metadataError || new Error('Credential metadata update lost its provisioning lease');
     await assignKeyGuardrail(guardrailId, keyHash);
-    await assertManagedKeyCanUseModel(created.key, providerRoute, [providerModel.id]);
+    if (reviewer) {
+      await assertManagedKeyCanUseModelSet(created.key, allowedModels.map(route => ({
+        model: route,
+        aliases: route === providerRoute ? [providerModel.id] : [reviewer.id]
+      })));
+    } else {
+      await assertManagedKeyCanUseModel(created.key, providerRoute, [providerModel.id]);
+    }
 
     const encrypted = encryptRuntimeSecret(created.key, credentialAad(task.request_id, placeholder.id));
     const now = new Date().toISOString();
@@ -1007,7 +1058,8 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
       token: created.key,
       expires_at: expiresAt,
       base_url: OPENROUTER_BASE_URL,
-      model: providerRoute
+      model: providerRoute,
+      ...(reviewerRoute ? { approval_reviewer_model: reviewerRoute } : {})
     };
   } catch (error) {
     if (keyHash) {
@@ -1026,7 +1078,15 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
   }
 }
 
-async function ensureModelGuardrail(model: string): Promise<string> {
+async function ensureModelSetGuardrail(models: string[]): Promise<string> {
+  // A distinct mapping prevents widening a single-model policy protecting old keys.
+  return ensureModelGuardrail(`approval-model-set:${sha256(JSON.stringify(models))}`, models);
+}
+
+async function ensureModelGuardrail(model: string, models?: string[]): Promise<string> {
+  const matches = (id: string) => models
+    ? exactModelSetGuardrailMatches(id, models) : exactModelGuardrailMatches(id, model);
+  const create = () => models ? createModelSetGuardrail(models) : createModelGuardrail(model);
   const { data: existing, error: lookupError } = await supabaseAdmin!
     .from('blue_model_guardrails')
     .select('guardrail_id')
@@ -1035,11 +1095,11 @@ async function ensureModelGuardrail(model: string): Promise<string> {
   if (lookupError) throw lookupError;
   if (existing?.guardrail_id) {
     const existingId = String(existing.guardrail_id);
-    if (await exactModelGuardrailMatches(existingId, model)) return existingId;
+    if (await matches(existingId)) return existingId;
 
     // Never rewrite a guardrail that can still be assigned to another live
     // task. Create a replacement, then compare-and-swap only the DB mapping.
-    const replacementId = await createModelGuardrail(model);
+    const replacementId = await create();
     const { data: replaced, error: replaceError } = await supabaseAdmin!
       .from('blue_model_guardrails')
       .update({ guardrail_id: replacementId, updated_at: new Date().toISOString() })
@@ -1063,13 +1123,13 @@ async function ensureModelGuardrail(model: string): Promise<string> {
       throw winnerError || new Error('Model guardrail replacement race was not resolved');
     }
     const winnerId = String(winner.guardrail_id);
-    if (!await exactModelGuardrailMatches(winnerId, model)) {
+    if (!await matches(winnerId)) {
       throw new Error('Model guardrail replacement did not produce an exact-model policy');
     }
     return winnerId;
   }
 
-  const createdId = await createModelGuardrail(model);
+  const createdId = await create();
   const { error } = await supabaseAdmin!.from('blue_model_guardrails').insert({
     model,
     guardrail_id: createdId
@@ -1087,7 +1147,7 @@ async function ensureModelGuardrail(model: string): Promise<string> {
   try { await deleteGuardrail(createdId); } catch {}
   if (winnerError || !winner?.guardrail_id) throw winnerError || new Error('Model guardrail race was not resolved');
   const winnerId = String(winner.guardrail_id);
-  if (!await exactModelGuardrailMatches(winnerId, model)) {
+  if (!await matches(winnerId)) {
     throw new Error('Model guardrail race produced an invalid exact-model policy');
   }
   return winnerId;
@@ -1103,7 +1163,7 @@ async function remainingProviderAllowanceForTask(task: RuntimeTaskRow): Promise<
     const end = Math.max(start, Number(row.provider_usage_final ?? start));
     return sum + end - start;
   }, 0);
-  const ceiling = task.is_free ? FREE_PROVIDER_CEILING : Number(task.reserved_blue_credits) / BLUE_CREDIT_MULTIPLIER;
+  const ceiling = !runtimeTaskIsBillable(task) ? FREE_PROVIDER_CEILING : Number(task.reserved_blue_credits) / BLUE_CREDIT_MULTIPLIER;
   return roundProvider(Math.max(0, ceiling - consumed));
 }
 
@@ -1211,13 +1271,18 @@ function decryptCredential(row: RuntimeCredentialRow): BlueRuntimeCredential {
   };
 }
 
-function admissionPayload(
+async function admissionPayload(
   task: RuntimeTaskRow,
   credential: BlueRuntimeCredential | undefined,
   remaining: number,
   model: ReturnType<typeof resolveModel> extends infer _T ? NonNullable<Awaited<ReturnType<typeof getOpenRouterModels>>[number]> : never
-): BlueRuntimeAdmission {
-  if (credential) credential.model = providerModelId(model) || model.id;
+): Promise<BlueRuntimeAdmission> {
+  const reviewer = task.reviewer_model
+    ? approvalReviewerFromCatalog(await getOpenRouterModels(), task.reviewer_model) : undefined;
+  if (credential) {
+    credential.model = providerModelId(model) || model.id;
+    if (reviewer) credential.approval_reviewer_model = providerModelId(reviewer)!;
+  }
   const capacity = blueRuntimeCapacityConfig();
   return {
     runtime_protocol_version: BLUE_RUNTIME_PROTOCOL_VERSION,
@@ -1235,10 +1300,11 @@ function admissionPayload(
     billing: {
       reserved_blue_credits: Number(task.reserved_blue_credits),
       remaining_blue_credits: Math.max(0, Number(remaining || 0)),
-      provider_limit: task.is_free ? FREE_PROVIDER_CEILING : Number(task.reserved_blue_credits) / BLUE_CREDIT_MULTIPLIER,
+      provider_limit: !runtimeTaskIsBillable(task) ? FREE_PROVIDER_CEILING : Number(task.reserved_blue_credits) / BLUE_CREDIT_MULTIPLIER,
       extension_blue_credits: BLUE_RUNTIME_EXTENSION_ALLOWANCE,
       multiplier: BLUE_CREDIT_MULTIPLIER,
-      free_model: task.is_free
+      free_model: task.is_free,
+      ...(reviewer ? { billable_task: true } : {})
     },
     rate_card: {
       prompt: price(model.pricing?.prompt),
@@ -1247,7 +1313,22 @@ function admissionPayload(
       cache_read: price(model.pricing?.input_cache_read),
       cache_write: price(model.pricing?.input_cache_write),
       reasoning: price(model.pricing?.internal_reasoning)
-    }
+    },
+    ...(reviewer ? { approval_reviewer: {
+      model: providerModelId(reviewer)!,
+      rate_card: runtimeRateCard(reviewer)
+    } } : {})
+  };
+}
+
+function runtimeRateCard(model: Awaited<ReturnType<typeof getOpenRouterModels>>[number]): BlueRuntimeAdmission['rate_card'] {
+  return {
+    prompt: price(model.pricing?.prompt),
+    completion: price(model.pricing?.completion),
+    request: price(model.pricing?.request),
+    cache_read: price(model.pricing?.input_cache_read),
+    cache_write: price(model.pricing?.input_cache_write),
+    reasoning: price(model.pricing?.internal_reasoning)
   };
 }
 
@@ -1318,6 +1399,8 @@ async function isRuntimeModelBlocked(model: string): Promise<boolean> {
 }
 
 function validateAdmissionInput(input: BlueRuntimeAdmissionInput): void {
+  try { normalizeApprovalReviewer(input.approvalReviewerModel); }
+  catch (error) { throw statusError(400, safeMessage(error)); }
   if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{7,127}$/.test(input.requestId)) throw statusError(400, 'Invalid Blue runtime task ID');
   if (!input.model || input.model.length > 200) throw statusError(400, 'An exact Blue model is required');
   if (input.mode !== 'normal' && input.mode !== 'ui_max') throw statusError(400, 'Invalid Blue runtime mode');

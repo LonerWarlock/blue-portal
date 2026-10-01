@@ -132,21 +132,31 @@ export async function deleteManagedKey(hash: string): Promise<void> {
 }
 
 export async function createModelGuardrail(model: string): Promise<string> {
-  const canonicalModel = requireCanonicalModelSlug(model);
+  return createModelSetGuardrail([model]);
+}
+
+function exactModelSet(models: string[]): string[] {
+  const selected = Array.from(new Set(models.map(requireCanonicalModelSlug))).sort();
+  if (selected.length < 1 || selected.length > 2) throw new Error('Blue credentials require one or two exact models');
+  return selected;
+}
+
+export async function createModelSetGuardrail(models: string[]): Promise<string> {
+  const selectedModels = exactModelSet(models);
   // A guardrail name identifies one policy instance, not the model. The old
   // deterministic name collides when a DB mapping is stale, an earlier policy
   // was orphaned, or two requests provision the same model concurrently.
   // Keep the random suffix even when the model slug is near the name limit.
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const suffix = randomUUID();
-    const name = `${`Blue model ${canonicalModel}`.slice(0, 200 - suffix.length - 1)}-${suffix}`;
+    const name = `${`Blue model ${selectedModels.join(' + ')}`.slice(0, 200 - suffix.length - 1)}-${suffix}`;
     try {
       const payload = await managementRequest<{ data: { id: string } }>('/guardrails', {
         method: 'POST',
         body: JSON.stringify({
           name,
           description: 'Blue runtime exact-model credential guardrail.',
-          allowed_models: [canonicalModel],
+          allowed_models: selectedModels,
           allowed_providers: null,
           workspace_id: openRouterWorkspaceId()
         })
@@ -162,7 +172,11 @@ export async function createModelGuardrail(model: string): Promise<string> {
 
 /** Read-only validation: never mutate a guardrail that may still protect live keys. */
 export async function exactModelGuardrailMatches(guardrailId: string, model: string): Promise<boolean> {
-  const canonicalModel = requireCanonicalModelSlug(model);
+  return exactModelSetGuardrailMatches(guardrailId, [model]);
+}
+
+export async function exactModelSetGuardrailMatches(guardrailId: string, models: string[]): Promise<boolean> {
+  const selectedModels = exactModelSet(models);
   let guardrail: OpenRouterGuardrail;
   try {
     const payload = await managementRequest<{ data: OpenRouterGuardrail }>(
@@ -175,8 +189,9 @@ export async function exactModelGuardrailMatches(guardrailId: string, model: str
   }
 
   return guardrail.workspace_id === openRouterWorkspaceId()
-    && guardrail.allowed_models?.length === 1
-    && guardrail.allowed_models[0] === canonicalModel;
+    && guardrail.allowed_models?.length === selectedModels.length
+    && new Set(guardrail.allowed_models).size === selectedModels.length
+    && selectedModels.every(model => guardrail.allowed_models!.includes(model));
 }
 
 /**
@@ -189,10 +204,19 @@ export async function assertManagedKeyCanUseModel(
   model: string,
   aliases: string[] = []
 ): Promise<void> {
-  const canonicalModel = requireCanonicalModelSlug(model);
-  const acceptedModels = new Set([canonicalModel, ...aliases]
+  return assertManagedKeyCanUseModelSet(key, [{ model, aliases }]);
+}
+
+export async function assertManagedKeyCanUseModelSet(
+  key: string,
+  models: { model: string; aliases?: string[] }[]
+): Promise<void> {
+  const canonicalModels = exactModelSet(models.map(value => value.model));
+  const acceptedGroups = canonicalModels.map(model => new Set([model, ...models
+    .filter(value => value.model === model).flatMap(value => value.aliases || [])]
     .map(value => String(value || '').trim())
-    .filter(value => value && !value.startsWith('~') && !value.toLowerCase().startsWith('openrouter/')));
+    .filter(value => value && !value.startsWith('~') && !value.toLowerCase().startsWith('openrouter/')
+      && (value.match(/:[^/:]+$/)?.[0] || '') === (model.match(/:[^/:]+$/)?.[0] || ''))));
   let lastError: Error | undefined;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
@@ -208,11 +232,11 @@ export async function assertManagedKeyCanUseModel(
           // access to both a paid and a free variant cannot look like one model.
           String(candidate.id || candidate.canonical_slug || '').trim()
         ).filter(Boolean));
-        let hasSelectedModel = false;
-        availableModels.forEach(candidate => {
-          if (acceptedModels.has(candidate)) hasSelectedModel = true;
-        });
-        if (availableModels.size === 1 && hasSelectedModel) return;
+        const available = Array.from(availableModels);
+        const hasSelectedModel = acceptedGroups.every(group => available.some(candidate => group.has(candidate)));
+        const exactGroups = acceptedGroups.every(group => available.filter(candidate => group.has(candidate)).length === 1)
+          && available.every(candidate => acceptedGroups.filter(group => group.has(candidate)).length === 1);
+        if (availableModels.size === canonicalModels.length && hasSelectedModel && exactGroups) return;
         lastError = new Error(hasSelectedModel
           ? 'The temporary provider credential is not restricted to the selected model'
           : 'The temporary provider credential cannot access the selected model');
