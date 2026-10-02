@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Bot, Crown, Menu, Terminal, X } from "lucide-react";
+import { Crown, Menu, Terminal, X } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import ThemeToggle from "./ThemeToggle";
 
@@ -14,8 +15,9 @@ const NAV_LINKS = [
   { href: "/blog", label: "Blog" },
 ];
 
-export default function Navbar() {
+export default function Navbar({ signedIn }: { signedIn?: boolean } = {}) {
   const { user } = useAuth();
+  const showAccountLinks = signedIn ?? Boolean(user);
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -42,15 +44,13 @@ export default function Navbar() {
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
-      <header className="sticky top-0 z-50 w-full border-b border-line bg-paper shadow-soft">
-      <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-50 w-full border-b border-line bg-paper">
+      <div className="site-container flex min-h-[76px] items-center justify-between gap-3 py-3">
         <Link prefetch={false} href="/" className="flex min-w-0 items-center gap-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand">
-            <Bot aria-hidden="true" className="h-4 w-4 text-white" />
-          </div>
+          <Image src="/images/blue-symbol.png" alt="" width={38} height={38} unoptimized priority />
           <div className="min-w-0">
-            <span className="block truncate text-base font-display font-bold tracking-tight text-ink sm:text-lg">Blue AI</span>
-            <span className="eyebrow hidden leading-none mt-0.5 sm:block">Coding Agent</span>
+            <span className="block text-2xl font-display font-semibold tracking-tight text-ink">Blue</span>
+            <span className="hidden text-[10px] text-ink-muted sm:block">by Imergene</span>
           </div>
         </Link>
 
@@ -64,7 +64,7 @@ export default function Navbar() {
                 prefetch={false}
                 href={link.href}
                 aria-current={active ? "page" : undefined}
-                className={`text-sm px-3 py-1.5 transition-colors duration-150 ${
+                className={`text-sm px-4 py-3 transition-colors duration-150 ${
                   active
                     ? "nav-link-active font-medium"
                     : "text-ink-muted hover:text-ink rounded-md"
@@ -80,7 +80,7 @@ export default function Navbar() {
           <ThemeToggle />
 
           <div className="hidden items-center gap-3 lg:flex">
-            {user ? (
+            {showAccountLinks ? (
               <>
               <Link prefetch={false}
                 href="/pricing"
@@ -99,13 +99,6 @@ export default function Navbar() {
               </>
             ) : (
               <>
-              <Link prefetch={false}
-                href="/pricing"
-                className="btn btn-secondary !py-1.5"
-              >
-                <Crown aria-hidden="true" className="mr-1.5 h-3 w-3 text-accent" />
-                Upgrade
-              </Link>
               <Link prefetch={false}
                 href="/console"
                 className="btn btn-ghost !py-1.5"
@@ -128,7 +121,7 @@ export default function Navbar() {
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-navigation"
             onClick={() => setMobileMenuOpen(open => !open)}
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-paper-alt text-ink transition hover:bg-paper-sunken lg:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-md border border-line bg-paper-alt text-ink transition hover:bg-paper-sunken lg:hidden"
           >
             {mobileMenuOpen
               ? <X aria-hidden="true" className="h-4 w-4" />
@@ -161,8 +154,8 @@ export default function Navbar() {
                 Upgrade
               </Link>
               <Link prefetch={false} href="/console" onClick={() => setMobileMenuOpen(false)} className="btn btn-primary justify-center !py-2.5">
-                {user ? <Terminal aria-hidden="true" className="mr-1.5 h-3.5 w-3.5" /> : null}
-                {user ? "Console" : "Get Started"}
+                {showAccountLinks ? <Terminal aria-hidden="true" className="mr-1.5 h-3.5 w-3.5" /> : null}
+                {showAccountLinks ? "Console" : "Get Started"}
               </Link>
             </div>
           </div>

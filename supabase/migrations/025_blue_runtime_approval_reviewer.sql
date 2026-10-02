@@ -64,5 +64,7 @@ begin
 end;
 $$ language plpgsql security definer set search_path = public;
 
-revoke all on function public.admit_blue_runtime_task_v3(uuid, text, text, text, text, text, boolean, text, numeric, integer, integer, timestamptz, timestamptz, text) from public;
+-- Supabase may grant these roles EXECUTE through default privileges; revoking
+-- PUBLIC alone does not remove their direct grants.
+revoke all on function public.admit_blue_runtime_task_v3(uuid, text, text, text, text, text, boolean, text, numeric, integer, integer, timestamptz, timestamptz, text) from public, anon, authenticated;
 grant execute on function public.admit_blue_runtime_task_v3(uuid, text, text, text, text, text, boolean, text, numeric, integer, integer, timestamptz, timestamptz, text) to service_role;

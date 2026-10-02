@@ -37,8 +37,8 @@ export default function Testimonials() {
       <div className={styles.container}>
         <div className={styles.layout}>
           <div className={styles.intro}>
-            <span className="eyebrow">// testimonials</span>
-            <h2 id="testimonials-heading">What Blue users are saying.</h2>
+            <span className="eyebrow">05 / Real experiences</span>
+            <h2 id="testimonials-heading">Built with Blue.<br />Shared by you.</h2>
             <p className={styles.description}>Real feedback from developers on the Visual Studio Marketplace.</p>
             <div className={styles.summary}>
               <strong>{average}<span> / 5</span></strong>

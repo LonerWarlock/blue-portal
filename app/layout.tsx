@@ -56,8 +56,8 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Blue AI — Let AI code for you while you think",
-  description: "Blue's Autonomous Agents build entire features, run tests, and fix bugs by themselves. Accelerate development by handing off tasks to Blue while you focus on architecture.",
+  title: "Blue — An AI coding workspace made for students",
+  description: "Made specifically for students. Learn by building with Blue: understand projects, develop ideas, and work with AI coding agents in VS Code. Blue Desktop is launching soon.",
 };
 
 export default function RootLayout({

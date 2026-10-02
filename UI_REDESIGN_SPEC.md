@@ -155,3 +155,36 @@ site-wide.
 neon or saturated multi-color gradients (purple→pink→cyan etc.), heavy
 colored shadows, `rounded-full` buttons, decorative animation, more than
 one accent color per view.
+
+
+## Approved premium visual-system refresh — October 2, 2026
+
+The user's full-UI color refresh supersedes the earlier warm neutral palette
+and homepage limits on animated brand artwork and editorial typography.
+
+- Shared colors: cool white and deep midnight navy with electric-blue accents.
+- Public homepage: original 3D Blue ribbon, cinematic Laser Flow separator,
+  genuine Desktop previews in both themes, editorial rows and a model rail.
+- Audience: prominently state "Made specifically for students".
+- Desktop stays "Launching soon": no Store button or public launch announcement.
+- Preserve authentic reviews and existing React Bits Stack motion and license.
+- Respect reduced motion, data saving, pause controls and offscreen GPU disposal.
+  Demo video playback starts only when the visitor chooses to play.
+- Account/checkout layouts, billing, authentication, security and APIs are unchanged.
+  They inherit shared color tokens, not a new transaction workflow.
+- Local preview only; this UI request does not authorize deployment or Git push.
+
+### Interactive Desktop demo and responsive layouts
+
+- Replace Desktop screenshots with the actual Blue Desktop 0.1.19 React renderer.
+  A website-only adapter supplies clearly labelled, scripted example data.
+- No model calls, credits, credentials, filesystem access or account connections.
+  The isolated iframe has no same-origin privileges and a network-blocking CSP.
+- Phones use the original menu to open a sidebar overlay. Agent and rollback
+  details fit the frame; the composer, questions and model picker retain readable
+  text and touch-sized controls. Tablets and desktops use the wider native layout.
+- The inline and full-size demos both reflow to their container width; do not use
+  scaled screenshots or horizontally overflowing miniature desktop windows.
+- Generate the committed static demo with `node scripts/build-desktop-demo.cjs`.
+  This local build reads the sibling Desktop renderer; deployment serves the
+  generated assets and does not require the Desktop source or engine.

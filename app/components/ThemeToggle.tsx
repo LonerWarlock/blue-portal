@@ -28,11 +28,11 @@ export default function ThemeToggle() {
             aria-label={opt.label}
             aria-pressed={active}
             onClick={() => setTheme(opt.value)}
-            className={`w-7 h-7 flex items-center justify-center rounded transition-colors duration-150 ${
+            className={`w-11 h-11 flex items-center justify-center rounded transition-colors duration-150 ${
               active ? "bg-surface text-brand shadow-soft" : "text-ink-faint hover:text-ink-muted"
             }`}
           >
-            <Icon aria-hidden="true" className="h-3 w-3" />
+            <Icon aria-hidden="true" className="h-3.5 w-3.5" />
           </button>
         );
       })}

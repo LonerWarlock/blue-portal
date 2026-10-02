@@ -1,33 +1,23 @@
 import Link from "next/link";
+import { ArrowRight, Code2 } from "lucide-react";
+import styles from "./PremiumLanding.module.css";
+import InstallCommand from "./InstallCommand";
 
 export default function CtaSection() {
   return (
-    <section className="py-24">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="panel-alt border-t-2 border-t-brand p-12 md:p-16 text-center">
-          <h2 className="text-3xl md:text-5xl font-display font-bold tracking-tight text-ink">
-            Try Blue now.
-          </h2>
-          <p className="mt-4 text-ink-muted max-w-xl mx-auto">
-            Get started free — every new sign-up receives $1.00 of free starter credits. No credit card required.
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link href="/console" className="btn btn-primary text-base">
-              Get Started Free
-              <i className="fa-solid fa-arrow-right ml-2"></i>
-            </Link>
-            <Link href="/pricing" className="btn btn-secondary text-base">
-              <i className="fa-solid fa-crown mr-2 text-accent"></i>
-              See Plans
-            </Link>
-            <Link href="/docs" className="btn btn-ghost text-base">
-              View Documentation
-            </Link>
-          </div>
-          <p className="mt-6 text-xs text-ink-faint">
-            Free tier models (DeepSeek V4 Flash, MiMo V2.5, Nemotron) cost $0.00 — they never drain your wallet.
-          </p>
+    <section className={styles.cta} aria-labelledby="get-started-title">
+      <div className={styles.wrap}>
+        <span className={styles.eyebrow}>Your next chapter</span>
+        <h2 id="get-started-title" className={`${styles.ctaTitle} mt-6`}>Big ideas.<br /><span>Start with Blue.</span></h2>
+        <div className={styles.ctaBottom}>
+          <p>Made specifically for students. Bring your curiosity, your code, and something you want to build.</p>
+          <div className={styles.actions}><Link href="/console" className={styles.primary}>Get Started for Free <ArrowRight size={16} aria-hidden="true" /></Link><Link href="/pricing" className={styles.secondary}>Find your plan</Link></div>
         </div>
+        <div className={styles.install}>
+          <div><h3>Meet Blue where you code.</h3><p>Use Blue in VS Code today. Blue Desktop is launching soon.</p></div>
+          <a className={styles.secondary} href="https://marketplace.visualstudio.com/items?itemName=om-mali.blue-coding-assistant" target="_blank" rel="noopener noreferrer"><Code2 size={18} aria-hidden="true" /> Explore the VS Code extension <ArrowRight size={15} aria-hidden="true" /></a>
+        </div>
+        <InstallCommand />
       </div>
     </section>
   );

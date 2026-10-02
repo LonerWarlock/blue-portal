@@ -1,14 +1,16 @@
-'use client';
+"use client";
 
+import Image from "next/image";
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import { useCookieConsent } from "../contexts/CookieConsentContext";
 
 const footerLinks = {
   Product: [
     { label: "Agents", href: "/product/agents" },
+    { label: "Pricing", href: "/pricing" },
     { label: "Services", href: "/services" },
     { label: "Enterprise", href: "/enterprise" },
-    { label: "Pricing", href: "/pricing" },
   ],
   Resources: [
     { label: "Documentation", href: "/docs" },
@@ -17,80 +19,31 @@ const footerLinks = {
     { label: "Status", href: "/status" },
   ],
   Company: [
-    { label: "Careers", href: "/careers" },
     { label: "Blog", href: "/blog" },
+    { label: "Contact", href: "/contact" },
     { label: "Security", href: "/security" },
     { label: "Privacy & DPDP", href: "/privacy" },
     { label: "Terms", href: "/terms" },
-    { label: "Contact", href: "/contact" },
-    { label: "Refund", href: "/refund" },
+    { label: "Refund policy", href: "/refund" },
   ],
 };
 
 export default function Footer() {
   const { resetConsent } = useCookieConsent();
-
   return (
-    <footer className="w-full bg-paper-alt px-6 py-12 border-t border-line">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.25fr_repeat(3,minmax(0,1fr))]">
+    <footer className="site-footer border-t border-line bg-paper-alt">
+      <div className="site-container py-16">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.5fr_repeat(3,minmax(0,1fr))]">
           <div>
-            <Link href="/" className="inline-flex items-center gap-3">
-              <div className="w-9 h-9 rounded-md bg-brand flex items-center justify-center shrink-0">
-                <i className="fa-solid fa-robot text-xs text-white"></i>
-              </div>
-              <div>
-                <span className="block text-base font-display font-bold tracking-tight text-ink">Blue AI</span>
-                <span className="eyebrow block leading-none mt-1">Coding Agent</span>
-              </div>
-            </Link>
-            <p className="mt-4 max-w-xs text-sm leading-6 text-ink-muted">
-              Affordable autonomous coding agents that plan, build, test, and improve your software.
-            </p>
+            <Link href="/" className="inline-flex items-center gap-3" aria-label="Blue home"><Image src="/images/blue-symbol.png" alt="" width={40} height={40} unoptimized /><span className="font-display text-2xl font-semibold tracking-tight">Blue<span className="ml-3 text-xs font-sans font-normal text-ink-muted">by Imergene</span></span></Link>
+            <p className="mt-5 max-w-xs text-sm leading-7 text-ink-muted">Made specifically for students.<br />An AI coding workspace for the ideas you want to bring to life.</p>
+            <p className="mt-4 text-xs text-brand">Blue Desktop · Launching soon</p>
           </div>
-
-          {Object.entries(footerLinks).map(([category, links]) => (
-            <div key={category}>
-              <h4 className="eyebrow mb-4">{category}</h4>
-              <nav aria-label={`${category} links`} className="flex flex-col items-start gap-2.5">
-                {links.map((link) => (
-                  <Link
-                    prefetch={false}
-                    key={link.label}
-                    href={link.href}
-                    className="text-sm text-ink-muted hover:text-ink transition-colors duration-150"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-                {category === 'Company' && (
-                  <button
-                    onClick={resetConsent}
-                    className="text-sm text-ink-muted hover:text-ink transition-colors duration-150 text-left cursor-pointer"
-                  >
-                    Cookie Preferences
-                  </button>
-                )}
-              </nav>
-            </div>
-          ))}
+          {Object.entries(footerLinks).map(([category, links]) => <div key={category}><h3 className="eyebrow mb-4">{category}</h3><nav aria-label={`${category} links`} className="flex flex-col items-start">{links.map(link => <Link prefetch={false} key={link.label} href={link.href} className="inline-flex min-h-10 items-center text-sm text-ink-muted hover:text-ink">{link.label}</Link>)}{category === "Company" && <button type="button" onClick={resetConsent} className="min-h-10 text-left text-sm text-ink-muted hover:text-ink">Cookie preferences</button>}</nav></div>)}
         </div>
-
-        <div className="mt-10 pt-6 border-t border-line flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="text-xs text-ink-faint text-center md:text-left">
-            &copy; 2026 Blue AI. All rights reserved. Owned and operated by IMERGENE.
-          </div>
-          <div className="flex items-center gap-4">
-            <a href="#" aria-label="GitHub" className="text-ink-faint hover:text-ink transition-colors duration-150 text-sm">
-              <i className="fa-brands fa-github"></i>
-            </a>
-            <a href="#" aria-label="LinkedIn" className="text-ink-faint hover:text-ink transition-colors duration-150 text-sm">
-              <i className="fa-brands fa-linkedin"></i>
-            </a>
-            <a href="#" aria-label="YouTube" className="text-ink-faint hover:text-ink transition-colors duration-150 text-sm">
-              <i className="fa-brands fa-youtube"></i>
-            </a>
-          </div>
+        <div className="mt-14 flex flex-col gap-5 border-t border-line pt-6 text-xs text-ink-muted sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} Blue. Owned and operated by IMERGENE.</p>
+          <a href="https://marketplace.visualstudio.com/items?itemName=om-mali.blue-coding-assistant" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 hover:text-brand">Find Blue on Visual Studio Marketplace <ArrowUpRight size={14} aria-hidden="true" /></a>
         </div>
       </div>
     </footer>

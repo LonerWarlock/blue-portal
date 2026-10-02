@@ -3,30 +3,31 @@
 @tailwind utilities;
 
 :root {
-  --ink: #172033;
-  --ink-rgb: 23 32 51;
-  --ink-muted: #667085;
-  --ink-muted-rgb: 102 112 133;
-  --ink-faint: #98a2b3;
-  --ink-faint-rgb: 152 162 179;
-  --paper: #faf8f4;
-  --paper-rgb: 250 248 244;
-  --paper-alt: #f3f0e9;
-  --paper-alt-rgb: 243 240 233;
-  --paper-sunken: #eae6dc;
-  --paper-sunken-rgb: 234 230 220;
+  --on-brand: #ffffff;
+  --ink: #07152b;
+  --ink-rgb: 7 21 43;
+  --ink-muted: #52617a;
+  --ink-muted-rgb: 82 97 122;
+  --ink-faint: #708199;
+  --ink-faint-rgb: 112 129 153;
+  --paper: #f5f7fc;
+  --paper-rgb: 245 247 252;
+  --paper-alt: #edf1f8;
+  --paper-alt-rgb: 237 241 248;
+  --paper-sunken: #e2e9f4;
+  --paper-sunken-rgb: 226 233 244;
   --surface: #ffffff;
   --surface-rgb: 255 255 255;
-  --line: #e3e6ec;
-  --line-rgb: 227 230 236;
-  --line-strong: #ccd2dc;
-  --line-strong-rgb: 204 210 220;
-  --brand: #28648f;
-  --brand-rgb: 40 100 143;
-  --brand-hover: #1f4f72;
-  --brand-hover-rgb: 31 79 114;
-  --brand-soft: #dcecf7;
-  --brand-soft-rgb: 220 236 247;
+  --line: #dce3ef;
+  --line-rgb: 220 227 239;
+  --line-strong: #becbe0;
+  --line-strong-rgb: 190 203 224;
+  --brand: #165dff;
+  --brand-rgb: 22 93 255;
+  --brand-hover: #0846cf;
+  --brand-hover-rgb: 8 70 207;
+  --brand-soft: #e3ecff;
+  --brand-soft-rgb: 227 236 255;
   --accent: #b7841f;
   --accent-rgb: 183 132 31;
   --success: #1e7a4c;
@@ -35,8 +36,8 @@
   --danger-rgb: 179 38 30;
   --warning: #946200;
   --warning-rgb: 148 98 0;
-  --terminal: #172033;
-  --terminal-rgb: 23 32 51;
+  --terminal: #07152b;
+  --terminal-rgb: 7 21 43;
   --shadow-sm: 0 1px 2px rgba(23, 32, 51, 0.05);
   --shadow-md: 0 6px 16px rgba(23, 32, 51, 0.06), 0 1px 3px rgba(23, 32, 51, 0.05);
 }
@@ -47,31 +48,32 @@
    prefers-color-scheme fallback only fires before JS has set the
    attribute (e.g. no-JS environments). */
 html[data-theme="dark"] {
+  --on-brand: #07152b;
   color-scheme: dark;
-  --ink: #E8EAED;
-  --ink-rgb: 232 234 237;
-  --ink-muted: #9AA4B2;
-  --ink-muted-rgb: 154 164 178;
-  --ink-faint: #6B7482;
-  --ink-faint-rgb: 107 116 130;
-  --paper: #14171C;
-  --paper-rgb: 20 23 28;
-  --paper-alt: #1A1E25;
-  --paper-alt-rgb: 26 30 37;
-  --paper-sunken: #0F1216;
-  --paper-sunken-rgb: 15 18 22;
-  --surface: #1C2128;
-  --surface-rgb: 28 33 40;
-  --line: #2A2F38;
-  --line-rgb: 42 47 56;
-  --line-strong: #3A414D;
-  --line-strong-rgb: 58 65 77;
-  --brand: #5B9BD5;
-  --brand-rgb: 91 155 213;
-  --brand-hover: #7AB0E0;
-  --brand-hover-rgb: 122 176 224;
-  --brand-soft: #1E2E3F;
-  --brand-soft-rgb: 30 46 63;
+  --ink: #f2f6ff;
+  --ink-rgb: 242 246 255;
+  --ink-muted: #abb9d0;
+  --ink-muted-rgb: 171 185 208;
+  --ink-faint: #8193b0;
+  --ink-faint-rgb: 129 147 176;
+  --paper: #070d1a;
+  --paper-rgb: 7 13 26;
+  --paper-alt: #0c1526;
+  --paper-alt-rgb: 12 21 38;
+  --paper-sunken: #040915;
+  --paper-sunken-rgb: 4 9 21;
+  --surface: #101d32;
+  --surface-rgb: 16 29 50;
+  --line: #223048;
+  --line-rgb: 34 48 72;
+  --line-strong: #344a69;
+  --line-strong-rgb: 52 74 105;
+  --brand: #82abff;
+  --brand-rgb: 130 171 255;
+  --brand-hover: #a7c4ff;
+  --brand-hover-rgb: 167 196 255;
+  --brand-soft: #172c51;
+  --brand-soft-rgb: 23 44 81;
   --accent: #D6A24E;
   --accent-rgb: 214 162 78;
   --success: #3FA873;
@@ -80,8 +82,8 @@ html[data-theme="dark"] {
   --danger-rgb: 229 97 90;
   --warning: #D9A441;
   --warning-rgb: 217 164 65;
-  --terminal: #0F1216;
-  --terminal-rgb: 15 18 22;
+  --terminal: #040915;
+  --terminal-rgb: 4 9 21;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
 }
@@ -92,31 +94,32 @@ html[data-theme="light"] {
 
 @media (prefers-color-scheme: dark) {
   html:not([data-theme]) {
+    --on-brand: #07152b;
     color-scheme: dark;
-    --ink: #E8EAED;
-    --ink-rgb: 232 234 237;
-    --ink-muted: #9AA4B2;
-    --ink-muted-rgb: 154 164 178;
-    --ink-faint: #6B7482;
-    --ink-faint-rgb: 107 116 130;
-    --paper: #14171C;
-    --paper-rgb: 20 23 28;
-    --paper-alt: #1A1E25;
-    --paper-alt-rgb: 26 30 37;
-    --paper-sunken: #0F1216;
-    --paper-sunken-rgb: 15 18 22;
-    --surface: #1C2128;
-    --surface-rgb: 28 33 40;
-    --line: #2A2F38;
-    --line-rgb: 42 47 56;
-    --line-strong: #3A414D;
-    --line-strong-rgb: 58 65 77;
-    --brand: #5B9BD5;
-    --brand-rgb: 91 155 213;
-    --brand-hover: #7AB0E0;
-    --brand-hover-rgb: 122 176 224;
-    --brand-soft: #1E2E3F;
-    --brand-soft-rgb: 30 46 63;
+    --ink: #f2f6ff;
+    --ink-rgb: 242 246 255;
+    --ink-muted: #abb9d0;
+    --ink-muted-rgb: 171 185 208;
+    --ink-faint: #8193b0;
+    --ink-faint-rgb: 129 147 176;
+    --paper: #070d1a;
+    --paper-rgb: 7 13 26;
+    --paper-alt: #0c1526;
+    --paper-alt-rgb: 12 21 38;
+    --paper-sunken: #040915;
+    --paper-sunken-rgb: 4 9 21;
+    --surface: #101d32;
+    --surface-rgb: 16 29 50;
+    --line: #223048;
+    --line-rgb: 34 48 72;
+    --line-strong: #344a69;
+    --line-strong-rgb: 52 74 105;
+    --brand: #82abff;
+    --brand-rgb: 130 171 255;
+    --brand-hover: #a7c4ff;
+    --brand-hover-rgb: 167 196 255;
+    --brand-soft: #172c51;
+    --brand-soft-rgb: 23 44 81;
     --accent: #D6A24E;
     --accent-rgb: 214 162 78;
     --success: #3FA873;
@@ -125,8 +128,8 @@ html[data-theme="light"] {
     --danger-rgb: 229 97 90;
     --warning: #D9A441;
     --warning-rgb: 217 164 65;
-    --terminal: #0F1216;
-    --terminal-rgb: 15 18 22;
+    --terminal: #040915;
+    --terminal-rgb: 4 9 21;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
     --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
   }
@@ -209,7 +212,7 @@ footer {
 
 .btn-primary {
   background: var(--brand);
-  color: #ffffff;
+  color: var(--on-brand);
   box-shadow: 0 1px 2px rgba(23, 32, 51, 0.08);
 }
 .btn-primary:hover {
@@ -442,3 +445,14 @@ html[data-theme="dark"] :is(.text-amber-700, .text-yellow-700) {
     transform: translateY(0);
   }
 }
+
+/* The October 2026 full-UI palette refresh is presentational only.
+   Existing account/checkout fields, layouts, handlers and security stay intact. */
+.site-container { width: min(1280px, calc(100% - 96px)); margin-inline: auto; }
+.site-interior h1 { font-family: var(--font-plex-sans), sans-serif; font-weight: 500; letter-spacing: -.05em; line-height: 1.08; }
+.site-interior h2 { font-family: var(--font-plex-sans), sans-serif; letter-spacing: -.035em; }
+.site-interior section[id] { scroll-margin-top: 100px; }
+.bg-brand.text-white, .bg-brand .text-white { color: var(--on-brand); }
+@media (max-width: 1100px) { .site-container { width: calc(100% - 64px); } }
+@media (max-width: 767px) { .site-container { width: calc(100% - 40px); } }
+@media (prefers-reduced-motion: reduce) { [aria-label="Cookie consent"] { animation: none; } }

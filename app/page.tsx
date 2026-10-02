@@ -6,13 +6,16 @@ import ModelsShowcase from "./components/ModelsShowcase";
 import DemoVideo from "./components/DemoVideo";
 import CtaSection from "./components/CtaSection";
 import Footer from "./components/Footer";
+import ProductShowcase from "./components/ProductShowcase";
+import styles from "./components/PremiumLanding.module.css";
 
 export default function LandingPage() {
   return (
     <>
       <Navbar />
-      <main className="flex-1">
+      <main id="main-content" className={`flex-1 ${styles.landing}`}>
         <Hero />
+        <ProductShowcase />
         <Features />
         <ModelsShowcase />
         <DemoVideo />

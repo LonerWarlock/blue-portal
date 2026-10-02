@@ -1,56 +1,33 @@
 import Link from "next/link";
-import VSCodeInstallSnippet from "./VSCodeInstallSnippet";
-import LaserFlowHero from "./LaserFlowHero";
+import { ArrowDown, ArrowRight, Code2, Monitor, ShieldCheck, UsersRound } from "lucide-react";
+import BlueCore from "./BlueCore";
+import styles from "./PremiumLanding.module.css";
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden pt-20 bg-paper-alt border-b border-line">
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="text-center max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-line-strong bg-paper eyebrow mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand" />
-            AI Coding Agents for Developers
+    <section className={styles.hero} aria-labelledby="blue-hero-title">
+      <div className={styles.wrap}>
+        <div className={styles.heroGrid}>
+          <div className={styles.heroCopy}>
+            <span className={styles.eyebrow}>Made specifically for students</span>
+            <h1 id="blue-hero-title" className={styles.heroTitle}>Your ideas.<br />Blue&apos;s craft.<br /><span>Build what&apos;s next.</span></h1>
+            <p className={styles.heroDescription}>Learn by building. Turn coursework, ambitious side projects, and your next big idea into real software—with an AI coding workspace that works alongside you.</p>
+            <div className={styles.actions}>
+              <Link prefetch={false} href="/console" className={styles.primary}>Get Started for Free <ArrowRight size={16} aria-hidden="true" /></Link>
+              <Link prefetch={false} href="/contact" className={styles.secondary}>Book a Demo</Link>
+            </div>
+            <div className={styles.heroPlatforms}><Code2 size={15} aria-hidden="true" /> In VS Code <span>Blue Desktop · Launching soon</span></div>
+            <a href="#workspace" className={styles.textLink}>Explore the workspace <ArrowDown size={14} aria-hidden="true" /></a>
           </div>
-
-          <h1 className="text-4xl md:text-6xl font-display font-bold tracking-tight leading-tight text-ink">
-            Let AI code for you
-            <br />
-            <span className="text-brand">while you think</span>
-          </h1>
-
-          <p className="mt-6 text-lg text-ink-muted max-w-2xl mx-auto leading-relaxed">
-            Blue understands your codebase, then builds entire features, writes
-            tests, and fixes bugs on its own&mdash;working autonomously so you can
-            focus on architecture, not busywork.
-          </p>
-
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link prefetch={false} href="/console" className="btn btn-primary text-base">
-              Get Started for Free
-              <i className="fa-solid fa-arrow-right ml-2" />
-            </Link>
-            <Link prefetch={false} href="/contact" className="btn btn-secondary text-base">
-              Book a Demo
-            </Link>
-          </div>
-
-          <p className="mt-4 text-sm text-ink-faint">
-            <Link prefetch={false} href="/pricing" className="hover:text-ink-muted transition-colors duration-150">
-              See plans &amp; pricing
-            </Link>
-            <span className="mx-2">&middot;</span>
-            <Link prefetch={false} href="/docs" className="hover:text-ink-muted transition-colors duration-150">
-              Read the docs
-            </Link>
-          </p>
-
-          {/* Terminal Command Install Snippet */}
-          <div className="mt-10">
-            <VSCodeInstallSnippet />
-          </div>
+          <BlueCore />
+        </div>
+        <div className={styles.platformStrip}>
+          <p className={styles.platformIntro}>Built around your workflow</p>
+          <div className={styles.platformItem}><Monitor size={21} aria-hidden="true" /><div>Your project, connected<small>Local tools. Real code.</small></div></div>
+          <div className={styles.platformItem}><UsersRound size={21} aria-hidden="true" /><div>Independent work, in parallel<small>Multi-agent on eligible paid plans.</small></div></div>
+          <div className={styles.platformItem}><ShieldCheck size={21} aria-hidden="true" /><div>You stay in control<small>Guarded approvals and checkpoints.</small></div></div>
         </div>
       </div>
-      <LaserFlowHero />
     </section>
   );
 }

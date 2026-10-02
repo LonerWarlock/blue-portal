@@ -1,0 +1,13 @@
+{
+  "kind": "isolated-example-demo",
+  "version": "0.1.19",
+  "renderer": "Blue Desktop original React renderer; unmodified source",
+  "sourceHashes": {
+    "app": "66090d883b9ce2641a8ec6f92ed85323e72221cf310733c9d6c29e15f15e6ca4",
+    "styles": "cb014bf7fdb694110582bb75bec73c67a732e4dbb4d89437905b045e4fd904c5"
+  },
+  "network": false,
+  "aiCalls": false,
+  "accountConnection": false,
+  "filesystemAccess": false
+}

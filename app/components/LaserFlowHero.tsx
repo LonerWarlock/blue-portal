@@ -1,10 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Image from "next/image";
 import { Pause, Play } from "lucide-react";
 import { Component, useCallback, useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import styles from "./LaserFlowHero.module.css";
+import { useTheme } from "../contexts/ThemeContext";
+import DesktopShowcase from "./DesktopShowcase";
 
 // Keep Three.js out of the initial homepage bundle and every other route.
 const LaserFlow = dynamic(() => import("./react-bits/LaserFlow"), { ssr: false });
@@ -20,6 +21,7 @@ class AnimationBoundary extends Component<{
 }
 
 export default function LaserFlowHero() {
+  const { resolvedTheme } = useTheme();
   const stageRef = useRef<HTMLDivElement>(null);
   const revealFrame = useRef(0);
   const [ready, setReady] = useState(false);
@@ -126,8 +128,8 @@ export default function LaserFlowHero() {
           <div className={styles.laser}>
             <AnimationBoundary onUnavailable={onUnavailable}>
               <LaserFlow
-                color="#5B9BD5"
-                backgroundColor="#101925"
+                color={resolvedTheme === "dark" ? "#82ABFF" : "#165DFF"}
+                backgroundColor={resolvedTheme === "dark" ? "#070D1A" : "#F5F7FC"}
                 falloffStart={0.5}
                 horizontalBeamOffset={0}
                 verticalBeamOffset={-0.5}
@@ -153,7 +155,7 @@ export default function LaserFlowHero() {
         <div className={styles.separator} data-blue-laser-separator="true" />
       </div>
       <div className={styles.preview} data-blue-desktop-preview="true">
-        <Image src="/images/blue-desktop-preview.png" alt="Blue Desktop's current interface, with New chat, Connections, Full Access, UI Max and Attach file controls. Empty preview account." width={1440} height={900} unoptimized draggable={false} />
+        <DesktopShowcase />
       </div>
       {canAnimate && (
         <div className={styles.animationControls}>

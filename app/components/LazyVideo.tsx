@@ -38,7 +38,6 @@ export default function LazyVideo({
       ([entry]) => {
         if (entry.isIntersecting) {
           setShouldLoad(true);
-          void video.play().catch(() => undefined);
         } else {
           video.pause();
         }
@@ -63,7 +62,6 @@ export default function LazyVideo({
       controls
       controlsList="nodownload"
       onContextMenu={event => event.preventDefault()}
-      autoPlay
       muted
       loop
       playsInline

@@ -1,0 +1,42 @@
+/* Website-preview adaptation only. Blue Desktop's original source is unchanged. */
+@media (max-width: 767px) {
+  .window-bar { height: 44px; }
+  .window-controls { display: none; }
+  .window-drag-region { padding-left: 4px; }
+  .desktop-menu { margin-left: 4px; }
+  .desktop-menu > .desktop-menu-root > button { padding-inline: 9px; }
+  .chrome-button { width: 44px; height: 44px; }
+  .chrome-button[aria-label="Go back"], .chrome-button[aria-label="Go forward"] { display: none; }
+  .desktop-layout, .desktop-layout.sidebar-collapsed { position: relative; grid-template-columns: minmax(0, 1fr); }
+  .desktop-layout:not(.sidebar-collapsed) > .sidebar { position: absolute; z-index: 90; inset: 0 auto 0 0; width: min(292px, calc(100% - 40px)); box-shadow: 20px 0 40px #0003; }
+  .sidebar button { min-height: 44px; }
+  .sidebar .project-row { height: 44px; }
+  .sidebar .project-row-action { opacity: 1; }
+  .desktop-dropdown { position: fixed; left: 8px; right: 8px; top: 44px; width: auto; }
+  .desktop-dropdown button { min-height: 44px; }
+  .workspace.with-detail { display: block; }
+  .workspace-detail-panel { position: absolute; z-index: 60; inset: 0; width: 100%; background: var(--surface); border-left: 0; }
+  .workspace.with-detail > .rollback-open-button { display: none; }
+  .workspace-detail-tabs .rollback-icon-button { width: 44px; height: 44px; }
+  .workspace .chat-header { padding-left: 12px; padding-right: 108px; }
+  .rollback-open-button { min-height: 44px; top: 8px; right: 8px; }
+  .message-list { width: calc(100% - 24px); padding-top: 24px; gap: 24px; }
+  .message { grid-template-columns: 24px minmax(0, 1fr); gap: 8px; }
+  .message-avatar, .blue-mark.compact { width: 24px; height: 24px; }
+  .message p { font-size: 14px; }
+  .composer textarea, .model-search input, .search-field input { font-size: 16px; }
+  .composer-left { flex-wrap: wrap; }
+  .composer-tool, .slash-button, .model-button, .send-button, .mode-strip button { min-height: 44px; }
+  .composer-tool, .model-button { font-size: 12px; }
+  .model-popover { width: calc(100vw - 28px); max-height: min(450px, calc(100vh - 120px)); bottom: 49px; }
+  .model-list { max-height: min(390px, calc(100vh - 175px)); }
+  .model-search { grid-template-columns: 20px minmax(0, 1fr) 44px; min-height: 50px; }
+  .model-search button { width: 44px; height: 44px; }
+  .question-actions button, .agent-chip, .workspace-detail-tabs [role="tab"] { min-height: 44px; }
+  .modal-backdrop { padding: 12px; }
+  .setup-modal, .help-modal, .search-dialog, .credit-dialog { width: calc(100vw - 24px); max-height: calc(100vh - 80px); overflow: auto; padding: 20px; }
+  .empty-chat { padding: 40px 14px 20px; }
+  .empty-chat h1 { font-size: 28px; }
+  .empty-chat > p { font-size: 14px; }
+  .suggestion-grid { width: 100%; }
+}

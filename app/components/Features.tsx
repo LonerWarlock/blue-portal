@@ -1,79 +1,30 @@
 import Link from "next/link";
+import { ArrowRight, FolderSearch, Workflow, ShieldCheck, Plug } from "lucide-react";
+import styles from "./PremiumLanding.module.css";
 
 const features = [
-  {
-    icon: "fa-microchip",
-    title: "Multi-Model Architecture",
-    description: "Choose between every cutting-edge model from OpenAI, Anthropic, Gemini, xAI, and open-source specialists. Use the best model for every task.",
-  },
-  {
-    icon: "fa-code-branch",
-    title: "Agentic Coding",
-    description: "Blue Agents operate in a continuous loop — planning, writing code, running terminals, and self-correcting until every test passes. Hand off complex tasks while you focus on architecture.",
-  },
-  {
-    icon: "fa-terminal",
-    title: "Terminal Integration",
-    description: "Safe sandboxed terminal execution that runs locally on your machine. Blue runs lint checks, compiles, and tests your code, then inspects the diff for syntax errors before finishing.",
-  },
-  {
-    icon: "fa-sitemap",
-    title: "Complete Codebase Understanding",
-    description: "Blue learns how your codebase works, no matter the scale or complexity. Indexes every file, understands relationships, and navigates context effortlessly.",
-  },
-  {
-    icon: "fa-rotate",
-    title: "Self-Correcting Agents",
-    description: "If a test fails, the agent reads the terminal output error, rewrites the code, and tests it again until it passes. No manual intervention needed.",
-  },
-  {
-    icon: "fa-shield-halved",
-    title: "Enterprise Security",
-    description: "Your proprietary source code is protected by end-to-end encryption. Zero data retention, no model training, and local execution keep your code completely in your control.",
-  },
+  { icon: FolderSearch, title: "Understand what you're building.", description: "Explore a project's architecture, trace unfamiliar code, and ask for explanations while you work. Go beyond a copied answer to understand the change.", detail: "A clearer starting point for coursework and personal projects." },
+  { icon: Workflow, title: "Move from idea to implementation.", description: "Ask Blue to plan a change, edit project files, and run relevant checks. When a task benefits from parallel work, eligible paid users can enable multiple agents.", detail: "Work in your project, not in an isolated prompt box." },
+  { icon: ShieldCheck, title: "Make progress. Keep control.", description: "Approve for me handles routine project work while asking about sensitive actions. Available task checkpoints let you review and restore supported file changes.", detail: "Credentials, outside-project actions, and publishing still need care." },
+  { icon: Plug, title: "Connect the tools you already use.", description: "Bring supported GitHub, Canva, and Vercel connections into your workflow. Keep your account permissions and provider limits in view.", detail: "Connections require sign-in and depend on third-party availability." },
 ];
 
 export default function Features() {
   return (
-    <section id="features" className="py-24">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <span className="eyebrow">// capabilities</span>
-          <h2 className="mt-3 text-3xl md:text-4xl font-display font-bold tracking-tight text-ink">
-            AI agents that build, test, and fix code.
-          </h2>
-          <p className="mt-4 text-ink-muted max-w-2xl mx-auto">
-            Blue&apos;s Autonomous Agents operate in a continuous loop to solve complex tasks.
-            Give an Agent a goal and watch it plan, code, test, and self-correct until done.
-          </p>
+    <section id="features" className={styles.section} aria-labelledby="capabilities-title">
+      <div className={styles.wrap}>
+        <div className={styles.sectionHeading}>
+          <div><span className={styles.eyebrow}>02 / Capabilities</span><h2 id="capabilities-title" className={styles.sectionTitle}>From a first idea.<br /><span>To a working change.</span></h2></div>
+          <p className={styles.sectionDescription}>Made specifically for students. Built to help you understand your code, develop your ideas, and gain confidence through hands-on work.</p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, i) => (
-            <div
-              key={i}
-              className="panel p-6 hover:border-line-strong transition-colors duration-150"
-            >
-              <div className="w-10 h-10 rounded-md bg-paper-alt border border-line flex items-center justify-center mb-5">
-                <i className={`fa-solid ${feature.icon} text-base text-brand`}></i>
-              </div>
-              <h3 className="text-lg font-display font-bold tracking-tight text-ink mb-2">
-                {feature.title}
-              </h3>
-              <p className="text-sm text-ink-muted leading-relaxed">
-                {feature.description}
-              </p>
-            </div>
-          ))}
+        <div className={styles.featureRows}>
+          {features.map(({ icon: Icon, ...feature }, index) => <article key={feature.title} className={styles.featureRow}>
+            <span className={styles.featureNumber}>0{index + 1}</span>
+            <div className={styles.featureName}><Icon size={24} aria-hidden="true" /><h3>{feature.title}</h3></div>
+            <div><p>{feature.description}</p><small>{feature.detail}</small></div>
+          </article>)}
         </div>
-
-        <div className="text-center mt-12">
-          <Link href="/pricing" className="btn btn-secondary">
-            <i className="fa-solid fa-crown mr-2 text-accent"></i>
-            See All Plans
-            <i className="fa-solid fa-arrow-right ml-2 text-xs"></i>
-          </Link>
-        </div>
+        <Link href="/docs" className={`${styles.textLink} mt-6`}>Explore the documentation <ArrowRight size={14} aria-hidden="true" /></Link>
       </div>
     </section>
   );

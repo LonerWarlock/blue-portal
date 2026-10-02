@@ -1,16 +1,16 @@
 .figure {
-  --beam-height: 360px;
+  --beam-height: 240px;
   position: relative;
   margin: 3rem 0 0;
   padding-bottom: 24px;
-  background: #101925;
+  background: var(--paper);
 }
 .stage {
   position: relative;
   height: var(--beam-height);
   overflow: hidden;
   isolation: isolate;
-  background: #101925;
+  background: var(--paper);
   contain: layout paint;
 }
 .staticLight {
@@ -39,9 +39,9 @@
   gap: 16px;
   height: 100%;
   padding: 28px 24px 52px;
-  color: #c9e8fc;
+  color: var(--ink);
   text-align: center;
-  text-shadow: 0 2px 24px #101925;
+  text-shadow: 0 2px 24px var(--paper);
   font-family: var(--font-plex-sans), system-ui, sans-serif;
 }
 .launchCopy span:first-child { font-size: clamp(40px, 7vw, 100px); font-weight: 700; letter-spacing: -.055em; line-height: 1.1; }
@@ -59,7 +59,7 @@
   bottom: 0;
   transform: translateX(-50%);
   width: 86%;
-  max-width: 960px;
+  max-width: 1140px;
   height: 1px;
   z-index: 1;
   background: linear-gradient(90deg, #5b9bd545, #94d6ff, #5b9bd545);
@@ -69,29 +69,25 @@
 .preview {
   position: relative;
   width: 86%;
-  max-width: 960px;
+  max-width: 1140px;
   margin: 0 auto;
-  border: 1px solid #395c7a;
-  border-top: 0;
-  border-radius: 0 0 12px 12px;
-  overflow: hidden;
+  min-width: 0;
 }
-.preview img { display: block; width: 100%; height: auto; user-select: none; }
-.caption { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 86%; max-width: 960px; margin: 14px auto 0; color: #c6d4e2; font-size: 12px; }
-.captionDetail, .hoverHint { color: #93a8bd; }
+.caption { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 86%; max-width: 1140px; margin: 14px auto 0; color: var(--ink); font-size: 12px; }
+.captionDetail, .hoverHint { color: var(--ink-muted); }
 .captionActions { display: flex; align-items: center; gap: 16px; }
-.toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; border: 1px solid #395c7a; border-radius: 6px; padding: 8px 12px; background: transparent; color: #c6d4e2; }
-.toggle:hover { color: #fff; background: #1b3043; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 12px; background: transparent; color: var(--ink-muted); }
+.toggle:hover { color: var(--ink); background: var(--paper-alt); }
 .toggle:focus-visible { outline: 2px solid #94d6ff; outline-offset: 3px; }
 .animationControls { position: absolute; inset: 0 0 auto; height: var(--beam-height); z-index: 2; pointer-events: none; }
-.animationControl { position: sticky; top: 84px; display: flex; width: max-content; margin: 16px 24px 0 auto; background: #101925e6; pointer-events: auto; }
+.animationControl { position: sticky; top: 84px; display: flex; width: max-content; margin: 16px 24px 0 auto; background: rgb(var(--paper-rgb) / .9); pointer-events: auto; }
 .stage[data-hover-capable="false"]:not([data-animation="pending"]) .launchGhost { opacity: .85; }
 .stage[data-hover-capable="false"] .spotlight { display: none; }
 .stage[data-animation="reduced-motion"] .launchGhost,
 .stage[data-animation="save-data"] .launchGhost,
 .stage[data-animation="unavailable"] .launchGhost { opacity: .85; }
 @media (max-width: 767px) {
-  .figure { --beam-height: 240px; margin-top: 2rem; padding-bottom: 20px; }
+  .figure { --beam-height: 180px; margin-top: 2rem; padding-bottom: 20px; }
   .separator, .preview, .caption { width: 92%; }
   .preview { border-radius: 0 0 6px 6px; }
   .launchCopy { gap: 12px; padding-bottom: 40px; }
