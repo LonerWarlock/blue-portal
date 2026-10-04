@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CurrencySelector } from '@/app/components/CurrencySelector';
 import { supabase } from '@/lib/supabase';
 import { BLUE_SUBSCRIPTION_PLANS, bluePlanPriceInr, type BlueBillingCycle } from '@/lib/blueSubscriptionPlans';
@@ -29,14 +29,88 @@ const blueFeatures = [
   'Web Search',
 ];
 
-const USD_PRICE = 1.99;
+interface PayPalButtons {
+  render: (container: HTMLElement) => Promise<void>;
+  close: () => Promise<void>;
+}
+
+interface PayPalSdk {
+  Buttons: (options: {
+    style: { layout: 'vertical'; color: 'blue'; shape: 'rect'; label: 'paypal'; height: number };
+    createOrder: () => Promise<string>;
+    onApprove: (data: { orderID: string }) => Promise<void>;
+    onCancel: () => void;
+    onError: (error: unknown) => void;
+  }) => PayPalButtons;
+}
+
+let paypalSdkPromise: Promise<PayPalSdk> | null = null;
+
+function loadPayPalSdk(): Promise<PayPalSdk> {
+  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID?.trim();
+  if (!clientId) {
+    return Promise.reject(new Error('PayPal is currently unavailable. Please pay in INR or try again later.'));
+  }
+
+  const paypalWindow = window as Window & { paypal?: PayPalSdk };
+  if (paypalWindow.paypal?.Buttons) return Promise.resolve(paypalWindow.paypal);
+  if (paypalSdkPromise) return paypalSdkPromise;
+
+  paypalSdkPromise = new Promise<PayPalSdk>((resolve, reject) => {
+    const script = document.createElement('script');
+    const params = new URLSearchParams({ 'client-id': clientId, currency: 'USD', intent: 'capture', components: 'buttons' });
+    script.src = `https://www.paypal.com/sdk/js?${params}`;
+    script.async = true;
+
+    const timeout = window.setTimeout(() => fail(), 20000);
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      script.onload = null;
+      script.onerror = null;
+    };
+    const fail = () => {
+      cleanup();
+      script.remove();
+      reject(new Error('Unable to load PayPal. Please try again or pay in INR.'));
+    };
+    script.onload = () => {
+      if (!paypalWindow.paypal?.Buttons) {
+        fail();
+        return;
+      }
+      cleanup();
+      resolve(paypalWindow.paypal);
+    };
+    script.onerror = fail;
+    document.body.appendChild(script);
+  }).catch(error => {
+    paypalSdkPromise = null;
+    throw error;
+  });
+
+  return paypalSdkPromise;
+}
+
+function paymentErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function closePayPalButtons(buttons: PayPalButtons | undefined) {
+  try {
+    if (buttons) void Promise.resolve(buttons.close()).catch(() => {});
+  } catch {
+    // A partially rendered SDK instance may already have closed itself.
+  }
+}
 
 export function CheckoutForm({ sessionId, returnUrl, email, imrBalance, billingCycle }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [redeemedImr, setRedeemedImr] = useState<number>(0);
   const [currency, setCurrency] = useState<'INR' | 'USD'>('INR');
-  const [paypalLoaded, setPaypalLoaded] = useState(false);
+  const [paypalStatus, setPaypalStatus] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
+  const [paypalAttempt, setPaypalAttempt] = useState(0);
+  const paypalContainerRef = useRef<HTMLDivElement>(null);
 
   const plan = BLUE_SUBSCRIPTION_PLANS[billingCycle];
   const basePrice = plan.priceInr;
@@ -44,48 +118,98 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance, billingC
   const finalPrice = bluePlanPriceInr(billingCycle, redeemedImr);
 
   useEffect(() => {
-    if (billingCycle === 'monthly' && currency === 'USD' && !paypalLoaded) {
-      const script = document.createElement('script');
-      script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD`;
-      script.async = true;
-      script.onload = () => setPaypalLoaded(true);
-      script.onerror = () => console.error('Failed to load PayPal SDK');
-      document.body.appendChild(script);
-    }
-  }, [billingCycle, currency, paypalLoaded]);
+    if (currency !== 'USD' || !paypalContainerRef.current) return;
 
-  useEffect(() => {
-    if (billingCycle === 'monthly' && currency === 'USD' && paypalLoaded && (window as any).paypal) {
-      const container = document.getElementById('paypal-button-container');
-      if (container) container.innerHTML = '';
+    let active = true;
+    let buttons: PayPalButtons | undefined;
+    let transactionId = '';
+    let orderId = '';
+    const requestController = new AbortController();
+    // Each render owns its element, so a late SDK render cannot replace newer buttons.
+    const container = document.createElement('div');
+    paypalContainerRef.current.replaceChildren(container);
+    setPaypalStatus('loading');
+    setLoading(false);
+    setError('');
 
-      (window as any).paypal.Buttons({
-        style: { layout: 'vertical', color: 'blue', shape: 'rect', label: 'paypal', height: 45 },
-        createOrder: async () => {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) throw new Error('Please sign in again before checking out.');
-          const res = await fetch('/api/checkout/paypal/create-order', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ sessionId, returnUrl, redeemedImr }),
-          });
-          const data = await res.json();
-          if (!res.ok || data.error) throw new Error(data.error || 'Failed to create PayPal order');
-          return data.orderId;
-        },
-        onApprove: async (data: { orderID: string }) => {
-          window.location.href = `/api/checkout/paypal/capture?session_id=${sessionId}&token=${data.orderID}`;
-        },
-        onError: (err: any) => {
-          setError(err.message || 'PayPal payment failed');
-          setLoading(false);
-        },
-      }).render('#paypal-button-container');
-    }
-  }, [billingCycle, currency, paypalLoaded, sessionId, returnUrl, redeemedImr]);
+    const renderPayPalButtons = async () => {
+      try {
+        const paypal = await loadPayPalSdk();
+        if (!active) return;
+
+        buttons = paypal.Buttons({
+          style: { layout: 'vertical', color: 'blue', shape: 'rect', label: 'paypal', height: 45 },
+          createOrder: async () => {
+            if (!active) throw new Error('Checkout has changed. Please try again.');
+            setLoading(true);
+            setError('');
+            transactionId = '';
+            orderId = '';
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('Please sign in again before checking out.');
+            if (!active) throw new Error('Checkout has changed. Please try again.');
+
+            const res = await fetch('/api/checkout/paypal/create-order', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ sessionId, returnUrl, redeemedImr: 0 }),
+              signal: requestController.signal,
+            });
+            const data = await res.json();
+            if (!res.ok || data.error) throw new Error(data.error || 'Failed to create PayPal order');
+            if (!data.orderId || !data.txnid) throw new Error('Unable to start PayPal checkout. Please try again.');
+            if (!active) throw new Error('Checkout has changed. Please try again.');
+            transactionId = data.txnid;
+            orderId = data.orderId;
+            return orderId;
+          },
+          onApprove: async (data: { orderID: string }) => {
+            if (!active) return;
+            if (!transactionId || data.orderID !== orderId) {
+              setError('Unable to confirm this PayPal checkout. Please try again.');
+              setLoading(false);
+              return;
+            }
+            const params = new URLSearchParams({ session_id: sessionId, token: data.orderID, txnid: transactionId });
+            window.location.href = `/api/checkout/paypal/capture?${params}`;
+          },
+          onCancel: () => {
+            if (!active) return;
+            transactionId = '';
+            orderId = '';
+            setLoading(false);
+            setError('PayPal checkout was cancelled. You can try again.');
+          },
+          onError: (err: unknown) => {
+            if (!active) return;
+            setError(paymentErrorMessage(err, 'PayPal payment failed. Please try again.'));
+            setLoading(false);
+          },
+        });
+        await buttons.render(container);
+        if (active) setPaypalStatus('ready');
+      } catch (err) {
+        if (!active) return;
+        closePayPalButtons(buttons);
+        buttons = undefined;
+        container.replaceChildren();
+        setPaypalStatus('failed');
+        setError(paymentErrorMessage(err, 'Unable to load PayPal. Please try again or pay in INR.'));
+        setLoading(false);
+      }
+    };
+
+    void renderPayPalButtons();
+    return () => {
+      active = false;
+      requestController.abort();
+      container.remove();
+      closePayPalButtons(buttons);
+    };
+  }, [billingCycle, currency, sessionId, returnUrl, paypalAttempt]);
 
   const handlePayment = async () => {
     setLoading(true);
@@ -181,10 +305,12 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance, billingC
                     />
                   </div>
 
-                  {billingCycle === 'monthly' ? <CurrencySelector value={currency} onChange={nextCurrency => {
+                  <CurrencySelector value={currency} onChange={nextCurrency => {
                     setCurrency(nextCurrency);
+                    setError('');
+                    setLoading(false);
                     if (nextCurrency === 'USD') setRedeemedImr(0);
-                  }} /> : <p className="text-sm text-ink-muted">Currency: <span className="font-semibold text-ink">INR (₹)</span></p>}
+                  }} />
 
                   {currency === 'INR' && imrBalance > 0 && (
                     <div className="pt-3 border-t border-line">
@@ -279,12 +405,21 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance, billingC
                       )}
                     </button>
                   ) : (
-                    <div id="paypal-button-container" className="min-h-[50px]">
-                      {!paypalLoaded && (
+                    <div className="min-h-[50px]">
+                      {(paypalStatus === 'idle' || paypalStatus === 'loading') && (
                         <div className="w-full px-6 py-3 rounded-lg bg-paper-sunken flex items-center justify-center gap-2 text-sm text-ink-muted">
                           <i className="fa-solid fa-spinner animate-spin"></i>
                           Loading PayPal...
                         </div>
+                      )}
+                      <div id="paypal-button-container" ref={paypalContainerRef} />
+                      {paypalStatus === 'failed' && (
+                        <button type="button" onClick={() => setPaypalAttempt(attempt => attempt + 1)} className="w-full px-6 py-3 rounded-lg bg-paper-sunken text-sm text-ink-muted">
+                          Try loading PayPal again
+                        </button>
+                      )}
+                      {paypalStatus === 'ready' && loading && (
+                        <p className="mt-2 text-xs text-ink-muted text-center">Completing your PayPal checkout...</p>
                       )}
                     </div>
                   )}
@@ -308,7 +443,7 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance, billingC
                   <div>
                     <h3 className="font-bold text-ink text-sm">Blue · {plan.label}</h3>
                     <p className="text-xs text-ink-faint">
-                      {currency === 'INR' ? `₹${basePrice.toLocaleString('en-IN')} / ${plan.period}` : `$${USD_PRICE} / month`} · {plan.days} days
+                      {currency === 'INR' ? `₹${basePrice.toLocaleString('en-IN')} / ${plan.period}` : `$${plan.priceUsd.toFixed(2)} / ${plan.period}`} · {plan.days} days
                     </p>
                     <Link className="text-xs text-brand underline mt-1 inline-block" href={`/pricing?billing_cycle=${billingCycle}`}>Change duration</Link>
                   </div>
@@ -356,7 +491,7 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance, billingC
                       </div>
                       <div className="flex justify-between text-xs">
                         <span className="text-ink-muted">Billing</span>
-                        <span className="text-ink">Monthly</span>
+                        <span className="text-ink">{plan.label} · {plan.days} days</span>
                       </div>
                       <div className="flex justify-between text-xs">
                         <span className="text-ink-muted">Tax</span>
@@ -364,7 +499,7 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance, billingC
                       </div>
                       <div className="flex justify-between text-sm font-bold pt-2 border-t border-line">
                         <span className="text-ink">Total</span>
-                        <span className="bg-brand bg-clip-text text-transparent">${USD_PRICE.toFixed(2)}</span>
+                        <span className="bg-brand bg-clip-text text-transparent">${plan.priceUsd.toFixed(2)}</span>
                       </div>
                     </>
                   )}

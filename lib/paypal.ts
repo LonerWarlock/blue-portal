@@ -102,6 +102,9 @@ export interface PayPalCaptureResult {
   payerEmail?: string;
   payerId?: string;
   captureId?: string;
+  captureStatus?: string;
+  purchaseUnitCount?: number;
+  captureCount?: number;
   grossAmount?: string;
   currency?: string;
   customId?: string;
@@ -111,12 +114,13 @@ export interface PayPalCaptureResult {
 export async function capturePaypalOrder(orderId: string): Promise<PayPalCaptureResult> {
   const token = await getAccessToken();
 
-  const res = await fetch(`${PAYPAL_BASE}/v2/checkout/orders/${orderId}/capture`, {
+  const res = await fetch(`${PAYPAL_BASE}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       'PayPal-Request-Id': `capture-${orderId}`,
+      Prefer: 'return=representation',
     },
     cache: 'no-store',
     signal: AbortSignal.timeout(20_000),
@@ -127,8 +131,28 @@ export async function capturePaypalOrder(orderId: string): Promise<PayPalCapture
     throw new Error(data.message || 'Failed to capture PayPal order');
   }
 
-  const purchaseUnit = data.purchase_units?.[0];
-  const capture = purchaseUnit?.payments?.captures?.[0];
+  return parsePaypalOrder(data);
+}
+
+/** Read provider evidence after a capture/reconciliation retry without charging again. */
+export async function getPaypalOrder(orderId: string): Promise<PayPalCaptureResult> {
+  const token = await getAccessToken();
+  const res = await fetch(`${PAYPAL_BASE}/v2/checkout/orders/${encodeURIComponent(orderId)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(15_000),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.id) throw new Error(data.message || 'Failed to verify PayPal order');
+  return parsePaypalOrder(data);
+}
+
+function parsePaypalOrder(data: any): PayPalCaptureResult {
+  const purchaseUnits = Array.isArray(data.purchase_units) ? data.purchase_units : [];
+  const purchaseUnit = purchaseUnits[0];
+  const captures = Array.isArray(purchaseUnit?.payments?.captures) ? purchaseUnit.payments.captures : [];
+  const capture = captures[0];
 
   return {
     orderId: data.id,
@@ -136,6 +160,9 @@ export async function capturePaypalOrder(orderId: string): Promise<PayPalCapture
     payerEmail: data.payer?.email_address,
     payerId: data.payer?.payer_id,
     captureId: capture?.id,
+    captureStatus: capture?.status,
+    purchaseUnitCount: purchaseUnits.length,
+    captureCount: captures.length,
     grossAmount: capture?.amount?.value,
     currency: capture?.amount?.currency_code,
     customId: purchaseUnit?.custom_id,

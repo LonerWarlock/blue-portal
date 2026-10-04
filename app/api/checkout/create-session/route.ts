@@ -89,7 +89,8 @@ export async function POST(request: Request) {
           product_sku: subscriptionPlan.sku,
           base_price_inr: subscriptionPlan.priceInr.toFixed(2),
           duration_days: subscriptionPlan.days,
-          ...(billingCycle === 'monthly' ? { base_price_usd: '1.99', currency_usd: 'USD' } : {}),
+          base_price_usd: subscriptionPlan.priceUsd.toFixed(2),
+          currency_usd: 'USD',
           currency_inr: 'INR',
         },
       })
