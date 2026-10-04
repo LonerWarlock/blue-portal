@@ -1,0 +1,11 @@
+.selector { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 4px; margin: 0 0 15px; border: 1px solid rgba(188, 210, 255, .19); border-radius: 11px; background: rgba(3, 15, 40, .24); min-width: 0; }
+.option { min-width: 0; position: relative; cursor: pointer; }
+.input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.choice { display: flex; position: relative; isolation: isolate; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 45px; padding: 6px 2px; border-radius: 7px; font-size: 11px; font-weight: 500; color: #c4d4ed; transition: color .2s ease; }
+.pill { position: absolute; z-index: -1; inset: 0; border-radius: inherit; background: #edf4ff; box-shadow: 0 2px 5px rgba(0, 10, 30, .16); }
+.choiceSelected { color: #164287; }
+.saving { font-size: 9px; line-height: 1.2; white-space: nowrap; color: #a9c5ef; }
+.choiceSelected .saving { color: #526f9e; }
+.input:focus-visible + .choice { outline: 2px solid #a8d1ff; outline-offset: 3px; }
+.input:disabled + .choice { opacity: .65; cursor: wait; }
+@media (prefers-reduced-motion: reduce) { .choice { transition: none; } }

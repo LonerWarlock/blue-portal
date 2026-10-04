@@ -1,5 +1,21 @@
 # React Bits components
 
+## Pricing: Spotlight Card and Star Border
+
+`SpotlightCard.tsx`, `StarBorder.tsx` and `PricingEffects.module.css` adapt the
+official TypeScript/CSS components, retaining the existing complete license in
+`LICENSE.md` (Copyright 2026 David Haz, MIT + Commons Clause).
+
+- https://github.com/DavidHDev/react-bits/tree/main/src/ts-default/Components/SpotlightCard
+- https://github.com/DavidHDev/react-bits/tree/main/src/ts-default/Animations/StarBorder
+
+The original cursor-relative radial spotlight and twin moving border gradients
+are retained. Local changes scope CSS, make the border a decorative div, remove
+fixed upstream padding/colors, throttle pointer updates to one animation frame,
+clean up on unmount and disable motion for reduced-motion/coarse-pointer users.
+The slow border is used only on the featured Blue pricing card. No WebGL, GSAP,
+new dependencies, product/backend calls or moving price counters are added.
+
 ## Stack testimonials
 
 `Stack.jsx` and `Stack.css` adapt the official JavaScript/CSS Stack source from the user's integration prompt: https://github.com/DavidHDev/react-bits/tree/main/src/content/Components/Stack. The complete upstream license is preserved in the component and `LICENSE.md`.

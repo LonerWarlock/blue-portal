@@ -6,6 +6,7 @@ import {
   validPayuCallbackSignature,
 } from '@/lib/paymentSecurity';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { isBlueBillingCycle } from '@/lib/blueSubscriptionPlans';
 
 export const runtime = 'nodejs';
 
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
     if (
       metadata.payment_provider !== 'payu'
       || session.plan !== 'blue'
-      || session.billing_cycle !== 'monthly'
+      || !isBlueBillingCycle(session.billing_cycle)
       || !matchesExpectedPayuPayment(data, expected)
     ) {
       console.error('[Subscription] Rejected PayU callback that did not match its stored order', { txnid: data.txnid });

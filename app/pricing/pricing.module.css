@@ -1,0 +1,99 @@
+.page { position: relative; padding: 44px 0 48px; overflow: clip; background: radial-gradient(ellipse at 50% 42%, rgb(var(--brand-rgb) / .06), transparent 65%); }
+.container { width: min(1120px, calc(100% - 48px)); margin: 0 auto; }
+.intro { margin-bottom: 36px; }
+.kicker { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; color: var(--ink-muted); font-size: 11px; font-weight: 500; }
+.kicker > span:first-child { color: var(--brand); text-transform: uppercase; letter-spacing: .12em; font-size: 10px; font-weight: 700; }
+.kickerRule { width: 22px; height: 1px; background: var(--line-strong); margin: 0 3px; }
+.title { margin: 15px 0 12px; font-size: clamp(36px, 4.5vw, 55px); color: var(--ink); }
+.title span { color: var(--brand); }
+.introCopy { max-width: 600px; font-size: 15px; line-height: 1.6; color: var(--ink-muted); }
+.grid { display: grid; grid-template-columns: 1fr 1.12fr 1fr; align-items: center; gap: 18px; }
+.plan { min-width: 0; animation: planEnter .55s cubic-bezier(.22, 1, .36, 1) both; animation-delay: var(--entrance-delay, 0ms); }
+.card { border-radius: 21px; padding: 25px; }
+.secondaryCard { background: var(--surface); border: 1px solid var(--line); box-shadow: 0 8px 32px rgb(var(--ink-rgb) / .025); transition: border-color .25s ease, box-shadow .25s ease; }
+@media (hover: hover) and (pointer: fine) { .secondaryCard:hover { border-color: var(--line-strong); box-shadow: 0 14px 40px rgb(var(--ink-rgb) / .05); } }
+.featuredFrame { box-shadow: 0 16px 65px rgba(32, 100, 255, .16), 0 2px 12px rgba(17, 39, 83, .08); }
+.featuredCard { --card-ink: #f6f9ff; --card-muted: #bdcee9; --card-line: rgba(175, 202, 255, .16); background: radial-gradient(ellipse at 110% -10%, #376aff 0, #163c84 27%, transparent 63%), linear-gradient(145deg, #122a53, #0b1d3b); color: var(--card-ink); padding: 25px; }
+.featuredCard::after { content: ''; position: absolute; pointer-events: none; width: 190px; height: 190px; border: 1px solid rgba(177, 205, 255, .12); border-radius: 50%; right: -90px; top: -85px; box-shadow: 0 0 0 18px rgba(168, 199, 255, .035), 0 0 0 40px rgba(168, 199, 255, .025); z-index: -1; }
+.popular { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; padding: 4px 7px; color: #edf5ff; border: 1px solid rgba(190, 218, 255, .23); background: rgba(124, 179, 255, .13); border-radius: 6px; font-size: 10px; font-weight: 500; }
+.planName { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.planName h2 { font-size: 25px; line-height: 1.3; font-weight: 550; color: var(--card-ink, var(--ink)); }
+.current { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; color: var(--card-muted, var(--success)); }
+.description { color: var(--card-muted, var(--ink-muted)); font-size: 14px; line-height: 1.6; margin-top: 7px; }
+.priceBlock { padding: 15px 0 16px; }
+.priceLine { display: flex; align-items: baseline; gap: 4px; color: var(--card-ink, var(--ink)); }
+.price { display: inline-block; font-size: clamp(38px, 4vw, 48px); font-weight: 600; line-height: 1.1; letter-spacing: -.055em; font-variant-numeric: tabular-nums; }
+.currency { font-size: .7em; margin-right: 2px; font-weight: 500; }
+.period { color: var(--card-muted, var(--ink-muted)); font-size: 14px; }
+.priceContext { color: var(--card-muted, var(--ink-muted)); font-size: 12px; line-height: 1.55; margin-top: 8px; }
+.action { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 46px; padding: 12px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; line-height: 1.4; transition: background .2s ease, box-shadow .2s ease, color .2s ease; }
+.action svg { flex-shrink: 0; transition: transform .2s ease; }
+@media (hover: hover) and (pointer: fine) { .action:hover svg { transform: translate(2px, -2px); } }
+.action:focus-visible, .bottomBar button:focus-visible, .comparison summary:focus-visible, .legal a:focus-visible { outline: 2px solid var(--brand); outline-offset: 4px; }
+.primaryAction { background: #f0f5ff; color: #153b75; border: 1px solid white; box-shadow: 0 4px 15px rgba(0, 14, 40, .15); }
+.primaryAction:hover { background: white; box-shadow: 0 4px 20px rgba(139, 185, 255, .18); }
+.primaryAction:focus-visible { outline-color: #c4ddff; }
+.primaryAction:disabled { opacity: .65; cursor: wait; }
+.secondaryAction { border: 1px solid var(--line-strong); color: var(--ink); background: transparent; }
+.secondaryAction:hover { background: var(--paper-alt); }
+.benefits { border-top: 1px solid var(--card-line, var(--line)); margin-top: 18px; padding-top: 14px; }
+.benefitsTitle { color: var(--card-ink, var(--ink)); font-weight: 500; font-size: 12px; margin-bottom: 10px; }
+.benefits ul { display: grid; gap: 8px; }
+.benefits li { display: flex; align-items: flex-start; gap: 9px; color: var(--card-muted, var(--ink-muted)); font-size: 13px; line-height: 1.6; }
+.benefits li > svg { margin-top: 2px; flex: 0 0 15px; color: var(--brand); }
+.featuredCard .benefits li > svg { color: #95c8ff; }
+.bottomBar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; margin-top: 24px; color: var(--ink-muted); font-size: 12px; line-height: 1.6; }
+.accountTools { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+.accountTools button { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--brand); }
+.comparison { margin-top: 19px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.comparison summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: 18px 0; min-height: 52px; color: var(--ink-muted); font-size: 12px; font-weight: 500; }
+.comparison summary::-webkit-details-marker { display: none; }
+.comparison summary svg { transition: transform .2s ease; }
+.comparison[open] summary svg { transform: rotate(180deg); }
+.tableWrap { padding: 0 0 18px; }
+.comparison table { width: 100%; table-layout: fixed; font-size: 12px; color: var(--ink-muted); }
+.comparison th, .comparison td { padding: 12px 6px; border-bottom: 1px solid var(--line); text-align: center; overflow-wrap: break-word; }
+.comparison thead th { color: var(--ink); font-weight: 500; }
+.comparison th:first-child { width: 47%; text-align: left; font-weight: 400; padding-left: 0; }
+.comparison td svg { display: inline; color: var(--brand); }
+.comparison tbody tr:last-child th, .comparison tbody tr:last-child td { border-bottom: 0; }
+.legal { margin-top: 18px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
+.legal a { color: var(--ink-muted); text-underline-offset: 3px; }
+.legal a:hover { text-decoration: underline; }
+.accountMessage { font-size: 12px; color: var(--ink-muted); margin-bottom: 14px; }
+.error { color: var(--danger); font-size: 12px; margin: 14px 0; }
+.error button { margin-left: 5px; text-decoration: underline; }
+.checkoutError { color: #ffc1b9; font-size: 12px; line-height: 1.6; margin-top: 12px; }
+.spinner { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes planEnter { from { opacity: .2; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 1023px) {
+  .grid { gap: 14px; grid-template-columns: 1fr 1.1fr 1fr; }
+  .card, .featuredCard { padding: 21px; }
+  .price { font-size: 40px; }
+  .benefits li { font-size: 13px; }
+}
+@media (max-width: 900px) {
+  .page { padding-top: 32px; }
+  .container { width: min(500px, calc(100% - 36px)); }
+  .intro { margin-bottom: 27px; }
+  .kicker { font-size: 10px; gap: 6px; }
+  .kickerRule { width: 12px; margin: 0 1px; }
+  .title { font-size: clamp(35px, 8vw, 43px); max-width: 420px; }
+  .introCopy { font-size: 13px; max-width: 340px; }
+  .grid { grid-template-columns: 1fr; gap: 17px; }
+  .card, .featuredCard { padding: 25px; }
+  .benefits li { font-size: 13px; }
+  .price { font-size: 44px; }
+  .bottomBar { font-size: 12px; }
+}
+@media (max-width: 360px) {
+  .card, .featuredCard { padding: 20px; }
+  .popular { font-size: 9px; gap: 3px; padding: 4px 5px; }
+  .comparison table { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan, .spinner { animation: none; }
+  .action, .action svg, .secondaryCard, .comparison summary svg { transition: none; }
+  .action:hover svg { transform: none; }
+}

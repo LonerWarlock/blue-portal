@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { checkRateLimit, rateLimitHeaders, requestIp } from '@/lib/trafficControl';
+import { getBlueSubscriptionPlan } from '@/lib/blueSubscriptionPlans';
 
 async function getAuthenticatedUser(request: Request) {
   const authHeader = request.headers.get('authorization');
@@ -52,8 +53,9 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const plan = String(body.plan || 'blue');
-    const billingCycle = String(body.billing_cycle || 'monthly');
-    if (plan !== 'blue' || billingCycle !== 'monthly') {
+    const billingCycle = body.billing_cycle ?? 'monthly';
+    const subscriptionPlan = getBlueSubscriptionPlan(billingCycle);
+    if (plan !== 'blue' || !subscriptionPlan) {
       return NextResponse.json({ error: 'Unsupported product or billing cycle' }, { status: 400 });
     }
 
@@ -84,11 +86,11 @@ export async function POST(request: Request) {
         metadata: { 
           email: user.email,
           imr_discount: imrDiscount,
-          product_sku: 'blue_monthly_inr',
-          base_price_inr: '149.00',
-          base_price_usd: '1.99',
+          product_sku: subscriptionPlan.sku,
+          base_price_inr: subscriptionPlan.priceInr.toFixed(2),
+          duration_days: subscriptionPlan.days,
+          ...(billingCycle === 'monthly' ? { base_price_usd: '1.99', currency_usd: 'USD' } : {}),
           currency_inr: 'INR',
-          currency_usd: 'USD',
         },
       })
       .select('id')

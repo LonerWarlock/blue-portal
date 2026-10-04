@@ -139,7 +139,7 @@ export default function ClaimCouponModal({ isOpen, onClose, onSuccess }: ClaimCo
               <span>IMR Usage Note</span>
             </div>
             <p className="text-[11px] leading-relaxed text-ink-faint">
-              IMR credits are exclusively valid towards <strong className="text-ink font-semibold">Blue&apos;s ₹149/month subscription plan</strong> (not applicable for Blue Pro PAYG). Max 100 IMR (₹50 discount) per subscription billing.
+              IMR credits are exclusively valid towards <strong className="text-ink font-semibold">Blue&apos;s monthly, quarterly and yearly subscriptions</strong> (not applicable for Blue Pro PAYG). Max 100 IMR (₹50 discount) per purchase.
             </p>
           </div>
 

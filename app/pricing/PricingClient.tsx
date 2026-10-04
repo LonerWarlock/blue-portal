@@ -1,320 +1,155 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "../contexts/AuthContext";
-import PageLayout from "@/app/components/PageLayout";
-import Link from "next/link";
-import ClaimCouponModal from "@/app/components/ClaimCouponModal";
+import { useEffect, useState, type CSSProperties } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowUpRight, Check, ChevronDown, GraduationCap, Loader2, Plus, Sparkles } from 'lucide-react';
+import { MotionConfig, motion, useReducedMotion } from 'motion/react';
+import { useAuth } from '../contexts/AuthContext';
+import PageLayout from '@/app/components/PageLayout';
+import ClaimCouponModal from '@/app/components/ClaimCouponModal';
+import SpotlightCard from '@/app/components/react-bits/SpotlightCard';
+import StarBorder from '@/app/components/react-bits/StarBorder';
+import BillingCycleSelector from './BillingCycleSelector';
+import { BLUE_SUBSCRIPTION_PLANS, isBlueBillingCycle, type BlueBillingCycle } from '@/lib/blueSubscriptionPlans';
+import styles from './pricing.module.css';
 
-const allFeatures = [
-  "AI Chat",
-  "Code Autocomplete",
-  "Codebase Search",
-  "Syntax Checking",
-  "Cloud Models",
-  "Local Models",
-  "Multi-Agent Teams",
-  "Figma-to-Code",
-  "GitHub Integration",
-  "Vercel Integration",
-  "Canva Integration",
-  "Web Search",
-  "Makes Premium UI",
-  "Premium Models",
-
-];
+const allFeatures = ['AI Chat', 'Code Autocomplete', 'Codebase Search', 'Syntax Checking', 'Cloud Models', 'Local Models',
+  'Multi-Agent Teams', 'Figma-to-Code', 'GitHub Integration', 'Vercel Integration', 'Canva Integration', 'Web Search',
+  'Premium UI Creation', 'Premium Models'];
 
 const plans = [
-  {
-    name: "Blue Lite",
-    subtitle: "Free forever",
-    price: "₹0",
-    period: "",
-    gradient: "from-brand to-brand",
-    badge: "Current Plan",
-    badgeStyle: "bg-brand",
-    href: "/console",
-    cta: "Get Started Free",
-    description: "Baseline features common in any modern SOTA coding agent.",
-    features: [true, true, true, true, true, true, false, false, false, false, false, false, false, false],
-    featured: false,
-  },
-  {
-    name: "Blue",
-    subtitle: "₹149 / month",
-    price: "₹149",
-    period: "/month",
-    gradient: "from-brand to-brand",
-    badge: "Most Popular",
-    badgeStyle: "bg-brand",
-    href: "",
-    cta: "Subscribe Now",
-    description: "Advanced integrations and orchestration with Free/BYOK models.",
-    features: [true, true, true, true, true, true, true, true, true, true, true, true, true, false],
-    featured: true,
-  },
-  {
-    name: "Blue Pro",
-    subtitle: "₹100 paid trial · no expiry",
-    price: "₹100",
-    period: "/1 credit",
-    gradient: "from-brand to-brand",
-    badge: "Starts at ₹100",
-    badgeStyle: "bg-brand",
-    href: "/blue-pro/checkout?pack=starter",
-    cta: "Buy ₹100 Trial",
-    description: "Try selected paid models for ₹100. Credits never expire; renew the trial or choose the ₹1,500 full-access pack whenever you need more.",
-    features: [true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-    featured: false,
-    disabled: false,
-  },
-];
+  { id: 'lite', name: 'Blue Lite', description: 'Start your next idea. For free.',
+    benefitsTitle: 'Your everyday coding tools', benefits: ['AI chat & code autocomplete', 'Codebase search & syntax checks', 'Cloud & local models'],
+    features: [true, true, true, true, true, true, false, false, false, false, false, false, false, false] },
+  { id: 'blue', name: 'Blue', description: 'More power for the way you build.',
+    benefitsTitle: 'Everything in Lite, plus', benefits: ['Multi-agent teams & Figma-to-Code', 'GitHub, Vercel & Canva integrations', 'Web search & premium UI creation'],
+    features: [true, true, true, true, true, true, true, true, true, true, true, true, true, false] },
+  { id: 'blue_pro', name: 'Blue Pro', description: 'Premium models. On your terms.',
+    benefitsTitle: 'Everything in Blue, plus', benefits: ['Selected Premium Models', 'Credits that never expire', '₹1,500 full-access pack available'],
+    features: [true, true, true, true, true, true, true, true, true, true, true, true, true, true] },
+] as const;
 
 export default function PricingClient() {
   const { user, session, account, accountLoading, accountError, invalidateAccount } = useAuth();
   const router = useRouter();
+  const reducedMotion = useReducedMotion();
   const [subscribing, setSubscribing] = useState(false);
-  const activePlan = account?.subscription.plan || "lite";
-  const imrBalance = Number(account?.wallet.balance || 0);
+  const [subscribeError, setSubscribeError] = useState('');
+  const [billingCycle, setBillingCycle] = useState<BlueBillingCycle>('monthly');
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
+  const bluePlan = BLUE_SUBSCRIPTION_PLANS[billingCycle];
+  const activePlan = account?.subscription.plan || 'lite';
+  const imrBalance = Number(account?.wallet.balance || 0);
 
+  useEffect(() => {
+    const cycle = new URLSearchParams(window.location.search).get('billing_cycle');
+    if (isBlueBillingCycle(cycle)) setBillingCycle(cycle);
+  }, []);
 
   const handleSubscribe = async () => {
     if (!user) {
-      sessionStorage.setItem("redirectAfterLogin", "/pricing");
-      router.push("/console");
+      sessionStorage.setItem('redirectAfterLogin', `/pricing?billing_cycle=${billingCycle}`);
+      router.push('/console');
       return;
     }
-
     setSubscribing(true);
+    setSubscribeError('');
     try {
       const token = session?.access_token;
-      if (!token) throw new Error("No session token");
-
-      const res = await fetch("/api/checkout/create-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ plan: "blue", billing_cycle: "monthly" }),
+      if (!token) throw new Error('Please sign in again to continue.');
+      const res = await fetch('/api/checkout/create-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plan: 'blue', billing_cycle: billingCycle }),
       });
-
       const data = await res.json();
-      if (!res.ok || !data.session_id) {
-        throw new Error(data.error || "Failed to create checkout session");
-      }
-
+      if (!res.ok || !data.session_id) throw new Error(data.error || 'Could not start checkout. Please try again.');
       const returnUrl = `${window.location.origin}/console`;
       window.location.href = `/checkout/blue?session_id=${data.session_id}&return_url=${encodeURIComponent(returnUrl)}`;
-    } catch (err: any) {
-      console.error("Subscribe error:", err);
-      alert("Something went wrong. Please try again.");
+    } catch (error) {
+      setSubscribeError(error instanceof Error ? error.message : 'Could not start checkout. Please try again.');
       setSubscribing(false);
     }
   };
 
-  return (
-    <PageLayout>
-      <div className="fixed inset-0 pointer-events-none">
-<div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-brand/10 rounded-full blur-[128px]"></div>
-</div>
+  return <PageLayout><MotionConfig reducedMotion="user">
+    <section className={styles.page} aria-labelledby="pricing-title">
+      <div className={styles.container}>
+        <header className={styles.intro}>
+          <div className={styles.kicker}><span>Pricing</span><span className={styles.kickerRule} /><GraduationCap size={15} aria-hidden="true" /> Made specifically for students</div>
+          <h1 id="pricing-title" className={styles.title}>Build more. <span>Spend less.</span></h1>
+          <p className={styles.introCopy}>From your first project to your next big launch. Choose your way to build.</p>
+        </header>
 
-      <section className="relative overflow-hidden pt-20 pb-32">
-        <div className="max-w-7xl mx-auto px-6 relative z-10 w-full">
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-line-strong bg-paper eyebrow mb-8">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand"></span>
-              Pricing
-            </div>
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight">
-              <span className="text-ink">
-                Choose Your
-              </span>
-              <br />
-              <span className="bg-brand bg-clip-text text-transparent">
-                Blue AI Plan
-              </span>
-            </h1>
-            <p className="mt-6 text-lg text-ink-muted max-w-3xl mx-auto leading-relaxed">
-              Start free, choose the ₹149 monthly plan, or try paid models with the renewable ₹100 Blue Pro trial.
-            </p>
-            {accountLoading && !account && <p role="status" className="mt-4 text-ink-muted">Loading account…</p>}
-            {accountError && <p role="alert" className="mt-4 text-red-500">{accountError} <button type="button" onClick={() => void invalidateAccount()}>Retry</button></p>}
-            {user && (
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand/10 border border-line text-brand text-sm font-semibold">
-                  <i className="fa-solid fa-wallet"></i>
-                  <span>Your Balance: {imrBalance.toFixed(0)} IMR</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsClaimModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold shadow-md hover:bg-brand/90 transition cursor-pointer"
-                >
-                  <i className="fa-solid fa-ticket"></i>
-                  <span>Claim Coupon</span>
-                </button>
+        {accountLoading && user && !account && <p role="status" className={styles.accountMessage}>Loading your plan…</p>}
+        {accountError && <p role="alert" className={styles.error}>{accountError} <button type="button" onClick={() => void invalidateAccount()}>Retry</button></p>}
+
+        <div className={styles.grid}>
+          {plans.map((plan, index) => {
+            const featured = plan.id === 'blue';
+            const current = Boolean(user && account && activePlan === plan.id);
+            const card = <SpotlightCard className={`${styles.card} ${featured ? styles.featuredCard : styles.secondaryCard}`}
+              spotlightColor={featured ? 'rgba(114, 179, 255, 0.2)' : 'rgba(94, 137, 245, 0.1)'}>
+              <div className={styles.planName}><h2>{plan.name}</h2>
+                {featured ? <span className={styles.popular}>{current ? <Check size={11} aria-hidden="true" /> : <Sparkles size={11} aria-hidden="true" />}{current ? 'Current Plan' : 'Popular choice'}</span>
+                  : current && <span className={styles.current}><Check size={11} aria-hidden="true" /> Current Plan</span>}
               </div>
-            )}
-          </div>
+              <p className={styles.description}>{plan.description}</p>
 
-          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
-            {plans.map((plan) => {
-              const isCurrentPlan = (plan.name === "Blue Lite" && activePlan === "lite") ||
-                                    (plan.name === "Blue" && activePlan === "blue") ||
-                                    (plan.name === "Blue Pro" && activePlan === "blue_pro");
-
-              let planBadge = plan.badge;
-              let planBadgeStyle = plan.badgeStyle;
-
-              if (isCurrentPlan) {
-                planBadge = "Current Plan";
-                planBadgeStyle = plan.name === "Blue"
-                  ? "bg-brand"
-                  : "bg-brand";
-              } else if (plan.name === "Blue Lite" && activePlan === "blue") {
-                planBadge = "";
-              }
-
-              return (
-                <div
-                  key={plan.name}
-                  className={`relative p-8 rounded-lg border transition-all duration-300 flex flex-col ${
-                    plan.featured
-                      ? "panel border-line  "
-                      : "panel border-line hover:border-line-strong"
-                  } ${plan.disabled ? "opacity-70" : ""}`}
-                >
-                  {planBadge && (
-                    <span
-                      className={`absolute -top-2.5 right-4 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white shadow-lg ${planBadgeStyle}`}
-                    >
-                      {planBadge}
-                    </span>
-                  )}
-
-                  <div
-                    className={`w-12 h-12 rounded-lg bg-gradient-to-br ${plan.gradient} flex items-center justify-center mb-5 shadow-lg`}
-                  >
-                    <i
-                      className={`fa-solid ${
-                        plan.name === "Blue Lite"
-                          ? "fa-gem"
-                          : plan.name === "Blue"
-                            ? "fa-crown"
-                            : "fa-rocket"
-                      } text-lg text-white`}
-                    ></i>
+              <div className={styles.priceBlock}>
+                {featured ? <div aria-live="polite" aria-atomic="true">
+                  <div className={styles.priceLine}>
+                    <motion.span key={billingCycle} className={styles.price} initial={reducedMotion ? false : { opacity: .4, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .2 }}>
+                      <span className={styles.currency}>₹</span>{bluePlan.priceInr.toLocaleString('en-IN')}
+                    </motion.span><span className={styles.period}>/{bluePlan.period}</span>
                   </div>
+                  <p className={styles.priceContext}>{billingCycle === 'monthly' ? '30 days of access · paid upfront' : `₹${(bluePlan.priceInr / bluePlan.months).toLocaleString('en-IN', { maximumFractionDigits: 2 })}/month equivalent · ${bluePlan.days} days`}</p>
+                </div> : <>
+                  <div className={styles.priceLine}><span className={styles.price}><span className={styles.currency}>₹</span>{plan.id === 'lite' ? '0' : '100'}</span><span className={styles.period}>{plan.id === 'lite' ? '/forever' : '/trial'}</span></div>
+                  <p className={styles.priceContext}>{plan.id === 'lite' ? 'No payment needed' : '1 credit · no expiry'}</p>
+                </>}
+              </div>
 
-                  <h3 className="text-2xl font-bold text-ink mb-1">{plan.name}</h3>
-                  <p className="text-sm text-ink-faint mb-4">{plan.subtitle}</p>
-                  <p className="text-ink-muted text-sm leading-relaxed mb-6">
-                    {plan.description}
-                  </p>
+              {featured && <BillingCycleSelector value={billingCycle} onChange={setBillingCycle} disabled={subscribing} />}
 
-                  <div className="mb-6">
-                    <span className="text-4xl font-bold text-ink">{plan.price}</span>
-                    <span className="text-ink-faint text-lg">{plan.period}</span>
-                  </div>
+              {featured ? <button type="button" className={`${styles.action} ${styles.primaryAction}`} onClick={handleSubscribe} disabled={subscribing}
+                aria-label={subscribing ? 'Opening checkout' : `${current ? 'Extend' : 'Get'} Blue ${bluePlan.label} access for ₹${bluePlan.priceInr}`}>
+                <span>{subscribing ? 'Opening checkout…' : current ? 'Extend access' : 'Get Blue'}</span>
+                {subscribing ? <Loader2 size={18} aria-hidden="true" className={styles.spinner} /> : <ArrowUpRight size={18} aria-hidden="true" />}
+              </button> : <Link className={`${styles.action} ${styles.secondaryAction}`} href={plan.id === 'blue_pro' ? '/blue-pro/checkout?pack=starter' : '/console'}>
+                <span>{plan.id === 'blue_pro' ? 'Try Blue Pro' : user ? 'Open console' : 'Start for free'}</span><ArrowUpRight size={18} aria-hidden="true" />
+              </Link>}
+              {featured && subscribeError && <p role="alert" className={styles.checkoutError}>{subscribeError}</p>}
 
-                  <ul className="mt-8 space-y-3 flex-1">
-                    {allFeatures.map((feature, i) => (
-                      <li key={feature} className="flex items-center gap-3 text-sm text-ink-muted">
-                        {plan.features[i] ? (
-                          <span className="w-4 h-4 rounded-full bg-green-950/60 border border-green-900/60 text-green-400 flex items-center justify-center shrink-0 text-[8px]">
-                            <i className="fa-solid fa-check"></i>
-                          </span>
-                        ) : (
-                          <span className="w-4 h-4 rounded-full bg-paper-sunken border border-line-strong text-ink-faint flex items-center justify-center shrink-0 text-[8px]">
-                            <i className="fa-solid fa-xmark"></i>
-                          </span>
-                        )}
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {plan.name === "Blue Pro" ? (
-                    <Link
-                      href={plan.href}
-                      className="inline-flex w-full items-center justify-center px-6 py-3 rounded-lg bg-brand font-semibold text-white shadow-lg shadow-sm transition duration-200 text-base"
-                    >
-                      <i className="fa-solid fa-bolt mr-2"></i>
-                      {plan.cta}
-                    </Link>
-                  ) : isCurrentPlan ? (
-                    <button
-                      disabled
-                      className="w-full px-6 py-3 rounded-lg bg-paper-sunken text-ink-faint font-semibold cursor-default border border-line text-base mt-6 inline-flex items-center justify-center gap-2"
-                    >
-                      <i className="fa-solid fa-circle-check text-green-500"></i>
-                      Active Plan
-                    </button>
-                  ) : plan.name === "Blue Lite" && activePlan === "blue" ? (
-                    <Link
-                      href="/console"
-                      className="inline-flex w-full items-center justify-center px-6 py-3 rounded-lg border border-line text-ink-muted hover:text-ink hover:bg-paper-sunken font-semibold transition duration-200 text-base mt-6"
-                    >
-                      Go to Console
-                    </Link>
-                  ) : plan.name === "Blue Lite" ? (
-                    <Link
-                      href={plan.href}
-                      className="inline-flex w-full items-center justify-center px-6 py-3 rounded-lg bg-brand font-semibold text-white shadow-lg shadow-sm transition duration-200 text-base"
-                    >
-                      <i className="fa-solid fa-check mr-2"></i>
-                      {plan.cta}
-                    </Link>
-                  ) : (
-                    <button
-                      onClick={handleSubscribe}
-                      disabled={subscribing}
-                      className="inline-flex w-full items-center justify-center px-6 py-3 rounded-lg bg-brand font-semibold text-white shadow-lg transition duration-200 text-base disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {subscribing ? (
-                        <>
-                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
-                          Redirecting...
-                        </>
-                      ) : (
-                        <>
-                          <i className="fa-solid fa-arrow-right mr-2"></i>
-                          {plan.cta}
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-8 text-center">
-            <p className="text-xs text-ink-faint">
-              All current plans and Blue Pro credit packs are billed in INR. Prices include applicable taxes.
-              <br />
-              By subscribing, you agree to our{" "}
-              <Link href="/terms" className="text-brand hover:text-brand underline">
-                Terms of Service
-              </Link>{" "}
-              and{" "}
-              <Link href="/privacy" className="text-brand hover:text-brand underline">
-                Privacy Policy
-              </Link>
-              .
-            </p>
-          </div>
+              <div className={styles.benefits}>
+                <p className={styles.benefitsTitle}>{plan.benefitsTitle}</p>
+                <ul>{plan.benefits.map(benefit => <li key={benefit}><Check size={15} aria-hidden="true" /><span>{benefit}</span></li>)}</ul>
+              </div>
+            </SpotlightCard>;
+            return <article id={featured ? 'blue-plan' : undefined} aria-label={plan.name} key={plan.id} className={`${styles.plan} ${featured ? styles.featuredPlan : ''}`}
+              style={{ '--entrance-delay': `${index * 70}ms` } as CSSProperties}>
+              {featured ? <StarBorder className={styles.featuredFrame} speed="12s" color="#6da8ff">{card}</StarBorder> : card}
+            </article>;
+          })}
         </div>
-      </section>
 
-      <ClaimCouponModal
-        isOpen={isClaimModalOpen}
-        onClose={() => setIsClaimModalOpen(false)}
-        onSuccess={() => {}}
-      />
-    </PageLayout>
-  );
+        <div className={styles.bottomBar}>
+          <p>One-time payments. No auto-renewal. Taxes included.</p>
+          {user && <div className={styles.accountTools}><span>{imrBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 })} IMR balance</span><button type="button" onClick={() => setIsClaimModalOpen(true)}><Plus size={13} aria-hidden="true" /> Redeem a coupon</button></div>}
+        </div>
+
+        <details className={styles.comparison}>
+          <summary><span>Compare all features</span><ChevronDown size={17} aria-hidden="true" /></summary>
+          <div className={styles.tableWrap}><table>
+            <caption className="sr-only">Complete Blue feature comparison. Every Blue subscription duration includes the same features.</caption>
+            <thead><tr><th scope="col">Features</th>{plans.map(plan => <th scope="col" key={plan.id}>{plan.name}</th>)}</tr></thead>
+            <tbody>{allFeatures.map((feature, index) => <tr key={feature}><th scope="row">{feature}</th>{plans.map(plan => <td key={plan.id}>{plan.features[index] ? <><Check size={15} aria-hidden="true" /><span className="sr-only">Included</span></> : <><span aria-hidden="true">—</span><span className="sr-only">Not included</span></>}</td>)}</tr>)}</tbody>
+          </table></div>
+        </details>
+        <p className={styles.legal}>By purchasing, you agree to our <Link href="/terms">Terms</Link> and <Link href="/privacy">Privacy Policy</Link>.</p>
+      </div>
+    </section>
+    <ClaimCouponModal isOpen={isClaimModalOpen} onClose={() => setIsClaimModalOpen(false)} onSuccess={() => {}} />
+  </MotionConfig></PageLayout>;
 }

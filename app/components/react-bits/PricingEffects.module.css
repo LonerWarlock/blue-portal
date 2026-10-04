@@ -1,0 +1,15 @@
+.spotlight { position: relative; isolation: isolate; overflow: hidden; --mouse-x: 50%; --mouse-y: 20%; }
+.spotlight::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), var(--spotlight-color), transparent 75%); opacity: 0; transition: opacity .45s ease; }
+@media (hover: hover) and (pointer: fine) { .spotlight:hover::before { opacity: .85; } }
+.spotlight:focus-within::before { opacity: .5; }
+.starBorder { position: relative; isolation: isolate; overflow: hidden; border-radius: 22px; background: color-mix(in srgb, var(--edge-color) 45%, transparent); }
+.gradientBottom, .gradientTop { position: absolute; z-index: -1; width: 300%; height: 50%; opacity: .7; pointer-events: none; border-radius: 50%; }
+.gradientBottom { bottom: -12px; right: -250%; animation: starMovementBottom 12s linear infinite alternate; }
+.gradientTop { top: -12px; left: -250%; animation: starMovementTop 12s linear infinite alternate; }
+.inner { position: relative; border-radius: inherit; }
+@keyframes starMovementBottom { from { transform: translate(0, 0); opacity: 1; } to { transform: translate(-100%, 0); opacity: 0; } }
+@keyframes starMovementTop { from { transform: translate(0, 0); opacity: 1; } to { transform: translate(100%, 0); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .gradientBottom, .gradientTop { animation: none; display: none; }
+  .spotlight::before { transition: none; background: none; }
+}

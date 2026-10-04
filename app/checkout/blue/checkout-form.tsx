@@ -3,12 +3,15 @@
 import { useState, useEffect } from 'react';
 import { CurrencySelector } from '@/app/components/CurrencySelector';
 import { supabase } from '@/lib/supabase';
+import { BLUE_SUBSCRIPTION_PLANS, bluePlanPriceInr, type BlueBillingCycle } from '@/lib/blueSubscriptionPlans';
+import Link from 'next/link';
 
 interface Props {
   sessionId: string;
   returnUrl: string;
   email: string;
   imrBalance: number;
+  billingCycle: BlueBillingCycle;
 }
 
 const blueFeatures = [
@@ -21,24 +24,27 @@ const blueFeatures = [
   'Multi-Agent Teams',
   'Figma-to-Code',
   'GitHub Integration',
+  'Vercel Integration',
+  'Canva Integration',
   'Web Search',
 ];
 
 const USD_PRICE = 1.99;
 
-export function CheckoutForm({ sessionId, returnUrl, email, imrBalance }: Props) {
+export function CheckoutForm({ sessionId, returnUrl, email, imrBalance, billingCycle }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [redeemedImr, setRedeemedImr] = useState<number>(0);
   const [currency, setCurrency] = useState<'INR' | 'USD'>('INR');
   const [paypalLoaded, setPaypalLoaded] = useState(false);
 
-  const basePrice = 149;
+  const plan = BLUE_SUBSCRIPTION_PLANS[billingCycle];
+  const basePrice = plan.priceInr;
   const discount = redeemedImr * 0.5;
-  const finalPrice = Math.max(1, basePrice - discount);
+  const finalPrice = bluePlanPriceInr(billingCycle, redeemedImr);
 
   useEffect(() => {
-    if (currency === 'USD' && !paypalLoaded) {
+    if (billingCycle === 'monthly' && currency === 'USD' && !paypalLoaded) {
       const script = document.createElement('script');
       script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD`;
       script.async = true;
@@ -46,10 +52,10 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance }: Props)
       script.onerror = () => console.error('Failed to load PayPal SDK');
       document.body.appendChild(script);
     }
-  }, [currency, paypalLoaded]);
+  }, [billingCycle, currency, paypalLoaded]);
 
   useEffect(() => {
-    if (currency === 'USD' && paypalLoaded && (window as any).paypal) {
+    if (billingCycle === 'monthly' && currency === 'USD' && paypalLoaded && (window as any).paypal) {
       const container = document.getElementById('paypal-button-container');
       if (container) container.innerHTML = '';
 
@@ -79,7 +85,7 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance }: Props)
         },
       }).render('#paypal-button-container');
     }
-  }, [currency, paypalLoaded, sessionId, returnUrl, redeemedImr]);
+  }, [billingCycle, currency, paypalLoaded, sessionId, returnUrl, redeemedImr]);
 
   const handlePayment = async () => {
     setLoading(true);
@@ -175,7 +181,10 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance }: Props)
                     />
                   </div>
 
-                  <CurrencySelector value={currency} onChange={setCurrency} />
+                  {billingCycle === 'monthly' ? <CurrencySelector value={currency} onChange={nextCurrency => {
+                    setCurrency(nextCurrency);
+                    if (nextCurrency === 'USD') setRedeemedImr(0);
+                  }} /> : <p className="text-sm text-ink-muted">Currency: <span className="font-semibold text-ink">INR (₹)</span></p>}
 
                   {currency === 'INR' && imrBalance > 0 && (
                     <div className="pt-3 border-t border-line">
@@ -265,7 +274,7 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance }: Props)
                       ) : (
                         <>
                           <i className="fa-solid fa-lock"></i>
-                          Pay ₹{finalPrice.toFixed(0)} — Subscribe to Blue
+                          Pay ₹{finalPrice} — {plan.label} Access
                         </>
                       )}
                     </button>
@@ -297,10 +306,11 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance }: Props)
                     <i className="fa-solid fa-crown text-sm text-white"></i>
                   </div>
                   <div>
-                    <h3 className="font-bold text-ink text-sm">Blue Plan</h3>
+                    <h3 className="font-bold text-ink text-sm">Blue · {plan.label}</h3>
                     <p className="text-xs text-ink-faint">
-                      {currency === 'INR' ? `₹${basePrice}/month` : `$${USD_PRICE}/month`} — Cancel anytime
+                      {currency === 'INR' ? `₹${basePrice.toLocaleString('en-IN')} / ${plan.period}` : `$${USD_PRICE} / month`} · {plan.days} days
                     </p>
+                    <Link className="text-xs text-brand underline mt-1 inline-block" href={`/pricing?billing_cycle=${billingCycle}`}>Change duration</Link>
                   </div>
                 </div>
 
@@ -335,7 +345,7 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance }: Props)
                       </div>
                       <div className="flex justify-between text-sm font-bold pt-2 border-t border-line">
                         <span className="text-ink">Total</span>
-                        <span className="bg-brand bg-clip-text text-transparent">₹{finalPrice.toFixed(0)}</span>
+                        <span className="bg-brand bg-clip-text text-transparent">₹{finalPrice}</span>
                       </div>
                     </>
                   ) : (
@@ -359,6 +369,7 @@ export function CheckoutForm({ sessionId, returnUrl, email, imrBalance }: Props)
                     </>
                   )}
                 </div>
+                <p className="mt-4 text-xs leading-relaxed text-ink-muted">One upfront payment. No automatic renewal. If you already have active Blue access, these {plan.days} days are added to your remaining time.</p>
               </div>
             </div>
           </div>

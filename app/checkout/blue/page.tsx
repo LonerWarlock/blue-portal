@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { CheckoutForm } from './checkout-form';
 import Link from 'next/link';
+import { isBlueBillingCycle } from '@/lib/blueSubscriptionPlans';
 
 interface Props {
   searchParams: Promise<{ session_id?: string; return_url?: string }>;
@@ -66,6 +67,10 @@ export default async function CheckoutBluePage({ searchParams }: Props) {
     );
   }
 
+  if (session.plan !== 'blue' || !isBlueBillingCycle(session.billing_cycle)) {
+    return <ErrorState message="This subscription duration is not supported." linkHref="/pricing" />;
+  }
+
   if (session.status === 'completed') {
     return (
       <ErrorState
@@ -113,6 +118,7 @@ export default async function CheckoutBluePage({ searchParams }: Props) {
       returnUrl={returnUrl}
       email={userEmail}
       imrBalance={imrBalance}
+      billingCycle={session.billing_cycle}
     />
   );
 }

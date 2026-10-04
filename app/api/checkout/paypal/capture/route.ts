@@ -24,6 +24,8 @@ export async function GET(request: Request) {
 
     const metadata = (session.metadata || {}) as Record<string, unknown>;
     const returnUrl = safeInternalUrl(metadata.return_url, siteUrl, '/console');
+    // Only the existing monthly USD product may be captured through PayPal.
+    if (session.plan !== 'blue' || session.billing_cycle !== 'monthly') return paymentRedirect(returnUrl, 'invalid');
     if (session.status === 'completed') return paymentRedirect(returnUrl, 'success');
     if (session.status !== 'pending' || new Date(session.expires_at).getTime() <= Date.now()) {
       return paymentRedirect(returnUrl, 'failed');
@@ -35,7 +37,9 @@ export async function GET(request: Request) {
       .eq('checkout_session_id', session.id)
       .eq('gateway', 'paypal')
       .single();
-    if (paymentOrderError || !paymentOrder || paymentOrder.status !== 'pending') {
+    if (paymentOrderError || !paymentOrder || paymentOrder.status !== 'pending'
+      || paymentOrder.product_sku !== 'blue_monthly' || paymentOrder.currency !== 'USD'
+      || paymentOrder.user_id !== session.user_id) {
       return paymentRedirect(returnUrl, 'failed');
     }
     if (paymentOrder.provider_order_id !== orderId || metadata.expected_order_id !== orderId) {

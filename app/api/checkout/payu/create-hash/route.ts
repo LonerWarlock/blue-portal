@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import { payuRequestHash, safeInternalUrl } from '@/lib/paymentSecurity';
 import { getBearerToken } from '@/lib/bluePayg';
 import { checkRateLimit, rateLimitHeaders, requestIp } from '@/lib/trafficControl';
+import { bluePlanPriceInr, getBlueSubscriptionPlan, isBlueBillingCycle } from '@/lib/blueSubscriptionPlans';
 
 export async function POST(request: Request) {
   try {
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
     }
 
     const appliedImr = Number(redeemedImr || 0);
-    if (isNaN(appliedImr) || appliedImr < 0 || appliedImr > 100) {
+    if (!Number.isFinite(appliedImr) || appliedImr < 0 || appliedImr > 100) {
       return NextResponse.json({ error: 'Invalid IMR amount. You can apply between 0 and 100 IMR.' }, { status: 400 });
     }
 
@@ -52,7 +53,8 @@ export async function POST(request: Request) {
     if (session.user_id !== authData.user.id) {
       return NextResponse.json({ error: 'Checkout session does not belong to this user' }, { status: 403 });
     }
-    if (session.plan !== 'blue' || session.billing_cycle !== 'monthly') {
+    const subscriptionPlan = getBlueSubscriptionPlan(session.billing_cycle);
+    if (session.plan !== 'blue' || !subscriptionPlan || !isBlueBillingCycle(session.billing_cycle)) {
       return NextResponse.json({ error: 'Unsupported checkout session' }, { status: 400 });
     }
     if (session.status !== 'pending' || new Date(session.expires_at).getTime() <= Date.now()) {
@@ -75,11 +77,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Insufficient IMR balance. You only have ${userBalance} IMR available.` }, { status: 400 });
     }
 
-    // Calculate dynamic pricing (base is ₹149)
-    const basePrice = 149;
+    // Prices come from the server catalogue, never client-supplied amounts.
     const discount = appliedImr * 0.5;
-    const finalPrice = Math.max(1, basePrice - discount); // keep minimum transaction at ₹1 for payment gateway integration
-    const amountStr = finalPrice.toFixed(2);
+    const amountStr = bluePlanPriceInr(session.billing_cycle, appliedImr);
 
     // 3. Generate a unique transaction ID (txnid)
     const txnid = `c2c_${randomBytes(12).toString('hex')}`;
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const productinfo = 'Blue Subscription';
+    const productinfo = session.billing_cycle === 'monthly' ? 'Blue Subscription' : `Blue Subscription - ${subscriptionPlan.label}`;
     const firstname = email ? email.split('@')[0] : 'Customer';
 
     const updatedMetadata = {
@@ -124,6 +124,8 @@ export async function POST(request: Request) {
       expected_productinfo: productinfo,
       expected_firstname: firstname,
       expected_email: email,
+      product_sku: subscriptionPlan.sku,
+      duration_days: subscriptionPlan.days,
     };
     const { error: expectedUpdateError } = await supabaseAdmin
       .from('checkout_sessions')
@@ -139,7 +141,7 @@ export async function POST(request: Request) {
       .upsert({
         checkout_session_id: session.id,
         user_id: session.user_id,
-        product_sku: 'blue_monthly',
+        product_sku: subscriptionPlan.sku,
         amount: amountStr,
         currency: 'INR',
         redeemed_imr: appliedImr,
@@ -148,7 +150,7 @@ export async function POST(request: Request) {
         custom_id: txnid,
         status: 'pending',
         expires_at: session.expires_at,
-        metadata: { productinfo, firstname, email },
+        metadata: { productinfo, firstname, email, billing_cycle: session.billing_cycle, duration_days: subscriptionPlan.days },
         updated_at: new Date().toISOString(),
       }, { onConflict: 'checkout_session_id' });
     if (paymentOrderError) {

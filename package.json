@@ -9,6 +9,7 @@
     "test:testimonials": "node --experimental-strip-types --test lib/marketplaceTestimonials.test.mjs",
     "test:testimonials-ui": "node scripts/test-testimonials.cjs",
     "test:billing": "node --experimental-strip-types --test lib/usageAccounting.test.mjs lib/blueRuntimeContracts.test.mjs lib/scalingSecurity.test.mjs",
+    "test:subscriptions": "node --experimental-strip-types --test lib/blueSubscriptionPlans.test.mjs lib/blueSubscriptionRoutes.test.mjs",
     "test:approval-reviewer": "node --experimental-strip-types --test lib/approvalReviewer.test.mjs lib/approvalReviewerMigration.test.mjs lib/blueRuntimeContracts.test.mjs lib/usageAccounting.test.mjs",
     "test:account": "node --experimental-strip-types --test lib/accountCache.test.mjs lib/accountPlan.test.mjs lib/couponTransactions.test.mjs lib/supabaseAdmin.test.mjs",
     "start": "next start",
