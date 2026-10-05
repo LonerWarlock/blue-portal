@@ -1,4 +1,6 @@
 import PageLayout from "@/app/components/PageLayout";
+import Link from "next/link";
+import { BLUE_SUBSCRIPTION_PLANS } from "@/lib/blueSubscriptionPlans";
 
 const services = [
   {
@@ -15,11 +17,11 @@ const services = [
   {
     number: "02",
     title: "Model Gateway & Catalogue",
-    description: "A unified API gateway providing access to 49 AI models across six families, with pay-as-you-go token pricing and a free tier that never costs money.",
+    description: "Choose supported models through your own provider connection or eligible Blue Pro model access. Model availability, usage prices, and limits depend on that connection.",
     capabilities: [
-      "Multi-Model Access — 49 models across Free Tier, Claude, GPT, Gemini, and Specialist families.",
-      "Free Tier — Six models at $0.00 per million tokens. Unlimited free usage within daily rate limits.",
-      "Pay-As-You-Go Pricing — Per-million-token rates: Claude ($3.00 in / $15.00 out), GPT ($2.50 in / $10.00 out), Gemini ($1.25 in / $5.00 out).",
+      "Multi-Model Access — Choose from the supported models shown for your provider and account.",
+      "Free Models — Provider models marked free may have rate limits and availability restrictions.",
+      "Separate Model Billing — BYOK usage is billed by your provider where applicable and does not spend Blue Credits. Blue Pro model usage uses Blue Credits.",
       "Local Model Support — Connect local Ollama models for zero-cost inference with no data leaving your network.",
     ],
   },
@@ -39,9 +41,9 @@ const services = [
     title: "Developer Console",
     description: "A web-based console for managing your account, API keys, wallet, and model access.",
     capabilities: [
-      "Wallet Management — Prepaid system with $1.00 free starter credits. Refill in increments of $5, $10, or $20 via Stripe. Credits never expire.",
+      "Blue Credits Wallet — Manage prepaid Blue Pro credits and available top-up packs. Blue Credits do not expire; they are separate from Blue subscription access and BYOK provider billing.",
       "API Key Management — Generate, rotate, and revoke keys. Monitor per-key usage with optional spending limits.",
-      "Model Catalogue — Browse all 49 models with search, filter, real-time pricing, context windows, and rate limits.",
+      "Model Catalogue — Browse supported models, their displayed pricing, and availability for your connection.",
       "Usage Analytics — Track token consumption, request volume, and spending across models and time periods.",
     ],
   },
@@ -50,9 +52,9 @@ const services = [
     title: "Subscription Plans",
     description: "Tiered plans that unlock additional capabilities beyond the free tier.",
     capabilities: [
-      "Blue Lite (Free, ₹0) — AI Chat, Code Autocomplete, Codebase Search, Syntax Checking, Cloud Models (100 req/day), Local Models.",
-      "Blue (₹149/month) — All Lite features plus Multi-Agent Teams, Figma-to-Code, GitHub Integration, Web Search, 1,000 req/day, API Key Access.",
-      "Blue Pro (Coming Soon) — All Blue features plus built-in Premium Models, MCP Server support, Plugin System, Enterprise workspace orchestration, unlimited requests, and Team Management.",
+      "Blue Lite (Free, ₹0) — Entry-level coding app features. Provider usage costs and limits remain separate.",
+      `Blue — Prepaid app access: ₹${BLUE_SUBSCRIPTION_PLANS.monthly.priceInr} for ${BLUE_SUBSCRIPTION_PLANS.monthly.days} days, ₹${BLUE_SUBSCRIPTION_PLANS.quarterly.priceInr} for ${BLUE_SUBSCRIPTION_PLANS.quarterly.days} days, or ₹${BLUE_SUBSCRIPTION_PLANS.yearly.priceInr.toLocaleString("en-IN")} for ${BLUE_SUBSCRIPTION_PLANS.yearly.days} days. No auto-renewal; Blue Pro credits are not included.`,
+      "Blue Pro — Eligible premium model access paid through Blue Credits, with app features available according to your account. Not unlimited free inference.",
     ],
   },
   {
@@ -114,7 +116,7 @@ export default function ServicesPage() {
               </span>
             </h1>
             <p className="mt-6 text-lg text-ink-muted max-w-3xl mx-auto leading-relaxed">
-              A comprehensive overview of every service, capability, and offering provided by the Blue AI platform.
+              An overview of Blue by Imergene. App access and AI model usage are separate; see <Link href="/about#billing" className="text-brand hover:underline">the official product and billing facts</Link> and <Link href="/pricing" className="text-brand hover:underline">current pricing</Link>.
             </p>
           </div>
 

@@ -3,13 +3,13 @@ import type { Metadata } from 'next';
 // Verified public production origin. Never use localhost or a preview host as
 // the canonical origin, including when this module runs in a local build.
 export const SITE_URL = 'https://blue-by-imergene.vercel.app';
-export const HOME_TITLE = 'Blue | AI Coding Assistant for Students';
-export const HOME_DESCRIPTION = 'Blue is an AI coding assistant made for students. Understand code, build projects and debug with Blue Desktop for Windows or the VS Code extension.';
+export const HOME_TITLE = 'Blue by Imergene | AI Coding Assistant for Students';
+export const HOME_DESCRIPTION = 'Blue by Imergene is an AI coding assistant made specifically for students, available on Windows and VS Code. App subscription access and AI model usage are separate.';
 export const STUDENT_GUIDE_PATH = '/guides/ai-coding-assistant-for-students';
 
 export const INDEXABLE_PATHS = [
   '/', '/pricing', '/docs', '/product/agents', STUDENT_GUIDE_PATH,
-  '/contact', '/privacy', '/terms', '/refund',
+  '/about', '/contact', '/privacy', '/terms', '/refund',
 ] as const;
 
 export function canonicalUrl(path = '/'): string {
@@ -39,8 +39,8 @@ export function privatePageMetadata(title: string): Metadata {
 export const SITE_SCHEMA = {
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'IMERGENE', url: SITE_URL, logo: canonicalUrl('/images/blue-symbol.png') },
-    { '@type': 'WebSite', '@id': `${SITE_URL}/#website`, name: 'Blue', alternateName: 'Blue by Imergene', url: SITE_URL, inLanguage: 'en', publisher: { '@id': `${SITE_URL}/#organization` } },
+    { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'IMERGENE', alternateName: 'Imergene', description: 'Imergene owns and operates Blue, the AI coding assistant for students available as Blue Desktop for Windows and the Blue Coding Assistant VS Code extension.', url: SITE_URL, logo: canonicalUrl('/images/blue-symbol.png') },
+    { '@type': 'WebSite', '@id': `${SITE_URL}/#website`, name: 'Blue', alternateName: 'Blue by Imergene', description: HOME_DESCRIPTION, url: SITE_URL, inLanguage: 'en', publisher: { '@id': `${SITE_URL}/#organization` }, about: { '@id': `${SITE_URL}/#blue-desktop` } },
   ],
 };
 
@@ -50,6 +50,7 @@ export const DESKTOP_APP_SCHEMA = {
   url: SITE_URL, applicationCategory: 'DeveloperApplication', operatingSystem: 'Windows',
   description: HOME_DESCRIPTION,
   publisher: { '@id': `${SITE_URL}/#organization` },
+  creator: { '@id': `${SITE_URL}/#organization` },
   downloadUrl: 'https://apps.microsoft.com/detail/9NHV6GFJ64C8',
   featureList: ['Explain project code', 'Plan and edit project files', 'Run relevant development checks', 'Choose supported AI models'],
 };

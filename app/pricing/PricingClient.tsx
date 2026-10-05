@@ -139,6 +139,12 @@ export default function PricingClient() {
           {user && <div className={styles.accountTools}><span>{imrBalance.toLocaleString('en-IN', { maximumFractionDigits: 0 })} IMR balance</span><button type="button" onClick={() => setIsClaimModalOpen(true)}><Plus size={13} aria-hidden="true" /> Redeem a coupon</button></div>}
         </div>
 
+        <section aria-labelledby="billing-explanation-title" className="mt-6 border-t border-line pt-6">
+          <h2 id="billing-explanation-title" className="text-base font-semibold text-ink">App access and model usage are separate.</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-7 text-ink-muted">Blue by Imergene subscriptions unlock app features. They do not require Blue Credits when you use your own provider key. BYOK model usage is billed by your provider where applicable; Blue Pro model usage is paid with Blue Credits. There is no fixed Blue Credit fee for each code edit, local test, or deployment.</p>
+          <Link href="/about#billing" className="mt-2 inline-flex min-h-10 items-center text-sm font-medium text-brand hover:underline">How Blue&apos;s billing works <ArrowUpRight size={14} aria-hidden="true" className="ml-1" /></Link>
+        </section>
+
         <details className={styles.comparison}>
           <summary><span>Compare all features</span><ChevronDown size={17} aria-hidden="true" /></summary>
           <div className={styles.tableWrap}><table>

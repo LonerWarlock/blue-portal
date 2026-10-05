@@ -21,6 +21,7 @@ const footerLinks = {
     { label: "Status", href: "/status" },
   ],
   Company: [
+    { label: "About Blue by Imergene", href: "/about" },
     { label: "Blog", href: "/blog" },
     { label: "Contact", href: "/contact" },
     { label: "Security", href: "/security" },

@@ -11,7 +11,7 @@ export default function CodingAssistantFaq() {
   const questions = [
     {
       question: "What is Blue?",
-      answer: <p>Blue is an AI coding assistant made specifically for students. It brings code explanations, conversations, and project work into a Windows desktop app and a VS Code extension.</p>,
+      answer: <p>Blue is an AI coding assistant developed, owned, and operated by Imergene, made specifically for students. It brings code explanations, conversations, and project work into a Windows desktop app and a VS Code extension. Read <Link href="/about" className={link}>about Blue by Imergene</Link>.</p>,
     },
     {
       question: "How can Blue help with student projects?",
@@ -28,6 +28,10 @@ export default function CodingAssistantFaq() {
     {
       question: "What does the Blue subscription cost?",
       answer: <p>Blue costs ₹{monthly.priceInr} for {monthly.days} days, ₹{quarterly.priceInr} for {quarterly.days} days, or ₹{yearly.priceInr.toLocaleString("en-IN")} for {yearly.days} days. These are prepaid access periods with no auto-renewal. Model-provider costs remain separate. Compare eligible features and Blue Pro credits on the <Link href="/pricing" className={link}>pricing page</Link>.</p>,
+    },
+    {
+      question: "Does every action use Blue Credits?",
+      answer: <p>No. The Blue subscription pays for app features and does not require Blue Credits when using your own model-provider key. With BYOK, any model usage charges come from your provider, not your Blue Credits balance. Blue Credits pay for model usage through Blue Pro. A code edit, local test, or deployment is not a separately priced Blue Credit action; AI model calls during that work can incur usage costs through your selected connection. See <Link href="/pricing" className={link}>the separate access and model-usage options</Link>.</p>,
     },
     {
       question: "Can Blue run tests, and does it guarantee correct code?",

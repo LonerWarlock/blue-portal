@@ -145,6 +145,7 @@ export default function DocsPage() {
                   <p className={copy}>
                     Blue uses your OpenRouter key. OpenRouter controls that
                     account&apos;s model availability, charges, and rate limits.
+                    BYOK model requests do not spend Blue Credits.
                     A model marked free can still be busy or rate limited.
                   </p>
                 </div>
@@ -185,8 +186,9 @@ export default function DocsPage() {
                   <p className={copy}>
                     Use it for frontend project work when you want extra design,
                     image analysis, and browser-based visual refinement. It can
-                    take longer and consume provider tokens or Blue Credits
-                    faster. A browser review is evidence only when it actually
+                    take longer and make more model calls. With BYOK, those calls
+                    use your provider account; with Blue Pro, they use Blue
+                    Credits. A browser review is evidence only when it actually
                     completes.
                   </p>
                 </div>
