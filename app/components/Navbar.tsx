@@ -13,7 +13,6 @@ const NAV_LINKS = [
   { href: "/product/agents", label: "Agents" },
   { href: "/pricing", label: "Pricing" },
   { href: "/docs", label: "Docs" },
-  { href: "/blog", label: "Blog" },
 ];
 
 export default function Navbar({ signedIn }: { signedIn?: boolean } = {}) {
