@@ -12,7 +12,7 @@ export default function Hero() {
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>Made specifically for students</span>
             <h1 id="blue-hero-title" className={styles.heroTitle}>Your ideas.<br />Blue&apos;s craft.<br /><span>Build what&apos;s next.</span></h1>
-            <p className={styles.heroDescription}>Learn by building. Turn coursework, ambitious side projects, and your next big idea into real software—with an AI coding workspace that works alongside you.</p>
+            <p className={styles.heroDescription}>Blue is an AI coding assistant made specifically for students. Understand code, build coursework and personal projects, and debug with Blue Desktop for Windows or the VS Code extension.</p>
             <div className={styles.actions}>
               <DesktopDownloadLink className={styles.primary}>Download Blue for Windows <Download size={17} aria-hidden="true" /></DesktopDownloadLink>
               <Link prefetch={false} href="/console" className={styles.secondary}>Get Started for Free <ArrowRight size={16} aria-hidden="true" /></Link>

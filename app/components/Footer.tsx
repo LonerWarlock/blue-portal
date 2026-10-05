@@ -15,6 +15,7 @@ const footerLinks = {
   ],
   Resources: [
     { label: "Documentation", href: "/docs" },
+    { label: "Student coding guide", href: "/guides/ai-coding-assistant-for-students" },
     { label: "Changelog", href: "/changelog" },
     { label: "Community", href: "/community" },
     { label: "Status", href: "/status" },

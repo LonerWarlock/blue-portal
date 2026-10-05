@@ -1,6 +1,9 @@
 import PageLayout from "@/app/components/PageLayout";
 import AgentLiveDemo from "@/app/components/AgentLiveDemo";
 import Link from "next/link";
+import { createPageMetadata } from "@/lib/seo";
+
+export const metadata = createPageMetadata("/product/agents", "Blue AI Coding Agents | Build, Debug and Test Projects", "Use Blue coding agents to understand projects, plan changes, edit code and run relevant checks. Explore a demonstration and learn how to get started.");
 
 export default function AgentsPage() {
   return (
@@ -26,8 +29,8 @@ export default function AgentsPage() {
               </span>
             </h1>
             <p className="mt-6 text-lg text-ink-muted max-w-3xl mx-auto leading-relaxed">
-              Blue&apos;s Autonomous Agents don&apos;t just suggest code lines—they build entire features,
-              run tests, and fix bugs by themselves.
+              Blue&apos;s AI coding agents work with your project: explain code, plan changes,
+              edit files and run relevant checks. Review the result before you use it.
             </p>
           </div>
 
@@ -39,6 +42,7 @@ export default function AgentsPage() {
 
             <div className="mt-8">
               <AgentLiveDemo />
+              <p className="mt-3 text-xs leading-6 text-ink-muted">Illustrative interface demonstration. Example output, not a live AI task or a performance benchmark.</p>
             </div>
           </div>
 
@@ -56,7 +60,7 @@ export default function AgentsPage() {
                 <i className="fa-solid fa-eye text-lg text-white"></i>
               </div>
               <h3 className="text-lg font-bold text-ink mb-3">Independent Review</h3>
-              <p className="text-sm text-ink-muted">Before finishing, the agent inspects the diff output to ensure no syntax errors are introduced.</p>
+              <p className="text-sm text-ink-muted">Ask the agent to review its changes and run relevant checks. AI output can contain mistakes; always inspect the diff and test the result.</p>
             </div>
           </div>
 

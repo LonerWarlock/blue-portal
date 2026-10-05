@@ -11,6 +11,8 @@ import { PostHogProvider } from "./providers/PostHogProvider";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { CookieConsentProvider } from "./contexts/CookieConsentContext";
+import JsonLd from "./components/JsonLd";
+import { HOME_DESCRIPTION, HOME_TITLE, SITE_SCHEMA, SITE_URL } from "@/lib/seo";
 
 // Resolves and applies the theme before first paint, so there is no
 // flash of the wrong theme on load. Reads the same localStorage key
@@ -56,8 +58,15 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Blue — An AI coding workspace made for students",
-  description: "Made specifically for students. Learn by building with Blue: understand projects, develop ideas, and work with AI coding agents in Blue Desktop for Windows or VS Code. Download Blue Desktop from Microsoft Store.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: HOME_TITLE, template: "%s" },
+  description: HOME_DESCRIPTION,
+  applicationName: "Blue",
+  creator: "IMERGENE",
+  publisher: "IMERGENE",
+  icons: { icon: "/images/blue-symbol.png", apple: "/images/blue-symbol.png" },
+  verification: { google: "PsWJ5-fDX0TuVohHswUfYqo36Xk7CipkY0E68mp6Dwg" },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
 };
 
 export default function RootLayout({
@@ -72,6 +81,7 @@ export default function RootLayout({
         {/* Meta Pixel and PostHog are now loaded conditionally via CookieConsentContext */}
       </head>
       <body className="min-h-screen bg-paper text-ink flex flex-col antialiased relative font-sans">
+        <JsonLd data={SITE_SCHEMA} />
         <Script id="blue-deferred-font-awesome" strategy="afterInteractive">
           {FONT_AWESOME_INIT_SCRIPT}
         </Script>

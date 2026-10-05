@@ -1,10 +1,7 @@
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/seo";
 import PricingClient from "./PricingClient";
 
-export const metadata: Metadata = {
-  title: "Blue Pricing and Plans",
-  description: "Compare Blue Lite, Blue, and Blue Pro plans. Choose OpenRouter BYOK or Blue Credits for the models you use.",
-};
+export const metadata = createPageMetadata("/pricing", "Blue Pricing | AI Coding Assistant Plans for Students", "Start with free Blue Lite or choose Blue from ₹149 for 30 days, quarterly and yearly plans. Compare BYOK, integrations and Blue Pro model credits.");
 
 export default function PricingPage() {
   return <PricingClient />;

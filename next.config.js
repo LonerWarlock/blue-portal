@@ -16,6 +16,9 @@ module.exports = phase => ({
           value: 'camera=(), microphone=(), geolocation=(), payment=(self)'
         }
       ]
-    }];
+    }, ...['/api/:path*', '/console/:path*', '/checkout/:path*', '/blue-pro/checkout/:path*', '/blue-pro/dashboard/:path*'].map(source => ({
+      source,
+      headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }]
+    }))];
   }
 });

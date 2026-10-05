@@ -5,7 +5,7 @@ import styles from "./PremiumLanding.module.css";
 const features = [
   { icon: FolderSearch, title: "Understand what you're building.", description: "Explore a project's architecture, trace unfamiliar code, and ask for explanations while you work. Go beyond a copied answer to understand the change.", detail: "A clearer starting point for coursework and personal projects." },
   { icon: Workflow, title: "Move from idea to implementation.", description: "Ask Blue to plan a change, edit project files, and run relevant checks. When a task benefits from parallel work, eligible paid users can enable multiple agents.", detail: "Work in your project, not in an isolated prompt box." },
-  { icon: ShieldCheck, title: "Make progress. Keep control.", description: "Approve for me handles routine project work while asking about sensitive actions. Available task checkpoints let you review and restore supported file changes.", detail: "Credentials, outside-project actions, and publishing still need care." },
+  { icon: ShieldCheck, title: "Make progress. Keep control.", description: "Review requested permissions and follow the changes in your project. Available task checkpoints let you review and restore supported file changes.", detail: "Check AI-generated code and results before you use or publish them." },
   { icon: Plug, title: "Connect the tools you already use.", description: "Bring supported GitHub, Canva, and Vercel connections into your workflow. Keep your account permissions and provider limits in view.", detail: "Connections require sign-in and depend on third-party availability." },
 ];
 

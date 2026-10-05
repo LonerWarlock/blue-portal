@@ -1,12 +1,9 @@
-import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/seo";
+import DesktopDownloadLink from "@/app/components/DesktopDownloadLink";
 import Link from "next/link";
 import PageLayout from "@/app/components/PageLayout";
 
-export const metadata: Metadata = {
-  title: "Blue Documentation",
-  description:
-    "Set up Blue Desktop or the VS Code extension, work with projects and models, use UI Max, and troubleshoot common issues.",
-};
+export const metadata = createPageMetadata("/docs", "Blue Docs | Set Up Your AI Coding Assistant", "Install Blue Desktop for Windows or the VS Code extension. Learn project setup, code explanations, debugging, model connections, BYOK and billing.");
 
 const sections = [
   { id: "get-started", label: "Get started" },
@@ -71,7 +68,7 @@ export default function DocsPage() {
                 <div className={card}>
                   <h3 className={heading}>Blue Desktop</h3>
                   <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-7 text-ink-muted">
-                    <li>Install Blue Desktop from an official Blue release or a test package provided by the team.</li>
+                    <li><DesktopDownloadLink className="font-medium text-brand hover:underline">Download Blue Desktop for Windows</DesktopDownloadLink> using Microsoft&apos;s official installer, then open the downloaded file to install it.</li>
                     <li>Sign in using the email code sent to your Blue account.</li>
                     <li>In Setup Wizard, choose OpenRouter BYOK and paste your own API key, or choose Blue models if your account has eligible Blue Pro credits.</li>
                     <li>Select a model, add a project folder if you want file changes, and send your first prompt.</li>

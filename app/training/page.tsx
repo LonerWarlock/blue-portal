@@ -1,11 +1,9 @@
 import PageLayout from "@/app/components/PageLayout";
 import Link from "next/link";
+import { createPageMetadata } from "@/lib/seo";
 import { GraduationCap, Award, BookOpen, Users, CheckCircle2, Star, Sparkles, Building2, Code2, Rocket } from "lucide-react";
 
-export const metadata = {
-  title: "Student Training Programs — Blue AI & IMERGENE",
-  description: "Practical developer training programs for college students. Hands-on experience in Python, AI-powered coding agents, and real-world project development.",
-};
+export const metadata = createPageMetadata("/training", "Student Training Programs — Blue AI & IMERGENE", "Practical developer training programs for college students. Hands-on experience in Python, AI-powered coding agents, and real-world project development.");
 
 const studentTestimonials = [
   {
