@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowDown, ArrowRight, Code2, Monitor, ShieldCheck, UsersRound } from "lucide-react";
+import { ArrowDown, ArrowRight, Code2, Download, Monitor, ShieldCheck, UsersRound } from "lucide-react";
+import DesktopDownloadLink from "./DesktopDownloadLink";
 import BlueCore from "./BlueCore";
 import styles from "./PremiumLanding.module.css";
 
@@ -13,10 +14,12 @@ export default function Hero() {
             <h1 id="blue-hero-title" className={styles.heroTitle}>Your ideas.<br />Blue&apos;s craft.<br /><span>Build what&apos;s next.</span></h1>
             <p className={styles.heroDescription}>Learn by building. Turn coursework, ambitious side projects, and your next big idea into real software—with an AI coding workspace that works alongside you.</p>
             <div className={styles.actions}>
-              <Link prefetch={false} href="/console" className={styles.primary}>Get Started for Free <ArrowRight size={16} aria-hidden="true" /></Link>
-              <Link prefetch={false} href="/contact" className={styles.secondary}>Book a Demo</Link>
+              <DesktopDownloadLink className={styles.primary}>Download Blue for Windows <Download size={17} aria-hidden="true" /></DesktopDownloadLink>
+              <Link prefetch={false} href="/console" className={styles.secondary}>Get Started for Free <ArrowRight size={16} aria-hidden="true" /></Link>
+              <Link prefetch={false} href="/contact" className={styles.textLink}>Book a Demo</Link>
             </div>
-            <div className={styles.heroPlatforms}><Code2 size={15} aria-hidden="true" /> In VS Code <span>Blue Desktop · Launching soon</span></div>
+            <div className={styles.downloadOptions}><span>Microsoft-signed installer</span><DesktopDownloadLink variant="store" className={styles.textLink}>Open Microsoft Store <ArrowRight size={14} aria-hidden="true" /></DesktopDownloadLink></div>
+            <div className={styles.heroPlatforms}><Code2 size={15} aria-hidden="true" /> In VS Code <span>Blue Desktop · Available for Windows</span></div>
             <a href="#workspace" className={styles.textLink}>Explore the workspace <ArrowDown size={14} aria-hidden="true" /></a>
           </div>
           <BlueCore />

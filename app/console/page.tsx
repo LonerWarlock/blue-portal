@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Monitor } from "lucide-react";
+import DesktopDownloadLink from "../components/DesktopDownloadLink";
 import { supabase } from "@/lib/supabase";
 import VSCodeInstallSnippet from "../components/VSCodeInstallSnippet";
 import Navbar from "../components/Navbar";
@@ -405,10 +406,10 @@ export default function ConsolePage() {
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Link prefetch={false} href="/#workspace" className="btn btn-secondary min-h-11 text-sm">
+              <DesktopDownloadLink className="btn btn-secondary min-h-11 text-sm">
                 <Monitor aria-hidden="true" className="mr-2 h-4 w-4 shrink-0" />
-                Blue Desktop is coming
-              </Link>
+                Download Blue for Windows
+              </DesktopDownloadLink>
               <Link prefetch={false} href={isProPayg ? '/blue-pro/checkout' : '/pricing'} className="btn btn-secondary min-h-11 text-sm">
                 {isProPayg ? 'Add Credits' : 'Upgrade'}
               </Link>

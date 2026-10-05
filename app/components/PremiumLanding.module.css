@@ -15,8 +15,12 @@
 .primary:hover { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
 .secondary { border: 1px solid var(--line-strong); color: var(--ink); }
 .secondary:hover { background: var(--surface); border-color: var(--ink-muted); }
+.primary:focus-visible, .secondary:focus-visible, .textLink:focus-visible { outline: 2px solid var(--brand); outline-offset: 4px; }
+.primary svg, .secondary svg { flex-shrink: 0; }
 .textLink { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; color: var(--ink-muted); font-size: 13px; }
 .textLink:hover { color: var(--brand); }
+.downloadOptions { display: flex; align-items: center; flex-wrap: wrap; column-gap: 16px; margin-top: 8px; font-size: 12px; color: var(--ink-muted); }
+.downloadOptions .textLink { font-size: 12px; }
 .heroPlatforms { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 30px; color: var(--ink-muted); font-size: 12px; }
 .heroPlatforms span { padding-left: 12px; border-left: 1px solid var(--line-strong); }
 .core { position: relative; min-width: 0; }
@@ -98,4 +102,5 @@
   .modelFamily:nth-child(even) { padding-left: 20px; border-right: 0; } .modelFamily:last-child { grid-column: 1/-1; } .modelFootnote { flex-direction: column; align-items: flex-start; gap: 8px; }
   .ctaBottom { flex-direction: column; align-items: flex-start; gap: 28px; } .install { grid-template-columns: 1fr; gap: 24px; margin-top: 40px; } .demoCaption { flex-direction: column; gap: 8px; }
 }
+@media (max-width: 480px) { .heroCopy .actions > .primary, .heroCopy .actions > .secondary { width: 100%; } .heroCopy .actions > .textLink { width: 100%; justify-content: center; } }
 @media (prefers-reduced-motion: reduce) { .coreFallback, .primary, .secondary { transition: none; } }

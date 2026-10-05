@@ -60,7 +60,7 @@ export default function DesktopShowcase() {
         <button type="button" aria-pressed={selected === 0} onClick={() => chooseView(0)}><Monitor size={15} aria-hidden="true" />Try Blue Desktop</button>
         <button type="button" aria-pressed={selected === 1} onClick={() => chooseView(1)}><Shapes size={15} aria-hidden="true" />Model choice</button>
       </div>
-      <span className={styles.soon}>Launching soon</span>
+      <span className={styles.availability}>Now available</span>
     </div>
     <div className={styles.stage}>
       <div className={styles.atmosphere} aria-hidden="true" />
@@ -76,7 +76,7 @@ export default function DesktopShowcase() {
     <dialog ref={dialogRef} className={styles.dialog} aria-labelledby="desktop-preview-dialog-title" onClose={() => setOpen(false)} onClick={event => { if (event.target === event.currentTarget) dialogRef.current?.close(); }}>
       <div className={styles.dialogHeader}><h3 id="desktop-preview-dialog-title">Blue Desktop / Interactive preview</h3><button type="button" autoFocus aria-label="Close Desktop preview" onClick={() => dialogRef.current?.close()}><X size={20} aria-hidden="true" /></button></div>
       {open && <div className={styles.dialogFrame}>{demoDocument ? <iframe title="Full-size Blue Desktop preview — example data only" srcDoc={modalHtml} sandbox="allow-scripts allow-forms" referrerPolicy="no-referrer" /> : loading()}</div>}
-      <p className={styles.dialogCaption}>Launching soon · Actual Blue renderer. Scripted example responses only. Opening this view starts a fresh preview.</p>
+      <p className={styles.dialogCaption}>Actual Blue renderer. Scripted example responses only. Opening this view starts a fresh preview.</p>
     </dialog>
   </div>;
 }

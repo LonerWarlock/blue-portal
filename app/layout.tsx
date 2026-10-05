@@ -57,7 +57,7 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "Blue — An AI coding workspace made for students",
-  description: "Made specifically for students. Learn by building with Blue: understand projects, develop ideas, and work with AI coding agents in VS Code. Blue Desktop is launching soon.",
+  description: "Made specifically for students. Learn by building with Blue: understand projects, develop ideas, and work with AI coding agents in Blue Desktop for Windows or VS Code. Download Blue Desktop from Microsoft Store.",
 };
 
 export default function RootLayout({

@@ -147,10 +147,10 @@ export default function LaserFlowHero() {
           </div>
         )}
         <div className={styles.launchGhost} data-blue-launch-static="true">
-          <div className={styles.launchCopy}><span>Blue Desktop.</span><span>Launching soon</span></div>
+          <div className={styles.launchCopy}><span>Blue Desktop.</span><span>Now available</span></div>
         </div>
         <div className={styles.spotlight} data-blue-launch-reveal="true">
-          <div className={styles.launchCopy}><span>Blue Desktop.</span><span>Launching soon</span></div>
+          <div className={styles.launchCopy}><span>Blue Desktop.</span><span>Now available</span></div>
         </div>
         <div className={styles.separator} data-blue-laser-separator="true" />
       </div>
@@ -166,7 +166,7 @@ export default function LaserFlowHero() {
         </div>
       )}
       <figcaption id="blue-workspace-caption" className={styles.caption}>
-        <span>Blue Desktop <span className={styles.captionDetail}>/ Launching soon · Product preview</span></span>
+        <span>Blue Desktop <span className={styles.captionDetail}>/ Available for Windows · Interactive demo</span></span>
         <div className={styles.captionActions}>
           {finePointer && !reducedMotion && !saveData && <span className={styles.hoverHint}>Move your cursor to explore</span>}
         </div>

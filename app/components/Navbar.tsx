@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Crown, Menu, Terminal, X } from "lucide-react";
+import { Crown, Download, Menu, Terminal, X } from "lucide-react";
+import DesktopDownloadLink from "./DesktopDownloadLink";
 import { useAuth } from "../contexts/AuthContext";
 import ThemeToggle from "./ThemeToggle";
 
@@ -105,14 +106,12 @@ export default function Navbar({ signedIn }: { signedIn?: boolean } = {}) {
               >
                 Sign In
               </Link>
-              <Link prefetch={false}
-                href="/console"
-                className="btn btn-primary !py-1.5"
-              >
-                Get Started
-              </Link>
               </>
             )}
+            <DesktopDownloadLink aria-label="Download Blue for Windows" className="btn btn-primary min-h-11 !py-1.5">
+              <Download aria-hidden="true" className="mr-1.5 h-4 w-4 shrink-0" />
+              Download Blue
+            </DesktopDownloadLink>
           </div>
 
           <button
@@ -148,7 +147,14 @@ export default function Navbar({ signedIn }: { signedIn?: boolean } = {}) {
                 </Link>
               ))}
             </nav>
-            <div className="mt-4 grid grid-cols-2 gap-2 border-t border-line pt-4">
+            <div className="mt-4 border-t border-line pt-4">
+              <DesktopDownloadLink onClick={() => setMobileMenuOpen(false)} className="btn btn-primary min-h-11 w-full justify-center !py-2.5">
+                <Download aria-hidden="true" className="mr-2 h-4 w-4 shrink-0" />
+                Download Blue for Windows
+              </DesktopDownloadLink>
+              <DesktopDownloadLink variant="store" onClick={() => setMobileMenuOpen(false)} className="mt-1 flex min-h-11 items-center justify-center text-xs text-ink-muted hover:text-brand">Open Microsoft Store</DesktopDownloadLink>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2">
               <Link prefetch={false} href="/pricing" onClick={() => setMobileMenuOpen(false)} className="btn btn-secondary justify-center !py-2.5">
                 <Crown aria-hidden="true" className="mr-1.5 h-3.5 w-3.5 text-accent" />
                 Upgrade

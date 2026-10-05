@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import DesktopDownloadLink from "./DesktopDownloadLink";
 import { useCookieConsent } from "../contexts/CookieConsentContext";
 
 const footerLinks = {
@@ -37,7 +38,7 @@ export default function Footer() {
           <div>
             <Link href="/" className="inline-flex items-center gap-3" aria-label="Blue home"><Image src="/images/blue-symbol.png" alt="" width={40} height={40} unoptimized /><span className="font-display text-2xl font-semibold tracking-tight">Blue<span className="ml-3 text-xs font-sans font-normal text-ink-muted">by Imergene</span></span></Link>
             <p className="mt-5 max-w-xs text-sm leading-7 text-ink-muted">Made specifically for students.<br />An AI coding workspace for the ideas you want to bring to life.</p>
-            <p className="mt-4 text-xs text-brand">Blue Desktop · Launching soon</p>
+            <DesktopDownloadLink className="mt-4 inline-flex min-h-11 items-center gap-2 text-xs text-brand hover:underline">Download Blue for Windows <ArrowUpRight size={14} aria-hidden="true" /></DesktopDownloadLink>
           </div>
           {Object.entries(footerLinks).map(([category, links]) => <div key={category}><h3 className="eyebrow mb-4">{category}</h3><nav aria-label={`${category} links`} className="flex flex-col items-start">{links.map(link => <Link prefetch={false} key={link.label} href={link.href} className="inline-flex min-h-10 items-center text-sm text-ink-muted hover:text-ink">{link.label}</Link>)}{category === "Company" && <button type="button" onClick={resetConsent} className="min-h-10 text-left text-sm text-ink-muted hover:text-ink">Cookie preferences</button>}</nav></div>)}
         </div>

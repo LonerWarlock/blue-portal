@@ -14,7 +14,7 @@ export default function CtaSection() {
           <div className={styles.actions}><Link href="/console" className={styles.primary}>Get Started for Free <ArrowRight size={16} aria-hidden="true" /></Link><Link href="/pricing" className={styles.secondary}>Find your plan</Link></div>
         </div>
         <div className={styles.install}>
-          <div><h3>Meet Blue where you code.</h3><p>Use Blue in VS Code today. Blue Desktop is launching soon.</p></div>
+          <div><h3>Meet Blue where you code.</h3><p>Use Blue Desktop on Windows or bring Blue into VS Code.</p></div>
           <a className={styles.secondary} href="https://marketplace.visualstudio.com/items?itemName=om-mali.blue-coding-assistant" target="_blank" rel="noopener noreferrer"><Code2 size={18} aria-hidden="true" /> Explore the VS Code extension <ArrowRight size={15} aria-hidden="true" /></a>
         </div>
         <InstallCommand />
