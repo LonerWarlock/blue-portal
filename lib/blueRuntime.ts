@@ -291,7 +291,7 @@ export async function admitBlueRuntimeTask(
     runtimeProtocolVersion: input.runtimeProtocolVersion || BLUE_RUNTIME_PROTOCOL_VERSION,
     deviceHash
   }));
-  if (reviewerModel && allowance < MIN_PAID_ALLOWANCE) {
+  if (reviewerModel && billableTask && allowance < MIN_PAID_ALLOWANCE) {
     const existing = await getTaskForUser(refreshedAccount.userId, input.requestId);
     if (existing) {
       try {
@@ -818,11 +818,15 @@ async function settleRuntimeTask(
   const providerCost = decision.providerCost;
 
   if (!runtimeTaskIsBillable(task) && providerCost > 0) {
-    await supabaseAdmin!.from('blue_runtime_model_blocks').upsert({
-      model: task.model,
-      reason: `OpenRouter reported ${providerCost} USD for a model catalogued as free`,
-      created_at: new Date().toISOString()
-    });
+    // Aggregate key usage cannot distinguish coding from reviewer price drift.
+    // Block both exact free identities; never charge the user for that anomaly.
+    await supabaseAdmin!.from('blue_runtime_model_blocks').upsert(
+      runtimeAllowedModelSet(task.model, task.reviewer_model).map(model => ({
+        model,
+        reason: `OpenRouter reported ${providerCost} USD for a model catalogued as free`,
+        created_at: new Date().toISOString()
+      }))
+    );
   }
 
   const billingAccount = await loadBillingAccount(task.user_id, 0.15, true);
@@ -1304,7 +1308,7 @@ async function admissionPayload(
       extension_blue_credits: BLUE_RUNTIME_EXTENSION_ALLOWANCE,
       multiplier: BLUE_CREDIT_MULTIPLIER,
       free_model: task.is_free,
-      ...(reviewer ? { billable_task: true } : {})
+      ...(reviewer ? { billable_task: runtimeTaskIsBillable(task) } : {})
     },
     rate_card: {
       prompt: price(model.pricing?.prompt),

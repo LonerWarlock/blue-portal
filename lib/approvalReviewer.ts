@@ -1,39 +1,59 @@
 import type { OpenRouterModel } from './openrouter';
+import reviewerModels from './approvalReviewerModels.cjs';
 
-// This is an explicit, billable admission choice, not a task-model fallback.
+// Exact reviewer identities; older installed clients retain their paid route.
 // Do not accept arbitrary reviewer IDs or a provider's auto/meta-router here.
-export const BLUE_APPROVAL_REVIEWER_MODEL = 'openai/gpt-5.4-mini';
+export const BLUE_APPROVAL_REVIEWER_MODEL = reviewerModels.free;
+const LEGACY_PAID_REVIEWER = reviewerModels.legacy;
 
 export function normalizeApprovalReviewer(value: unknown): string | undefined {
   if (value === undefined || value === null || value === '') return undefined;
-  if (typeof value !== 'string' || value !== BLUE_APPROVAL_REVIEWER_MODEL) {
+  if (typeof value !== 'string' || (value !== BLUE_APPROVAL_REVIEWER_MODEL && value !== LEGACY_PAID_REVIEWER)) {
     throw new Error('The selected Blue approval reviewer is not supported');
   }
   return value;
 }
 
 export function approvalReviewerFromCatalog(models: OpenRouterModel[], requested: string): OpenRouterModel {
-  if (requested !== BLUE_APPROVAL_REVIEWER_MODEL) throw new Error('The selected Blue approval reviewer is not supported');
+  if (!normalizeApprovalReviewer(requested)) throw new Error('The selected Blue approval reviewer is not supported');
   const model = models.find(candidate =>
     (candidate.provider_route_id || candidate.id) === requested
   );
   if (!model) throw new Error('The Blue approval reviewer is unavailable in the provider catalogue');
   const parameters = new Set(model.supported_parameters || []);
-  if (!['tools', 'response_format', 'structured_outputs', 'reasoning', 'reasoning_effort']
+  // Native assessments return a structured result, not coding tool calls.
+  const required = requested === BLUE_APPROVAL_REVIEWER_MODEL
+    ? ['structured_outputs', 'reasoning', 'reasoning_effort']
+    : ['tools', 'response_format', 'structured_outputs', 'reasoning', 'reasoning_effort'];
+  if (!required
     .every(parameter => parameters.has(parameter))) {
     throw new Error('The Blue approval reviewer does not advertise the required native review capabilities');
   }
-  const prompt = Number(model.pricing?.prompt);
-  const completion = Number(model.pricing?.completion);
-  if (!Number.isFinite(prompt) || !Number.isFinite(completion) || prompt < 0 || completion <= 0) {
+  const prompt = verifiedPrice(model.pricing?.prompt);
+  const completion = verifiedPrice(model.pricing?.completion);
+  if (prompt === undefined || completion === undefined) {
     throw new Error('The Blue approval reviewer pricing could not be verified');
+  }
+  if (requested === BLUE_APPROVAL_REVIEWER_MODEL
+    && (prompt !== 0 || completion !== 0
+      || Object.values(model.pricing || {}).some(rate => verifiedPrice(rate) !== 0))) {
+    throw new Error('The free approval reviewer no longer has verified zero pricing');
+  }
+  if (requested === LEGACY_PAID_REVIEWER && completion <= 0) {
+    throw new Error('The paid approval reviewer pricing could not be verified');
   }
   return model;
 }
 
+function verifiedPrice(value: unknown): number | undefined {
+  if (typeof value !== 'string' || value.trim() === '') return undefined;
+  const rate = Number(value);
+  return Number.isFinite(rate) && rate >= 0 ? rate : undefined;
+}
+
 /** is_free remains the coding route identity, not a whole-task billing flag. */
 export function runtimeTaskIsBillable(task: { is_free: boolean; reviewer_model?: string | null }): boolean {
-  return !task.is_free || Boolean(task.reviewer_model);
+  return !task.is_free || Boolean(task.reviewer_model && task.reviewer_model !== BLUE_APPROVAL_REVIEWER_MODEL);
 }
 
 export function runtimeAllowedModelSet(codingModel: string, reviewerModel?: string | null): string[] {
@@ -61,7 +81,8 @@ export function reviewedRuntimeReplayAllowance(
     throw new Error('This Blue task ID was already used with different runtime settings');
   }
   const allowance = Number(task.requested_blue_credits);
-  if (!Number.isFinite(allowance) || allowance <= 0) {
+  if (!Number.isFinite(allowance) || allowance < 0
+    || (runtimeTaskIsBillable(task) ? allowance <= 0 : allowance !== 0)) {
     throw new Error('The existing reviewed Blue task has an invalid runtime allowance');
   }
   return allowance;

@@ -1,9 +1,23 @@
-# Separate approval reviewer — local backend patch
+# Separate approval reviewer
 
-These changes are applied to the local Portal repository and have **not been
-pushed or deployed**. The live Portal and Supabase database were not changed.
-The separate source snapshot under BlueV2 is only a test/patch artifact; do not
-copy its dependency junction or package it.
+## Free reviewer compatibility update (2026-10-06)
+
+The active Portal now supports the desktop's exact `qwen/qwen3.8-27b:free`
+reviewer as well as explicitly requested legacy `openai/gpt-5.4-mini` reviews.
+There is no automatic paid fallback. Free review requires verified zero pricing
+and native structured-output/reasoning capabilities; it does not require coding
+tools. The reviewer-only catalogue entry is not exposed as a coding model.
+
+Free coding plus free review uses a zero-credit reservation. Paid coding and
+legacy paid review retain their existing accounting, immutable task identity,
+exact-model guardrails and concurrency limits. Apply additive migration
+`028_blue_runtime_free_approval_reviewer.sql` after the existing runtime baseline,
+then deploy the matching Portal source. No desktop package change is needed.
+Provider/workspace availability and free endpoint rate limits still apply.
+
+The sections below record the original paid-reviewer implementation. The separate
+source snapshot under BlueV2 is only a patch artifact; do not copy its dependency
+junction or package it.
 
 ## What changes
 

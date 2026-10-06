@@ -1,4 +1,5 @@
 import { unstable_cache } from 'next/cache.js';
+import reviewerModels from './approvalReviewerModels.cjs';
 
 // Unlike the public catalogue, /models/user is filtered by the account's
 // provider preferences, privacy policy, and guardrails. Blue must never offer
@@ -83,7 +84,7 @@ const getSharedOpenRouterModels = unstable_cache(
     if (models.length === 0) throw new Error('OpenRouter returned an empty model catalog');
     return models;
   },
-  ['blue-openrouter-model-catalog-v5'],
+  ['blue-openrouter-model-catalog-v6'],
   { revalidate: 300, tags: ['openrouter-model-catalog'] }
 );
 
@@ -136,7 +137,10 @@ export function normalizeOpenRouterModels(models: OpenRouterModel[]): OpenRouter
     // Batch routes cannot stream an interactive agent turn, even if they share
     // a canonical slug and advertise the same tools as their normal variant.
     if (modelVariant(rawId) === ':batch') continue;
-    if (!Array.isArray(raw.supported_parameters) || !raw.supported_parameters.includes('tools')) continue;
+    // Keep the exact structured-only reviewer available to runtime admission.
+    // modelsForAccess still requires tools, so this cannot widen coding access.
+    if (!Array.isArray(raw.supported_parameters)
+      || (!raw.supported_parameters.includes('tools') && rawId !== reviewerModels.free)) continue;
     const canonical = canonicalModelId(raw);
     if (!canonical) continue;
     if (isProviderRouterModel(canonical)) continue;
