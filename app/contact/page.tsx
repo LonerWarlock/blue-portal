@@ -26,6 +26,7 @@ export default function ContactPage() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const turnstileContainerRef = useRef<HTMLDivElement>(null);
   const turnstileWidgetIdRef = useRef<string | null>(null);
+  const honeypotRef = useRef<HTMLInputElement>(null);
 
   const renderTurnstile = useCallback(() => {
     if (!TURNSTILE_SITE_KEY || !window.turnstile || !turnstileContainerRef.current || turnstileWidgetIdRef.current) {
@@ -74,7 +75,7 @@ export default function ContactPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, email, message, turnstileToken }),
+        body: JSON.stringify({ name, email, message, turnstileToken, website: honeypotRef.current?.value || "" }),
       });
 
       const data = await response.json().catch(() => ({}));
@@ -224,7 +225,7 @@ export default function ContactPage() {
 
                   {status === "success" && (
                     <div aria-live="polite" className="mb-4 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
-                      ✓ Thank you! Your message has been accepted and queued for our team.
+                      ✓ Thank you! Your message has been sent to our team.
                     </div>
                   )}
 
@@ -235,6 +236,10 @@ export default function ContactPage() {
                   )}
 
                   <form className="space-y-4" onSubmit={handleSubmit}>
+                    <div className="absolute -left-[10000px]" aria-hidden="true">
+                      <label htmlFor="contact-website">Website</label>
+                      <input ref={honeypotRef} id="contact-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+                    </div>
                     <div>
                       <label className="block text-xs font-semibold text-ink-muted mb-1.5">Name</label>
                       <input

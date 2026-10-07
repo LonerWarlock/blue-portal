@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { emailJobIdempotencyKey, enqueueEmailJob } from '@/lib/jobOutbox';
+import { deliverContactEmail } from '@/lib/contactDelivery';
 import {
   checkRateLimit,
   rateLimitHeaders,
@@ -40,11 +40,15 @@ export async function POST(request: Request) {
       email?: unknown;
       message?: unknown;
       turnstileToken?: unknown;
+      website?: unknown;
     };
     const name = String(body.name || '').trim();
     const email = String(body.email || '').trim().toLowerCase();
     const message = String(body.message || '').trim();
     const turnstileToken = String(body.turnstileToken || '');
+    if (String(body.website || '').trim()) {
+      return NextResponse.json({ error: 'Invalid contact form data' }, { status: 400 });
+    }
 
     if (!name || !email || !message) {
       return NextResponse.json(
@@ -60,39 +64,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid contact form data' }, { status: 400 });
     }
 
-    const challenge = await verifyTurnstile({
-      request,
-      token: turnstileToken,
-      expectedAction: 'contact'
-    });
-    if (!challenge.success) {
-      return NextResponse.json(
-        {
-          error: challenge.configured
-            ? 'Human verification failed'
-            : 'Contact form is temporarily unavailable'
-        },
-        { status: challenge.configured ? 400 : 503 }
-      );
+    const turnstileSiteKey = String(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '');
+    const turnstileSecret = String(process.env.TURNSTILE_SECRET_KEY || '');
+    if (Boolean(turnstileSiteKey) !== Boolean(turnstileSecret)) {
+      return NextResponse.json({ error: 'Contact form is temporarily unavailable' }, { status: 503 });
+    }
+    if (turnstileSecret) {
+      const challenge = await verifyTurnstile({
+        request,
+        token: turnstileToken,
+        expectedAction: 'contact'
+      });
+      if (!challenge.success) {
+        return NextResponse.json({ error: 'Human verification failed' }, { status: 400 });
+      }
     }
 
-    const fiveMinuteBucket = String(Math.floor(Date.now() / 300_000));
     const html = [
       '<h2>New Blue AI contact message</h2>',
       '<p><strong>Name:</strong> ' + escapeHtml(name) + '</p>',
       '<p><strong>Email:</strong> ' + escapeHtml(email) + '</p>',
       '<p style="white-space:pre-wrap">' + escapeHtml(message) + '</p>'
     ].join('');
-    await enqueueEmailJob({
+    await deliverContactEmail({
       to: process.env.CONTACT_EMAIL_TO || 'team.imergene@gmail.com',
       replyTo: email,
       subject: 'New Contact Form Message from ' + name,
       html
-    }, emailJobIdempotencyKey('contact', [email, message, fiveMinuteBucket]));
+    });
 
     return NextResponse.json(
-      { success: true, message: 'Message accepted' },
-      { status: 202, headers: rateLimitHeaders(limit) }
+      { success: true, message: 'Message sent' },
+      { status: 200, headers: rateLimitHeaders(limit) }
     );
   } catch (error) {
     console.error('[contact] request failed', {
