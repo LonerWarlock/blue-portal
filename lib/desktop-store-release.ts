@@ -8,12 +8,25 @@ export interface PublishedDesktopStoreRelease {
   notes: readonly string[];
 }
 
-// HUMAN-MAINTAINED PUBLICATION RECORD. Keep this empty until an operator has
+// HUMAN-MAINTAINED PUBLICATION RECORD. Add a release only after an operator has
 // confirmed the exact package version is Published in Microsoft Partner Center.
 // A repository version, uploaded package, certification, or a GitHub tag is not
 // publication evidence. Do not generate this catalog from package.json, CI,
 // build artifacts, or the current submission. See BlueV2's publisher workflow.
-export const publishedDesktopStoreReleases: readonly PublishedDesktopStoreRelease[] = Object.freeze([]);
+export const publishedDesktopStoreReleases: readonly PublishedDesktopStoreRelease[] = Object.freeze([
+  {
+    version: '0.1.28.0',
+    status: 'published',
+    confirmedBy: 'partner-center',
+    // Submission 8 was verified live in Partner Center on 2026-10-11.
+    publishedAt: '2026-10-11T13:44:39.000Z',
+    notes: [
+      'Refined Edit Prompt buttons for a consistent look in light and dark themes.',
+      'Improved /document exports: completed project documentation includes editable Word and shareable PDF copies by default, alongside Markdown, unless excluded.',
+      'Restored available free OpenCode Zen models in the model picker.'
+    ]
+  }
+]);
 
 function storeVersion(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length > 32
