@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 // Verified public production origin. Never use localhost or a preview host as
 // the canonical origin, including when this module runs in a local build.
-export const SITE_URL = 'https://blue-by-imergene.vercel.app';
+export const SITE_URL = 'https://blue.imergene.in';
 export const HOME_TITLE = 'Blue by Imergene | AI Coding Assistant for Students';
 export const HOME_DESCRIPTION = 'Blue by Imergene is an AI coding assistant made specifically for students, available on Windows and VS Code. App subscription access and AI model usage are separate.';
 export const STUDENT_GUIDE_PATH = '/guides/ai-coding-assistant-for-students';
