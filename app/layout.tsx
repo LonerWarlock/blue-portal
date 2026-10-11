@@ -77,6 +77,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${plexSans.variable} ${plexMono.variable}`}>
       <head>
+        <meta name="google-site-verification" content="vruaj02oU1QJFSmV1acG52x92IhkDp8oy8v2A2hLfzw" />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {/* Meta Pixel and PostHog are now loaded conditionally via CookieConsentContext */}
       </head>
