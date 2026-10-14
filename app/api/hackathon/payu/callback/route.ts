@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { createHash } from 'crypto';
+import { validPayuCallbackSignature } from '@/lib/paymentSecurity';
 import nodemailer from 'nodemailer';
 import { HACKATHON_FEE_PER_PERSON, EVENT_NAME } from '@/app/hackathon/config';
 
 export async function POST(req: Request) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
 
   try {
     const data: Record<string, string> = {};
@@ -28,29 +28,25 @@ export async function POST(req: Request) {
       }
     }
 
-    const key = (data.key || '').trim();
     const txnid = (data.txnid || '').trim();
     const amount = (data.amount || '').trim();
-    const productinfo = (data.productinfo || '').trim();
     const firstname = (data.firstname || '').trim();
     const email = (data.email || '').toLowerCase().trim();
     const status = (data.status || '').toLowerCase().trim();
-    const hash = (data.hash || '').trim();
-    const additionalCharges = (data.additionalCharges || '').trim();
     const payuMoneyId = (data.mihpayid || data.payuMoneyId || txnid).trim();
 
-    const salt = process.env.PAYU_MERCHANT_SALT || '';
+    const merchantKey = process.env.PAYU_MERCHANT_KEY?.trim() || '';
+    const salt = process.env.PAYU_MERCHANT_SALT?.trim() || '';
 
-    // Verify reverse signature hash
-    let hashString = `${salt}|${status}|||||||||||${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`;
-    if (additionalCharges) {
-      hashString = `${additionalCharges}|${salt}|${status}|||||||||||${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`;
-    }
-
-    const calculatedHash = createHash('sha512').update(hashString).digest('hex');
-
-    if (calculatedHash !== hash) {
-      console.warn('Hackathon PayU Callback Hash Mismatch (Proceeding with DB sync):', { calculatedHash, receivedHash: hash, txnid, email });
+    // Validate the exact signed fields before normalising them or touching the DB.
+    // PayU may use either spelling for additional charges in its response.
+    if (!merchantKey || data.key !== merchantKey
+      || data.productinfo !== `${EVENT_NAME} - Hackathon Registration`
+      || !validPayuCallbackSignature({
+      ...data, additionalCharges: data.additionalCharges || data.additional_charges || '',
+    }, salt)) {
+      console.warn('Rejected hackathon PayU callback with invalid signature or merchant key');
+      return NextResponse.json({ error: 'Invalid payment signature' }, { status: 403 });
     }
 
     if (!supabaseAdmin) {

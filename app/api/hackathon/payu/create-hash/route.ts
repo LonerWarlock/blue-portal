@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { createHash } from 'crypto';
-import { getTeamFeePayU, EVENT_NAME } from '@/app/hackathon/config';
+import { getTeamFeePayU, isHackathonRegistrationOpen, EVENT_NAME } from '@/app/hackathon/config';
 
 export async function POST(request: Request) {
   try {
@@ -9,6 +9,15 @@ export async function POST(request: Request) {
 
     if (!sessionId || !formData) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    if (!isHackathonRegistrationOpen()) {
+      return NextResponse.json({ error: 'Hackathon registration is closed' }, { status: 410 });
+    }
+
+    const teamSize = Number(formData.teamSize);
+    if (!Number.isInteger(teamSize) || teamSize < 1 || teamSize > 4) {
+      return NextResponse.json({ error: 'Team size must be between 1 and 4' }, { status: 400 });
     }
 
     if (!supabaseAdmin) {
@@ -33,8 +42,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to initialize registration' }, { status: 500 });
     }
 
-    // Calculate amount based on team size (₹100 per person)
-    const teamSize = Number(formData.teamSize) || 1;
+    // Calculate the amount server-side using the same price displayed in the UI.
     const txnid = sessionId;
     const amount = getTeamFeePayU(teamSize);
     const productinfo = `${EVENT_NAME} - Hackathon Registration`;

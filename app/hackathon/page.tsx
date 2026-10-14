@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { HACKATHON_FEE_PER_PERSON_STR, REGISTRATION_DEADLINE, EVENT_NAME, getTeamFeeStr } from './config';
+import { HACKATHON_FEE_PER_PERSON_STR, PAYMENT_TESTING_DEADLINE_LABEL, isHackathonRegistrationOpen, EVENT_NAME, getTeamFeeStr } from './config';
 import DataCollectionNotice from '@/app/components/DataCollectionNotice';
 
 type PaymentResult = 'success' | 'failed' | null;
@@ -121,9 +121,9 @@ export default function HackathonPage() {
   const [isDeadlinePassed, setIsDeadlinePassed] = useState(false);
 
   useEffect(() => {
-    setIsDeadlinePassed(Date.now() >= REGISTRATION_DEADLINE.getTime());
+    setIsDeadlinePassed(!isHackathonRegistrationOpen());
     const timer = setInterval(() => {
-      setIsDeadlinePassed(Date.now() >= REGISTRATION_DEADLINE.getTime());
+      setIsDeadlinePassed(!isHackathonRegistrationOpen());
     }, 60000);
     return () => clearInterval(timer);
   }, []);
@@ -222,6 +222,10 @@ export default function HackathonPage() {
 
   const handlePayment = async () => {
     setError('');
+    if (!isHackathonRegistrationOpen()) {
+      setIsDeadlinePassed(true);
+      return;
+    }
     const err = validateStep();
     if (err) { setError(err); return; }
 
@@ -548,6 +552,9 @@ export default function HackathonPage() {
           </h1>
           <p className="text-ink-faint text-sm mt-2">48-Hour Online Hackathon &mdash; Build Solutions for Real-Life Problems</p>
           <p className="text-xs text-ink-muted mt-1">Using <strong className="text-brand">Blue AI Coding Assistant</strong></p>
+          <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            Payment integration test: {HACKATHON_FEE_PER_PERSON_STR} per person. Temporarily open until {PAYMENT_TESTING_DEADLINE_LABEL}. Event dates are unchanged.
+          </p>
         </div>
 
         {/* Hackathon Info Section */}
@@ -582,7 +589,7 @@ export default function HackathonPage() {
                 <li><span className="font-medium text-gray-700">Mode:</span> Online (Build from Home)</li>
                 <li><span className="font-medium text-gray-700">Eligibility:</span> Open to all branches & years, exclusively for PVPIT students</li>
                 <li><span className="font-medium text-gray-700">Team Size:</span> 1 to 4 members (solo allowed)</li>
-                <li><span className="font-medium text-gray-700">Fee:</span> ₹100 per person (non-refundable)</li>
+                <li><span className="font-medium text-gray-700">Fee:</span> {HACKATHON_FEE_PER_PERSON_STR} per person (non-refundable)</li>
               </ul>
             </div>
 
