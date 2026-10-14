@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { createPaypalOrder } from '@/lib/paypal';
 import { getPackConfig, getCustomPackConfig, APPROX_USD_TO_INR } from '@/lib/exchangeRate';
+import { paymentSiteOrigin } from '@/lib/paymentOrigin';
+import { safeInternalUrl } from '@/lib/paymentSecurity';
 
 export async function POST(request: Request) {
   try {
@@ -23,9 +25,9 @@ export async function POST(request: Request) {
 
     const txnid = `pp_${Math.random().toString(36).substring(2, 10)}${Date.now().toString().slice(-6)}`;
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
+    const siteUrl = paymentSiteOrigin(request.url);
     const paypalReturnUrl = `${siteUrl}/api/blue-pro/paypal/capture?txnid=${txnid}`;
-    const paypalCancelUrl = body.returnUrl || `${siteUrl}/blue-pro/checkout`;
+    const paypalCancelUrl = safeInternalUrl(body.returnUrl, siteUrl, '/blue-pro/checkout').toString();
 
     const order = await createPaypalOrder({
       amount: pack.priceUSD.toFixed(2),
@@ -56,6 +58,8 @@ export async function POST(request: Request) {
           expected_amount: pack.priceUSD.toFixed(2),
           expected_productinfo: `${pack.name} - ${pack.credits} Blue Credits`,
           expected_email: email,
+          expected_custom_id: txnid,
+          expected_invoice_id: txnid,
         },
       })
       .select('id')

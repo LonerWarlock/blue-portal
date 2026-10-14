@@ -16,11 +16,12 @@ function load(relativePath, adapters = {}) {
 }
 const config = load('app/hackathon/config.ts');
 const security = load('lib/paymentSecurity.ts');
+const origins = load('lib/paymentOrigin.ts');
 const next = { NextResponse: {
   json: (data, options) => Response.json(data, options),
   redirect: (url, status = 303) => new Response(null, { status, headers: { Location: String(url) } }),
 } };
-function fixture(kind, configOverride = {}) {
+function fixture(kind, configOverride = {}, options = {}) {
   const calls = [], writes = [];
   const admin = { from(table) {
     calls.push(table);
@@ -31,7 +32,7 @@ function fixture(kind, configOverride = {}) {
     return {
       select() { return this; }, eq() { return this; }, neq() { return this; },
       order() { return this; }, limit() { return this; },
-      insert(value) { writes.push({ table, operation: 'insert', value }); return this; },
+      insert(value) { writes.push({ table, operation: 'insert', value }); if (options.failInsert && table === 'hackathon_registrations') result.error = { message: 'Database unavailable' }; return this; },
       delete() { writes.push({ table, operation: 'delete' }); return this; },
       maybeSingle: async () => result,
       then(resolve, reject) { return Promise.resolve(result).then(resolve, reject); },
@@ -40,6 +41,7 @@ function fixture(kind, configOverride = {}) {
   const handler = load(`app/api/hackathon/payu/${kind}/route.ts`, {
     'next/server': next, '@/lib/supabaseAdmin': { supabaseAdmin: admin },
     '@/app/hackathon/config': { ...config, ...configOverride }, '@/lib/paymentSecurity': security,
+    '@/lib/paymentOrigin': origins,
     nodemailer: { createTransport() { throw new Error('Tests must not send email'); } },
   });
   return { handler, calls, writes };
@@ -159,4 +161,13 @@ test('a signed failed payment never inserts a paid registration', () => withCred
   const response = await postCallback(f.handler, callback({ status: 'failure' }));
   assert.match(response.headers.get('Location'), /payment=failed/);
   assert.equal(f.writes.some(write => write.operation === 'insert'), false);
+}));
+
+test('a successful payment with a registration-save failure remains pending, not failed', () => withCredentials(async () => {
+  const f = fixture('callback', {}, { failInsert: true });
+  const response = await postCallback(f.handler, callback());
+  const destination = new URL(response.headers.get('Location'));
+  assert.equal(destination.origin, 'https://blue.imergene.in');
+  assert.equal(destination.searchParams.get('payment'), 'pending');
+  assert.equal(f.writes.some(write => write.table === 'pending_registrations' && write.operation === 'delete'), false);
 }));

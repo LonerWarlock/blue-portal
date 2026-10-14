@@ -6,6 +6,7 @@ import { moneyEquals, safeInternalUrl } from '@/lib/paymentSecurity';
 import { getBearerToken } from '@/lib/bluePayg';
 import { checkRateLimit, rateLimitHeaders, requestIp } from '@/lib/trafficControl';
 import { bluePlanPriceInr, bluePlanPriceUsd, getBlueSubscriptionPlan, isBlueBillingCycle } from '@/lib/blueSubscriptionPlans';
+import { paymentSiteOrigin } from '@/lib/paymentOrigin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
     const amount = bluePlanPriceUsd(session.billing_cycle, appliedImr);
     const amountInr = bluePlanPriceInr(session.billing_cycle, appliedImr);
     const existingMetadata = session.metadata || {};
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+    const siteUrl = paymentSiteOrigin(request.url);
     const safeReturnUrl = safeInternalUrl(returnUrl, siteUrl, '/console').toString();
     const { data: previousOrder, error: previousOrderError } = await supabaseAdmin
       .from('payment_orders').select('*').eq('checkout_session_id', session.id).maybeSingle();

@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'crypto';
 import { NextResponse } from 'next/server';
 import { APPROX_USD_TO_INR, getPackConfig, getCustomPackConfig } from '@/lib/exchangeRate';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { paymentSiteOrigin } from '@/lib/paymentOrigin';
 
 export async function POST(request: Request) {
   try {
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
     const amount = amountINR.toFixed(2);
     const productinfo = `${pack.name} - ${pack.credits} Blue Credits`;
     const firstname = email.split('@')[0] || 'Customer';
-    const returnUrl = safeReturnUrl(body.returnUrl);
+    const returnUrl = safeReturnUrl(body.returnUrl, paymentSiteOrigin(request.url));
     const hash = createHash('sha512')
       .update(`${merchantKey}|${txnid}|${amount}|${productinfo}|${firstname}|${email}|||||||||||${salt}`)
       .digest('hex');
@@ -75,8 +76,7 @@ export async function POST(request: Request) {
   }
 }
 
-function safeReturnUrl(value: string | undefined): string {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
+function safeReturnUrl(value: string | undefined, site: string): string {
   try {
     const candidate = new URL(value || '/console', site);
     if (candidate.origin !== new URL(site).origin) return new URL('/console', site).toString();

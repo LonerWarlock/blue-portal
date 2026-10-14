@@ -1,106 +1,74 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { capturePaypalOrder } from '@/lib/paypal';
+import { capturePaypalOrder, getPaypalOrder, type PayPalCaptureResult } from '@/lib/paypal';
+import { moneyEquals, safeInternalUrl } from '@/lib/paymentSecurity';
+import { paymentSiteOrigin } from '@/lib/paymentOrigin';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
-  const dashboardUrl = `${siteUrl}/blue-pro/dashboard`;
-
+  const siteUrl = paymentSiteOrigin(request.url);
+  let returnUrl = new URL('/blue-pro/dashboard', siteUrl);
+  const { searchParams } = new URL(request.url);
+  const txnid = searchParams.get('txnid') || '';
+  const token = searchParams.get('token') || '';
+  let bindingVerified = false;
   try {
-    const { searchParams } = new URL(request.url);
-    const txnid = searchParams.get('txnid');
-    const token = searchParams.get('token');
-
-    if (!token) {
-      return NextResponse.redirect(`${dashboardUrl}?payment=failed`, 303);
+    if (!txnid || !/^[a-zA-Z0-9_-]{1,100}$/.test(token) || !supabaseAdmin) {
+      return paymentRedirect(returnUrl, 'error');
     }
-
-    if (!supabaseAdmin) {
-      return NextResponse.redirect(`${dashboardUrl}?payment=failed`, 303);
+    const { data: payment, error } = await supabaseAdmin.from('credit_payments')
+      .select('*').eq('provider_txnid', txnid).maybeSingle();
+    if (error || !payment) return paymentRedirect(returnUrl, 'error');
+    const metadata = (payment.metadata || {}) as Record<string, unknown>;
+    returnUrl = safeInternalUrl(metadata.return_url, siteUrl, '/blue-pro/dashboard');
+    if (payment.payment_provider !== 'paypal' || payment.currency !== 'USD'
+      || metadata.paypal_order_id !== token || payment.provider_txnid !== txnid
+      || !moneyEquals(metadata.expected_amount, metadata.usd_amount)) {
+      return paymentRedirect(returnUrl, 'invalid');
     }
-
-    let payment = null;
-
-    if (txnid && txnid !== 'pp_placeholder') {
-      const { data } = await supabaseAdmin
-        .from('credit_payments')
-        .select('*')
-        .eq('provider_txnid', txnid)
-        .maybeSingle();
-      payment = data;
-    }
-
-    if (!payment) {
-      return NextResponse.redirect(`${dashboardUrl}?payment=failed`, 303);
-    }
-
-    const metadata = payment.metadata as Record<string, unknown> | null;
-    const returnUrl = safeReturnUrl(String(metadata?.return_url || ''), siteUrl);
-
+    bindingVerified = true;
     if (payment.status === 'completed') {
-      const redirect = withQuery(returnUrl, 'payment', 'success');
-      redirect.searchParams.set('credits', String(payment.credits_purchased));
-      return NextResponse.redirect(redirect, 303);
+      return successRedirect(returnUrl, payment.credits_purchased);
     }
+    if (payment.status !== 'pending') return paymentRedirect(returnUrl, 'error');
 
-    const captureResult = await capturePaypalOrder(token);
-
-    if (captureResult.status !== 'COMPLETED') {
-      await supabaseAdmin
-        .from('credit_payments')
-        .update({ status: 'failed' })
-        .eq('id', payment.id)
-        .eq('status', 'pending');
-      return NextResponse.redirect(withQuery(returnUrl, 'payment', 'failed'), 303);
+    let capture: PayPalCaptureResult;
+    try { capture = await capturePaypalOrder(token); }
+    catch {
+      // The provider may already have captured it. Read evidence, not a second charge.
+      capture = await getPaypalOrder(token);
+    }
+    if (capture.status !== 'COMPLETED' || capture.captureStatus !== 'COMPLETED') {
+      return paymentRedirect(returnUrl, 'pending');
+    }
+    if (capture.orderId !== token || !capture.captureId
+      || capture.purchaseUnitCount !== 1 || capture.captureCount !== 1
+      || capture.currency !== 'USD' || !moneyEquals(capture.grossAmount, metadata.expected_amount)
+      || capture.customId !== (metadata.expected_custom_id || txnid)
+      || capture.invoiceId !== (metadata.expected_invoice_id || txnid)) {
+      return paymentRedirect(returnUrl, 'invalid');
     }
 
     const { data: completion, error: completionError } = await supabaseAdmin.rpc('complete_blue_credit_payment', {
-      payment_id_param: payment.id,
-      provider_txnid_param: payment.provider_txnid,
+      payment_id_param: payment.id, provider_txnid_param: txnid,
     });
-
-    if (completionError) throw new Error(`Could not activate Blue Credits: ${completionError.message}`);
-
-    const redirect = withQuery(returnUrl, 'payment', 'success');
-    redirect.searchParams.set('credits', String(completion?.credits || payment.credits_purchased));
-    return NextResponse.redirect(redirect, 303);
-
-  } catch (err: any) {
-    if (err?.message?.includes('ORDER_ALREADY_CAPTURED') && supabaseAdmin) {
-      try {
-        const { searchParams } = new URL(request.url);
-        const txnid = searchParams.get('txnid');
-        const { data: recheck } = await supabaseAdmin
-          .from('credit_payments')
-          .select('status, credits_purchased, metadata')
-          .eq('provider_txnid', txnid || '')
-          .single();
-        if (recheck?.status === 'completed') {
-          const metadata = recheck.metadata as Record<string, unknown> | null;
-          const returnUrl = safeReturnUrl(String(metadata?.return_url || ''), siteUrl);
-          const redirect = withQuery(returnUrl, 'payment', 'success');
-          redirect.searchParams.set('credits', String(recheck.credits_purchased));
-          return NextResponse.redirect(redirect, 303);
-        }
-      } catch { /* fall through to error redirect */ }
-    }
-    console.error('[Blue PAYG] PayPal capture failed:', err);
-    return NextResponse.redirect(`${dashboardUrl}?payment=error`, 303);
+    if (completionError) throw new Error('Could not activate Blue Credits');
+    return successRedirect(returnUrl, completion?.credits || payment.credits_purchased);
+  } catch (error) {
+    console.error('[Blue PAYG] PayPal confirmation/settlement failed');
+    // Keep the pending payment for an idempotent retry. Never label a captured
+    // transaction failed solely because credit activation or the network failed.
+    return paymentRedirect(returnUrl, bindingVerified ? 'pending' : 'error');
   }
 }
 
-function safeReturnUrl(value: string, site: string): URL {
-  try {
-    const candidate = new URL(value || '/blue-pro/dashboard', site);
-    if (candidate.origin === new URL(site).origin) return candidate;
-  } catch { /* fallback */ }
-  return new URL('/blue-pro/dashboard', site);
+function paymentRedirect(url: URL, status: string) {
+  url.searchParams.set('payment', status);
+  return NextResponse.redirect(url, 303);
 }
 
-function withQuery(url: URL, key: string, value: string): URL {
-  const copy = new URL(url);
-  copy.searchParams.set(key, value);
-  return copy;
+function successRedirect(url: URL, credits: unknown) {
+  url.searchParams.set('credits', String(credits));
+  return paymentRedirect(url, 'success');
 }

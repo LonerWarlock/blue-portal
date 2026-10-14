@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getPackCatalog, getPackConfig } from '@/lib/exchangeRate';
+import { paymentSiteOrigin } from '@/lib/paymentOrigin';
 
 async function getAuthUser(request: Request) {
   const authHeader = request.headers.get('authorization');
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({})) as { packId?: string };
     const pack = getPackConfig(body.packId);
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app';
+    const siteUrl = paymentSiteOrigin(request.url);
 
     return NextResponse.json({
       price_inr: pack.priceINR,

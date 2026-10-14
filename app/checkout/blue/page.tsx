@@ -2,6 +2,8 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { CheckoutForm } from './checkout-form';
 import Link from 'next/link';
 import { isBlueBillingCycle } from '@/lib/blueSubscriptionPlans';
+import { paymentSiteOrigin } from '@/lib/paymentOrigin';
+import { safeInternalUrl } from '@/lib/paymentSecurity';
 
 interface Props {
   searchParams: Promise<{ session_id?: string; return_url?: string }>;
@@ -110,7 +112,7 @@ export default async function CheckoutBluePage({ searchParams }: Props) {
     .single();
 
   const imrBalance = Number(wallet?.balance || 0);
-  const returnUrl = return_url || `${process.env.NEXT_PUBLIC_SITE_URL || 'https://blue-by-imergene.vercel.app'}/console`;
+  const returnUrl = safeInternalUrl(return_url, paymentSiteOrigin(), '/console').toString();
 
   return (
     <CheckoutForm

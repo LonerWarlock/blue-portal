@@ -7,12 +7,15 @@ import {
 } from '@/lib/paymentSecurity';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { isBlueBillingCycle } from '@/lib/blueSubscriptionPlans';
+import { paymentSiteOrigin } from '@/lib/paymentOrigin';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  const siteUrl = paymentSiteOrigin(request.url);
   const defaultReturnUrl = new URL('/console', siteUrl);
+  let verifiedPaid = false;
+  let resultUrl = defaultReturnUrl;
   try {
     const data = parsePayuForm(await request.formData());
     const merchantKey = process.env.PAYU_MERCHANT_KEY?.trim() || '';
@@ -43,6 +46,7 @@ export async function POST(request: Request) {
 
     const metadata = (session.metadata || {}) as Record<string, unknown>;
     const returnUrl = safeInternalUrl(metadata.return_url, siteUrl, '/console');
+    resultUrl = returnUrl;
     const expected = {
       key: String(metadata.expected_key || ''),
       amount: String(metadata.expected_amount || ''),
@@ -62,7 +66,7 @@ export async function POST(request: Request) {
       return NextResponse.redirect(returnUrl, 303);
     }
 
-    if (data.status !== 'success') {
+    if (data.status.trim().toLowerCase() !== 'success') {
       await supabaseAdmin
         .from('checkout_sessions')
         .update({ status: 'expired' })
@@ -71,6 +75,8 @@ export async function POST(request: Request) {
       returnUrl.searchParams.set('payment', 'failed');
       return NextResponse.redirect(returnUrl, 303);
     }
+
+    verifiedPaid = true;
 
     const { error: completionError } = await supabaseAdmin.rpc('complete_blue_subscription_checkout', {
       session_id_param: session.id,
@@ -87,7 +93,7 @@ export async function POST(request: Request) {
     return NextResponse.redirect(returnUrl, 303);
   } catch (error) {
     console.error('[Subscription] PayU callback failed:', error);
-    defaultReturnUrl.searchParams.set('payment', 'failed');
-    return NextResponse.redirect(defaultReturnUrl, 303);
+    resultUrl.searchParams.set('payment', verifiedPaid ? 'pending' : 'error');
+    return NextResponse.redirect(resultUrl, 303);
   }
 }

@@ -140,10 +140,15 @@ export default function ConsolePage() {
           "Payment Received",
           "Payment returned successfully. Refreshing your verified plan and wallet balance."
         );
-      } else if (paymentStatus === 'failed') {
+      } else if (paymentStatus === 'pending') {
+        showInfo(
+          "Payment confirmation pending",
+          "Your payment is awaiting confirmation or plan/credit activation. If money was deducted, do not pay again. Contact support with your transaction reference."
+        );
+      } else if (['failed', 'error', 'invalid'].includes(paymentStatus)) {
         showError(
-          "Payment Cancelled", 
-          "The checkout payment process was cancelled or failed. Your wallet balance has not been debited."
+          "Payment not confirmed",
+          "We could not confirm this checkout. Check your bank or payment provider before retrying. If money was deducted, do not pay again; contact support."
         );
       }
       // Smoothly remove payment query parameters from browser address bar

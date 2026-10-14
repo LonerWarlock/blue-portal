@@ -4,12 +4,13 @@ import { capturePaypalOrder, getPaypalOrder, type PayPalCaptureResult } from '@/
 import { moneyEquals, safeInternalUrl } from '@/lib/paymentSecurity';
 import { bluePlanPriceUsd, getBlueSubscriptionPlan, isBlueBillingCycle } from '@/lib/blueSubscriptionPlans';
 import { checkRateLimit, requestIp } from '@/lib/trafficControl';
+import { paymentSiteOrigin } from '@/lib/paymentOrigin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  const siteUrl = paymentSiteOrigin(request.url);
   const { searchParams } = new URL(request.url);
   const sessionId = searchParams.get('session_id') || '';
   const orderId = searchParams.get('token') || '';
@@ -92,7 +93,7 @@ export async function GET(request: Request) {
       }
     }
     console.error('[Subscription] PayPal capture failed:', error);
-    return paymentRedirect(returnUrl, 'failed');
+    return paymentRedirect(returnUrl, bindingVerified ? 'pending' : 'error');
   }
 }
 
@@ -143,7 +144,7 @@ function validCapture(
     && moneyEquals(capture.grossAmount, paymentOrder.amount);
 }
 
-function paymentRedirect(url: URL, status: 'success' | 'failed' | 'invalid') {
+function paymentRedirect(url: URL, status: 'success' | 'failed' | 'invalid' | 'pending' | 'error') {
   url.searchParams.set('payment', status);
   return NextResponse.redirect(url, 303);
 }

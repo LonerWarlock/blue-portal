@@ -18,8 +18,9 @@ export function payuRequestHash(input: ExpectedPayuPayment, salt: string): strin
 }
 
 export function payuCallbackHash(data: PayuCallbackData, salt: string): string {
-  const base = `${salt}|${data.status || ''}|||||||||||${data.email || ''}|${data.firstname || ''}|${data.productinfo || ''}|${data.amount || ''}|${data.txnid || ''}|${data.key || ''}`;
-  const source = data.additionalCharges ? `${data.additionalCharges}|${base}` : base;
+  const base = `${salt}|${data.status || ''}||||||${data.udf5 || ''}|${data.udf4 || ''}|${data.udf3 || ''}|${data.udf2 || ''}|${data.udf1 || ''}|${data.email || ''}|${data.firstname || ''}|${data.productinfo || ''}|${data.amount || ''}|${data.txnid || ''}|${data.key || ''}`;
+  const additionalCharges = data.additionalCharges || data.additional_charges || '';
+  const source = additionalCharges ? `${additionalCharges}|${base}` : base;
   return createHash('sha512').update(source).digest('hex');
 }
 
@@ -65,9 +66,8 @@ export function safeInternalUrl(value: unknown, siteUrl: string, fallbackPath: s
 export function parsePayuForm(form: FormData): PayuCallbackData {
   const data: PayuCallbackData = {};
   form.forEach((value, key) => {
-    data[key] = String(value).trim();
+    // Signatures cover the original bytes, including email case and whitespace.
+    data[key] = String(value);
   });
-  data.email = (data.email || '').toLowerCase();
-  data.status = (data.status || '').toLowerCase();
   return data;
 }

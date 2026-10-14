@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { HACKATHON_FEE_PER_PERSON_STR, PAYMENT_TESTING_DEADLINE_LABEL, isHackathonRegistrationOpen, EVENT_NAME, getTeamFeeStr } from './config';
 import DataCollectionNotice from '@/app/components/DataCollectionNotice';
 
-type PaymentResult = 'success' | 'failed' | null;
+type PaymentResult = 'success' | 'failed' | 'pending' | 'error' | null;
 
 const STEPS = ['Leader', 'Team', 'Payment'];
 
@@ -321,16 +321,17 @@ export default function HackathonPage() {
               <div className="w-20 h-20 rounded-full bg-red-50 border border-red-200 flex items-center justify-center mx-auto mb-6">
                 <i className="fa-solid fa-xmark text-3xl text-red-400"></i>
               </div>
-              <h1 className="text-2xl font-bold text-gray-800 mb-3">Payment Failed</h1>
+              <h1 className="text-2xl font-bold text-gray-800 mb-3">{paymentResult === 'pending' || paymentResult === 'error' ? 'Payment confirmation pending' : 'Payment not confirmed'}</h1>
               <p className="text-ink-faint text-sm mb-6">
-                Your payment could not be processed. No amount has been deducted.
-                Please try again or contact support if the issue persists.
+                We could not confirm your payment. Check your bank or payment provider before retrying.
+                If money was deducted, do not pay again; contact support with your transaction reference.
               </p>
               <div className="flex gap-3 justify-center">
-                <button onClick={() => { setStep(2); setForm(f => ({ ...f, declarationAccepted: false, termsAccepted: false })); window.history.replaceState({}, '', '/hackathon'); }}
+                {(paymentResult === 'pending' || paymentResult === 'error') && txnid && <span className="text-xs text-ink-muted">Reference: {txnid}</span>}
+                {paymentResult === 'failed' && <button onClick={() => { setStep(2); setForm(f => ({ ...f, declarationAccepted: false, termsAccepted: false })); window.history.replaceState({}, '', '/hackathon'); }}
                   className="px-6 py-3 rounded-lg bg-brand font-semibold text-white text-sm shadow transition">
                   Try Again
-                </button>
+                </button>}
                 <a href="/" className="px-6 py-3 rounded-lg border border-gray-200 text-ink-faint text-sm hover:text-gray-700 hover:border-gray-300 transition">
                   Go Home
                 </a>

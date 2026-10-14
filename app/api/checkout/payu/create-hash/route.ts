@@ -5,6 +5,7 @@ import { payuRequestHash, safeInternalUrl } from '@/lib/paymentSecurity';
 import { getBearerToken } from '@/lib/bluePayg';
 import { checkRateLimit, rateLimitHeaders, requestIp } from '@/lib/trafficControl';
 import { bluePlanPriceInr, getBlueSubscriptionPlan, isBlueBillingCycle } from '@/lib/blueSubscriptionPlans';
+import { paymentSiteOrigin } from '@/lib/paymentOrigin';
 
 export async function POST(request: Request) {
   try {
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
 
     // Save only server-derived product and payment details.
     const existingMetadata = session.metadata || {};
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+    const siteUrl = paymentSiteOrigin(request.url);
     const safeReturnUrl = safeInternalUrl(returnUrl, siteUrl, '/console').toString();
 
     // 4. Load PayU credentials from environment

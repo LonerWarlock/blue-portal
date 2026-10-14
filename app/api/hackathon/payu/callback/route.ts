@@ -3,9 +3,11 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { validPayuCallbackSignature } from '@/lib/paymentSecurity';
 import nodemailer from 'nodemailer';
 import { HACKATHON_FEE_PER_PERSON, EVENT_NAME } from '@/app/hackathon/config';
+import { paymentSiteOrigin } from '@/lib/paymentOrigin';
 
 export async function POST(req: Request) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
+  const siteUrl = paymentSiteOrigin(req.url);
+  let verifiedPaid = false;
 
   try {
     const data: Record<string, string> = {};
@@ -48,10 +50,11 @@ export async function POST(req: Request) {
       console.warn('Rejected hackathon PayU callback with invalid signature or merchant key');
       return NextResponse.json({ error: 'Invalid payment signature' }, { status: 403 });
     }
+    verifiedPaid = status === 'success';
 
     if (!supabaseAdmin) {
       console.error('Supabase admin unavailable during hackathon PayU callback');
-      return NextResponse.redirect(`${siteUrl}/hackathon?payment=failed&txnid=${txnid}`, 303);
+      return NextResponse.redirect(`${siteUrl}/hackathon?payment=${verifiedPaid ? 'pending' : 'failed'}&txnid=${encodeURIComponent(txnid)}`, 303);
     }
 
     if (status === 'success') {
@@ -155,7 +158,7 @@ export async function POST(req: Request) {
 
       if (insertError) {
         console.error('Failed to insert hackathon registration on successful callback:', insertError);
-        return NextResponse.redirect(`${siteUrl}/hackathon?payment=failed&txnid=${txnid}`, 303);
+        return NextResponse.redirect(`${siteUrl}/hackathon?payment=pending&txnid=${encodeURIComponent(txnid)}`, 303);
       }
 
       // Clean up pending registration
@@ -235,13 +238,11 @@ export async function POST(req: Request) {
       return NextResponse.redirect(`${siteUrl}/hackathon?payment=success&txnid=${txnid}`, 303);
     } else {
       // Payment status is failed or cancelled
-      if (txnid) {
-        await supabaseAdmin.from('pending_registrations').delete().eq('id', txnid);
-      }
-      return NextResponse.redirect(`${siteUrl}/hackathon?payment=failed&txnid=${txnid}`, 303);
+      // Preserve the order for a late verified success or support reconciliation.
+      return NextResponse.redirect(`${siteUrl}/hackathon?payment=failed&txnid=${encodeURIComponent(txnid)}`, 303);
     }
   } catch (err: any) {
     console.error('Hackathon PayU Callback Fatal Error:', err);
-    return NextResponse.redirect(`${siteUrl}/hackathon?payment=failed`, 303);
+    return NextResponse.redirect(`${siteUrl}/hackathon?payment=${verifiedPaid ? 'pending' : 'error'}`, 303);
   }
 }
