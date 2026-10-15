@@ -1,5 +1,6 @@
 import PageLayout from "@/app/components/PageLayout";
 import PageBackground3D from "@/app/components/PageBackground3D";
+import GoogleWorkspaceNotice from "./GoogleWorkspaceNotice";
 
 export default function PrivacyPage() {
   return (
@@ -26,8 +27,9 @@ export default function PrivacyPage() {
               </span>
             </h1>
             <p className="mt-6 text-lg text-ink-muted max-w-3xl mx-auto leading-relaxed">
-              Transparent policy regarding how we collect, process, protect, and handle your data under India&apos;s Digital Personal Data Protection (DPDP) Act, 2023.
+              How IMERGENE handles personal information across Blue&apos;s website, desktop app, and optional Google Workspace connection.
             </p>
+            <a href="#google-workspace" className="mt-5 inline-flex min-h-11 items-center text-sm font-medium text-brand hover:underline">Read the Google Workspace privacy notice</a>
           </div>
 
           <div className="mt-20 max-w-4xl mx-auto">
@@ -36,9 +38,11 @@ export default function PrivacyPage() {
               <div>
                 <h2 className="text-xl font-bold text-ink mb-4">1. Introduction & DPDP Act Compliance</h2>
                 <p className="text-sm text-ink-muted leading-relaxed">
-                  This Privacy Policy describes how IMERGENE (doing business as &quot;Blue By Imergene&quot;, &quot;Blue Portal&quot;) and its corporate entities (collectively &quot;IMERGENE&quot;, &quot;we&quot;, &quot;our&quot;, &quot;us&quot;) act as a <strong>Data Fiduciary</strong> in collecting, processing, storing, and protecting your personal data when you access our Platform at <a href="https://blue-by-imergene.vercel.app" className="text-brand hover:underline">https://blue-by-imergene.vercel.app</a>. We strictly comply with the <strong>Digital Personal Data Protection (DPDP) Act, 2023</strong> of India, the Information Technology Act, 2000, and rules framed thereunder.
+                  This Privacy Policy describes how IMERGENE (doing business as &quot;Blue By Imergene&quot;, &quot;Blue Portal&quot;) and its corporate entities (collectively &quot;IMERGENE&quot;, &quot;we&quot;, &quot;our&quot;, &quot;us&quot;) act as a <strong>Data Fiduciary</strong> in collecting, processing, storing, and protecting your personal data when you access our Platform at <a href="https://blue.imergene.in" className="text-brand hover:underline">https://blue.imergene.in</a> or use Blue Desktop. We strictly comply with the <strong>Digital Personal Data Protection (DPDP) Act, 2023</strong> of India, the Information Technology Act, 2000, and rules framed thereunder.
                 </p>
               </div>
+
+              <GoogleWorkspaceNotice />
 
               <div>
                 <h2 className="text-xl font-bold text-ink mb-4">2. Notice & Consent at Point of Collection</h2>
@@ -53,9 +57,9 @@ export default function PrivacyPage() {
               </div>
 
               <div>
-                <h2 className="text-xl font-bold text-ink mb-4">3. Data Processors & Third-Party Services</h2>
+                <h2 className="text-xl font-bold text-ink mb-4">3. Website Data Processors & Third-Party Services</h2>
                 <p className="text-sm text-ink-muted leading-relaxed mb-3">
-                  We process data directly or engage contractually bound Data Processors who handle data strictly under our instructions and maintaining reasonable security standards. Third parties include:
+                  For website accounts, events, billing, and communications, we process information directly and use the services below. Each service&apos;s role and processing terms depend on its function. The optional Google Workspace connection and AI-provider processing are described separately in the Google Workspace privacy notice above.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-ink-muted">
                   <div className="p-3 rounded-lg bg-paper-alt border border-line">
@@ -111,8 +115,9 @@ export default function PrivacyPage() {
               <div>
                 <h2 className="text-xl font-bold text-ink mb-4">6. Data Retention & Erasure</h2>
                 <p className="text-sm text-ink-muted leading-relaxed">
-                  We retain personal data only for as long as necessary to satisfy the purpose for which it was collected, or to comply with statutory legal, accounting, and audit requirements under Indian law. When data is no longer required or upon valid consent withdrawal/erasure request, personal data is permanently deleted or anonymized.
+                  We retain personal information held by IMERGENE only for as long as necessary for its stated purpose or applicable legal, accounting, and audit requirements. When it is no longer needed or a valid erasure request applies, we delete or anonymize information under our control, subject to those requirements. This does not automatically erase information on your device, in your Google account, in backups, or held separately by a model provider.
                 </p>
+                <p className="mt-3 text-sm text-ink-muted leading-relaxed">For Google Workspace credentials, local conversations, coding-engine histories, and AI-provider copies, the specific retention and deletion limits in the <a href="#google-workspace" className="text-brand hover:underline">Google Workspace privacy notice above</a> apply. Disconnecting a connection is not a request to delete all of these copies.</p>
               </div>
 
               <div>

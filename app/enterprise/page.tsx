@@ -16,8 +16,8 @@ const pillars = [
   },
   {
     icon: "fa-database",
-    title: "No Training Guarantee",
-    description: "Ensure that none of your company's proprietary code is sent to public AI training pools.",
+    title: "Provider Data Terms",
+    description: "Data-retention and training restrictions depend on your selected model provider and any applicable written enterprise agreement. Review those terms before sharing proprietary information.",
     gradient: "from-brand to-brand",
   },
   {

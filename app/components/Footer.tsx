@@ -25,7 +25,7 @@ const footerLinks = {
     { label: "Blog", href: "/blog" },
     { label: "Contact", href: "/contact" },
     { label: "Security", href: "/security" },
-    { label: "Privacy & DPDP", href: "/privacy" },
+    { label: "Privacy Policy", href: "/privacy" },
     { label: "Terms", href: "/terms" },
     { label: "Refund policy", href: "/refund" },
   ],

@@ -64,7 +64,7 @@ const services = [
     capabilities: [
       "Self-Hosted Gateways — Deploy the Blue API gateway within your private VPC. All model requests route through your infrastructure.",
       "Single Sign-On — Integration with Okta, Azure Active Directory, and Google Workspace for unified authentication.",
-      "No Training Guarantee — Contractual guarantee that your code and outputs are never used to train AI models.",
+      "Provider Data Terms — Data-retention and training restrictions depend on the selected provider and any applicable written enterprise agreement; they are not a universal guarantee across all models.",
       "Unified Team Budgets — Centralised billing with per-key credit limits and organisation-wide usage monitoring.",
     ],
   },
@@ -73,10 +73,10 @@ const services = [
     title: "Security & Compliance",
     description: "Security architecture designed to protect proprietary source code at every layer of the stack.",
     capabilities: [
-      "Zero Data Retention — Code segments are used only to complete the current query and are never stored on gateway servers.",
-      "No Model Training — None of your code inputs, prompts, or outputs are shared with third-party providers for training LLM weights.",
-      "Local Execution — All sandboxed commands execute on your local host. Code never leaves your machine.",
-      "Encryption — End-to-end encryption for all data in transit and at rest. API keys are hashed before storage.",
+      "Data Retention — Blue Desktop can retain local conversations and coding-engine history. Model gateways and providers have their own retention terms; zero retention is not guaranteed across every connection.",
+      "AI Processing — Your selected cloud engine, gateway, and model provider can receive prompts, code, and connector results. Review their privacy and data-use terms before sending sensitive content.",
+      "Local Execution — Desktop project commands run on your computer under the applicable permissions. Cloud-model requests still send context to the services handling inference.",
+      "Credential Protection — Google OAuth credentials use Blue Desktop's encrypted local credential store and Google API calls use HTTPS. This does not mean all conversation history is encrypted at rest or end-to-end encrypted from model providers.",
     ],
   },
   {

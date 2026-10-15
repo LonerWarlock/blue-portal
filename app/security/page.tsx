@@ -3,20 +3,20 @@ import Link from "next/link";
 
 const pillars = [
   {
-    title: "Zero Data Retention",
-    description: "Your code segments are only used to complete the current query and are never stored on our gateway servers.",
+    title: "Understand Data Storage",
+    description: "Blue Desktop can retain conversations locally, and its coding engine can keep separate history. Cloud gateways and model providers apply their own retention terms; there is no universal zero-retention guarantee.",
     icon: "fa-trash-can",
     gradient: "from-brand to-brand",
   },
   {
-    title: "No Model Training",
-    description: "None of your code inputs are shared with third-party providers for training LLM weights.",
+    title: "Know Your AI Provider",
+    description: "Your selected cloud model can receive prompts, code, and connector results needed for a request. Review that provider's privacy and data-use terms before sending sensitive content.",
     icon: "fa-microchip",
     gradient: "from-brand to-brand",
   },
   {
     title: "Local Execution",
-    description: "Sandboxed commands execute on your local host, keeping execution completely in your control.",
+    description: "Desktop project commands run on your computer under the applicable permission settings. Local command execution does not make cloud-model processing local.",
     icon: "fa-house-laptop",
     gradient: "from-brand to-brand",
   },
@@ -38,15 +38,15 @@ export default function SecurityPage() {
             </div>
             <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight">
               <span className="text-ink">
-                Enterprise-Grade
+                Security &amp;
               </span>
               <br />
               <span className="bg-brand bg-clip-text text-transparent">
-                Security Standards
+                Data Handling
               </span>
             </h1>
             <p className="mt-6 text-lg text-ink-muted max-w-3xl mx-auto leading-relaxed">
-              Your proprietary source code is protected by end-to-end encryption.
+              Understand where Blue processes information, what it stores, and which controls apply to your chosen connection.
             </p>
           </div>
 
@@ -63,6 +63,12 @@ export default function SecurityPage() {
                 <p className="text-sm text-ink-muted leading-relaxed">{pillar.description}</p>
               </div>
             ))}
+          </div>
+
+          <div className="mt-10 max-w-5xl mx-auto rounded-lg border border-line bg-paper-alt p-6 text-sm text-ink-muted leading-relaxed space-y-3">
+            <h2 className="text-lg font-semibold text-ink">Google Workspace in Blue Desktop</h2>
+            <p>Google API calls use HTTPS, and OAuth credentials are stored in the encrypted local credential store. Ordinary conversation state is not encrypted by that credential-store mechanism. Content retrieved from Google can be sent to your selected AI engine, gateway, and model provider; this is not end-to-end encryption from those services.</p>
+            <p>Google changes require action approval. Disconnecting removes locally saved Google credentials, but does not revoke Google-side access or erase existing conversation and provider history. Read the <Link href="/privacy#google-workspace" className="text-brand hover:underline">Google Workspace privacy notice</Link> for supported actions and steps to revoke access or request deletion.</p>
           </div>
 
           <div className="mt-12 text-center">
