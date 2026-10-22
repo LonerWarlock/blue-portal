@@ -8,7 +8,7 @@ export const HOME_DESCRIPTION = 'Blue by Imergene is an AI coding assistant made
 export const STUDENT_GUIDE_PATH = '/guides/ai-coding-assistant-for-students';
 
 export const INDEXABLE_PATHS = [
-  '/', '/pricing', '/docs', '/product/agents', STUDENT_GUIDE_PATH,
+  '/', '/pricing', '/teams', '/docs', '/product/agents', STUDENT_GUIDE_PATH,
   '/about', '/contact', '/privacy', '/terms', '/refund',
 ] as const;
 

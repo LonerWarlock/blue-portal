@@ -29,6 +29,7 @@
 .dialogHeader button:hover { background: var(--paper-alt); }
 .dialogFrame { width: 100%; overflow: hidden; background: var(--surface); }
 .dialogFrame iframe { display: block; width: 100%; height: min(760px, 72dvh); min-height: 460px; border: 0; }
+.dialogFrame > .preview { height: min(760px, 72dvh); min-height: 460px; }
 .dialogCaption { padding: 12px 20px; color: var(--ink-muted); font-size: 11px; line-height: 1.7; }
 @media (max-width: 899px) {
   .details { flex-direction: column; gap: 16px; }
@@ -44,7 +45,7 @@
   .stageLabel { left: 10px; bottom: 11px; font-size: 8px; }
   .dialog { width: 98vw; max-width: 98vw; border-radius: 8px; }
   .dialogHeader { padding: 4px 8px; }
-  .dialogFrame iframe { height: 76dvh; min-height: 400px; }
+  .dialogFrame iframe, .dialogFrame > .preview { height: 76dvh; min-height: 400px; }
   .dialogCaption { padding: 8px 12px; font-size: 10px; }
 }
 @media (max-height: 600px) {
@@ -52,5 +53,5 @@
   .dialogHeader { position: sticky; top: 0; z-index: 1; }
   /* Keep the real workspace usable in landscape; scroll the dialog instead
      of squeezing the chat to nothing below its native composer. */
-  .dialogFrame iframe { min-height: 600px; height: 600px; }
+  .dialogFrame iframe, .dialogFrame > .preview { min-height: 600px; height: 600px; }
 }

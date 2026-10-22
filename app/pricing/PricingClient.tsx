@@ -79,7 +79,7 @@ export default function PricingClient() {
         <header className={styles.intro}>
           <div className={styles.kicker}><span>Pricing</span><span className={styles.kickerRule} /><GraduationCap size={15} aria-hidden="true" /> Made specifically for students</div>
           <h1 id="pricing-title" className={styles.title}>Build more. <span>Spend less.</span></h1>
-          <p className={styles.introCopy}>From your first project to your next big launch. Choose your way to build.</p>
+          <p className={styles.introCopy}>From your first project to your next big launch. Choose your way to build. <Link href="/teams" className="text-brand underline underline-offset-4">See Blue Teams plans</Link>.</p>
         </header>
 
         {accountLoading && user && !account && <p role="status" className={styles.accountMessage}>Loading your plan…</p>}

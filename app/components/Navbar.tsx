@@ -12,6 +12,7 @@ import ThemeToggle from "./ThemeToggle";
 const NAV_LINKS = [
   { href: "/product/agents", label: "Agents" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/teams", label: "Teams" },
   { href: "/docs", label: "Docs" },
 ];
 
