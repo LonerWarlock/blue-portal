@@ -3,6 +3,7 @@ import { statusError } from '@/lib/bluePayg';
 import { effectiveAccountPlan } from '@/lib/accountPlan';
 import { isLowBalance, lowBalanceThreshold } from '@/lib/openrouter';
 import { getBlueCreditSummary } from '@/lib/blueCreditSummary';
+import { activeBlueTeamsEntitlement } from '@/lib/blueTeamsEntitlement';
 
 export const ACCOUNT_NO_STORE_HEADERS = { 'Cache-Control': 'private, no-store, max-age=0' };
 
@@ -19,10 +20,11 @@ export async function verifiedSessionUser(request: Request): Promise<string> {
 
 export async function loadAccountEntitlements(userId: string) {
   if (!supabaseAdmin) throw statusError(503, 'Account service unavailable');
-  const [walletResult, profileResult, subscriptionResult, creditSummary] = await Promise.all([
+  const [walletResult, profileResult, subscriptionResult, teamSubscriptionResult, creditSummary] = await Promise.all([
     supabaseAdmin.from('wallets').select('balance, account_type, blue_credits').eq('user_id', userId).maybeSingle(),
     supabaseAdmin.from('blue_profiles').select('status, access_tier, last_top_up_credits').eq('user_id', userId).maybeSingle(),
     supabaseAdmin.from('subscriptions').select('plan, status, current_period_end, metadata').eq('user_id', userId).maybeSingle(),
+    supabaseAdmin.from('team_subscriptions').select('plan, status, current_period_end, metadata').eq('user_id', userId).eq('is_test', false).maybeSingle(),
     getBlueCreditSummary(supabaseAdmin, userId),
   ]);
   if (walletResult.error || profileResult.error || subscriptionResult.error) throw statusError(503, 'Account lookup temporarily unavailable');
@@ -35,6 +37,7 @@ export async function loadAccountEntitlements(userId: string) {
   const threshold = lowBalanceThreshold(Math.max(0, Number(profile?.last_top_up_credits || 0)) || 1);
   return {
     user_id: userId, ...plan, discount: Number(subscription?.metadata?.imr_discount || 0),
+    teams: teamSubscriptionResult.error ? activeBlueTeamsEntitlement(null) : activeBlueTeamsEntitlement(teamSubscriptionResult.data),
     ...(creditSummary ? { credit_summary: creditSummary } : {}),
     blue_pro: {
       eligible: plan.is_pro, account_type: String(wallet?.account_type || 'standard'),

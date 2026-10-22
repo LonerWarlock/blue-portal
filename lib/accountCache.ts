@@ -12,6 +12,13 @@ export interface AccountBootstrap {
     monthly_expires_at?: string | null;
     payg_account?: boolean;
   };
+  teams: {
+    plan: 'solo' | 'pro' | 'business' | null;
+    status: 'active' | 'inactive';
+    current_period_end: string | null;
+    active_project_teams: number;
+    agents_per_team: number;
+  };
   blue_pro: any;
   pack_config?: any;
 }
@@ -68,6 +75,7 @@ export class AccountCache {
       if (this.version !== version || this.accountId !== userId) throw new Error('Account changed while loading.');
       this.data = full ? payload : {
         ...this.data!, wallet: payload.wallet, subscription: payload.subscription,
+        teams: payload.teams || this.data?.teams,
         blue_pro: payload.blue_pro ? { ...this.data?.blue_pro, ...payload.blue_pro } : null,
       };
       const loadedAt = this.now();

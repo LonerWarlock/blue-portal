@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { CurrencySelector } from '@/app/components/CurrencySelector';
+import { useAuth } from '@/app/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { BLUE_TEAMS_PLANS, getBlueTeamsPriceInr, getBlueTeamsPriceUsd, type BlueTeamsTier } from '@/lib/blueTeamsPlans';
 
@@ -50,6 +51,7 @@ function closeButtons(buttons: PayPalButtons | undefined) {
 }
 
 export default function TeamsCheckoutForm({ sessionId, returnUrl, email, tier, sandboxTestMode, liveTestMode, imrBalance }: Props) {
+  const auth = useAuth();
   const plan = BLUE_TEAMS_PLANS[tier];
   const testPrice = sandboxTestMode || liveTestMode;
   const [currency, setCurrency] = useState<'INR' | 'USD'>('INR');
@@ -63,6 +65,20 @@ export default function TeamsCheckoutForm({ sessionId, returnUrl, email, tier, s
   const amountUsd = getBlueTeamsPriceUsd(tier, sandboxTestMode, 0, liveTestMode);
   const baseAmountInr = getBlueTeamsPriceInr(tier, sandboxTestMode, 0, liveTestMode);
   const imrDiscount = testPrice ? 0 : redeemedImr * 0.5;
+
+  useEffect(() => {
+    if (auth.user) return;
+    let active = true;
+    // A checkout session is still bound to its original user by the API. This
+    // redirect merely gives a signed-out visitor a clear route back to it.
+    void supabase.auth.getSession().then((result: { data: { session: unknown | null } }) => {
+      const session = result.data.session;
+      if (!active || session || auth.user) return;
+      sessionStorage.setItem('redirectAfterLogin', `${window.location.pathname}${window.location.search}`);
+      window.location.assign('/console');
+    });
+    return () => { active = false; };
+  }, [auth.user]);
 
   useEffect(() => {
     if (currency !== 'USD' || !containerRef.current) return;
@@ -148,6 +164,12 @@ export default function TeamsCheckoutForm({ sessionId, returnUrl, email, tier, s
 
   const currencyInr = currency === 'INR';
   const displayed = currencyInr ? `₹${amountInr}` : `$${amountUsd}`;
+  if (auth.loading || !auth.user) {
+    return <main className="min-h-screen bg-paper flex items-center justify-center p-6"><section className="max-w-md rounded-xl border border-line bg-paper-alt p-8 text-center">
+      <h1 className="text-lg font-bold text-ink">Checking your sign-in</h1>
+      <p className="mt-2 text-sm leading-6 text-ink-muted">If needed, we’ll take you to sign in and resume this selected Blue Teams checkout afterwards.</p>
+    </section></main>;
+  }
   return <main className="min-h-screen bg-paper flex items-center py-10">
     <section className="w-full px-5">
       <div className="max-w-4xl mx-auto mb-6 text-center">

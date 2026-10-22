@@ -381,6 +381,7 @@ export default function ConsolePage() {
   }
 
   const hasActiveSubscription = plan !== 'lite';
+  const teamsPlan = auth.account?.teams?.status === 'active' ? auth.account.teams.plan : null;
   const proFeaturesLocked = !isProPayg && !accountLoading && !accountError;
 
   return (
@@ -409,6 +410,11 @@ export default function ConsolePage() {
                         ? 'Blue Active'
                         : 'Blue Lite'}
               </span>
+              {!accountLoading && !accountError && teamsPlan && (
+                <Link prefetch={false} href="/teams" className="inline-flex items-center rounded-md border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-xs font-semibold text-purple-700 dark:text-purple-300">
+                  Teams {teamsPlan.charAt(0).toUpperCase() + teamsPlan.slice(1)}
+                </Link>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <DesktopDownloadLink className="btn btn-secondary min-h-11 text-sm">

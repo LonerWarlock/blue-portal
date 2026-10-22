@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, ArrowUpRight, Check, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import PageLayout from '@/app/components/PageLayout';
 import TeamWorkspacePreview from '@/app/components/TeamWorkspacePreview';
-import { BLUE_TEAMS_PLANS, BLUE_TEAMS_TEST_PRICE_INR, BLUE_TEAMS_TEST_PRICE_USD, type BlueTeamsTier } from '@/lib/blueTeamsPlans';
+import { BLUE_TEAMS_PLANS, BLUE_TEAMS_TEST_PRICE_INR, BLUE_TEAMS_TEST_PRICE_USD, isBlueTeamsTier, type BlueTeamsTier } from '@/lib/blueTeamsPlans';
 import type { getBlueTeamsCheckoutConfig } from '@/lib/blueTeamsCheckoutMode';
 import styles from './teams.module.css';
 
@@ -20,16 +20,14 @@ export default function TeamsClient({ checkout }: { checkout: CheckoutConfig }) 
   const [busyTier, setBusyTier] = useState<BlueTeamsTier | null>(null);
   const [error, setError] = useState('');
   const [paymentState, setPaymentState] = useState('');
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setPaymentState(`${params.get('payment') || ''}:${params.get('test_mode') || ''}:${params.get('live_test') || ''}`);
-  }, []);
+  const resumedCheckout = useRef(false);
 
   const choosePlan = async (tier: BlueTeamsTier) => {
     if (!checkout.checkoutEnabled || busyTier) return;
     if (!user) {
-      sessionStorage.setItem('redirectAfterLogin', `/teams?tier=${tier}`);
+      // Console completes sign-in, then this page resumes directly into the
+      // selected checkout rather than asking the person to choose again.
+      sessionStorage.setItem('redirectAfterLogin', `/teams?checkout=${tier}`);
       router.push('/console');
       return;
     }
@@ -44,13 +42,23 @@ export default function TeamsClient({ checkout }: { checkout: CheckoutConfig }) 
       });
       const data = await response.json();
       if (!response.ok || !data.session_id) throw new Error(data.error || 'Could not start checkout. Please try again.');
-      const returnUrl = `${window.location.origin}/teams`;
+      const returnUrl = `${window.location.origin}/console`;
       window.location.href = `/checkout/teams?session_id=${encodeURIComponent(data.session_id)}&return_url=${encodeURIComponent(returnUrl)}`;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not start checkout. Please try again.');
       setBusyTier(null);
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setPaymentState(`${params.get('payment') || ''}:${params.get('test_mode') || ''}:${params.get('live_test') || ''}`);
+    const tier = params.get('checkout');
+    if (!resumedCheckout.current && user && session?.access_token && isBlueTeamsTier(tier)) {
+      resumedCheckout.current = true;
+      void choosePlan(tier);
+    }
+  }, [session?.access_token, user]);
 
   const [payment, testFlag, liveTestFlag] = paymentState.split(':');
   return <PageLayout>

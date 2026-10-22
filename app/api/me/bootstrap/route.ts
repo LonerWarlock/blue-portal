@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getOrCreateUserKey } from '@/lib/userKey';
 import { effectiveAccountPlan } from '@/lib/accountPlan';
 import { getBlueCreditSummary } from '@/lib/blueCreditSummary';
+import { activeBlueTeamsEntitlement } from '@/lib/blueTeamsEntitlement';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
     if (!supabaseAdmin) throw statusError(503, 'Database is not configured');
     const userId = await verifiedSessionUser(request);
 
-    const [walletResult, profileResult, subscriptionResult, creditSummary] = await Promise.all([
+    const [walletResult, profileResult, subscriptionResult, teamSubscriptionResult, creditSummary] = await Promise.all([
       supabaseAdmin
         .from('wallets')
         .select('balance, account_type, blue_credits')
@@ -38,6 +39,12 @@ export async function GET(request: Request) {
         .from('subscriptions')
         .select('plan, status, current_period_end, metadata')
         .eq('user_id', userId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('team_subscriptions')
+        .select('plan, status, current_period_end, metadata')
+        .eq('user_id', userId)
+        .eq('is_test', false)
         .maybeSingle(),
       getBlueCreditSummary(supabaseAdmin, userId),
     ]);
@@ -55,6 +62,9 @@ export async function GET(request: Request) {
     const activeBluePro = wallet?.account_type === 'pro_payg'
       && profile?.status === 'active';
     const discount = Number(subscription?.metadata?.imr_discount || 0);
+    // Team information is supplemental: an unavailable Team table must not
+    // prevent a user from opening their existing Blue account.
+    const teams = teamSubscriptionResult.error ? activeBlueTeamsEntitlement(null) : activeBlueTeamsEntitlement(teamSubscriptionResult.data);
 
     // Balance revalidation skips keys, purchase history and usage queries.
     if (new URL(request.url).searchParams.get('scope') === 'wallet') {
@@ -64,6 +74,7 @@ export async function GET(request: Request) {
         user_id: userId, wallet: { balance: Number(wallet?.balance || 0) },
         ...(creditSummary ? { credit_summary: creditSummary } : {}),
         subscription: { ...effectivePlan, discount },
+        teams,
         blue_pro: activeBluePro ? { wallet: {
           eligible: effectivePlan.is_pro, account_type: 'pro_payg', status: profile?.status,
           access_tier: effectivePlan.is_pro ? profile?.access_tier === 'full' ? 'full' : 'trial' : 'none',
@@ -154,6 +165,7 @@ export async function GET(request: Request) {
       ...(creditSummary ? { credit_summary: creditSummary } : {}),
       wallet: { balance: Number(wallet?.balance || 0) },
       subscription: { ...effectivePlan, discount },
+      teams,
       blue_pro: bluePro,
       pack_config: {
         ...getPackConfig('starter'),
