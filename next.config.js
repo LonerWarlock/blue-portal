@@ -1,9 +1,13 @@
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants');
+const { publicMarketingRedirects } = require('./lib/seoRedirects.cjs');
 
 /** @type {import('next').NextConfig} */
 module.exports = phase => ({
   distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
   poweredByHeader: false,
+  async redirects() {
+    return publicMarketingRedirects();
+  },
   async headers() {
     return [{
       source: '/:path*',

@@ -10,7 +10,7 @@ export default function CtaSection() {
         <span className={styles.eyebrow}>Your next chapter</span>
         <h2 id="get-started-title" className={`${styles.ctaTitle} mt-6`}>Big ideas.<br /><span>Start with Blue.</span></h2>
         <div className={styles.ctaBottom}>
-          <p>Made specifically for students. Bring your curiosity, your code, and something you want to build.</p>
+          <p>From coursework and personal projects to your next product. Bring your curiosity, your code, and something you want to build.</p>
           <div className={styles.actions}><Link href="/console" className={styles.primary}>Get Started for Free <ArrowRight size={16} aria-hidden="true" /></Link><Link href="/pricing" className={styles.secondary}>Find your plan</Link></div>
         </div>
         <div className={styles.install}>

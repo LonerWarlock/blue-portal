@@ -10,9 +10,9 @@ export default function Hero() {
       <div className={styles.wrap}>
         <div className={styles.heroGrid}>
           <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>Made specifically for students</span>
-            <h1 id="blue-hero-title" className={styles.heroTitle}>Your ideas.<br />Blue&apos;s craft.<br /><span>Build what&apos;s next.</span></h1>
-            <p className={styles.heroDescription}>Blue is an AI coding assistant by Imergene, made specifically for students. Understand code, build coursework and personal projects, and debug with Blue Desktop for Windows or the VS Code extension.</p>
+            <span className={styles.eyebrow}>AI coding workspace by Imergene</span>
+            <h1 id="blue-hero-title" className={styles.heroTitle}>Your AI coding<br />workspace.<br /><span>Build with Blue.</span></h1>
+            <p className={styles.heroDescription}>Blue is a Windows AI coding workspace with a VS Code coding extension. Understand code, build projects and debug. In Blue Desktop, use Team mode to coordinate AI agents on coding, research and browser tasks.</p>
             <div className={styles.actions}>
               <DesktopDownloadLink className={styles.primary}>Download Blue for Windows <Download size={17} aria-hidden="true" /></DesktopDownloadLink>
               <Link prefetch={false} href="/console" className={styles.secondary}>Get Started for Free <ArrowRight size={16} aria-hidden="true" /></Link>
@@ -27,7 +27,7 @@ export default function Hero() {
         <div className={styles.platformStrip}>
           <p className={styles.platformIntro}>Built around your workflow</p>
           <div className={styles.platformItem}><Monitor size={21} aria-hidden="true" /><div>Your project, connected<small>Local tools. Real code.</small></div></div>
-          <div className={styles.platformItem}><UsersRound size={21} aria-hidden="true" /><div>Independent work, in parallel<small>Multi-agent on eligible paid plans.</small></div></div>
+          <div className={styles.platformItem}><UsersRound size={21} aria-hidden="true" /><div>Independent work, in parallel<small>Team mode with a Blue Teams plan.</small></div></div>
           <div className={styles.platformItem}><ShieldCheck size={21} aria-hidden="true" /><div>You stay in control<small>Guarded approvals and checkpoints.</small></div></div>
         </div>
       </div>

@@ -3,12 +3,13 @@ import DesktopDownloadLink from "@/app/components/DesktopDownloadLink";
 import Link from "next/link";
 import PageLayout from "@/app/components/PageLayout";
 
-export const metadata = createPageMetadata("/docs", "Blue Docs | Set Up Your AI Coding Assistant", "Install Blue Desktop for Windows or the VS Code extension. Learn project setup, code explanations, debugging, model connections, BYOK and billing.");
+export const metadata = createPageMetadata("/docs", "Blue Docs | Coding, Agent Teams & Model Setup", "Set up Blue Desktop for Windows or the VS Code coding assistant. Learn project tasks, Desktop Team mode, browser permissions, model connections and billing.");
 
 const sections = [
   { id: "get-started", label: "Get started" },
   { id: "projects", label: "Projects and chats" },
   { id: "models", label: "Models and billing" },
+  { id: "teams", label: "Desktop Team mode" },
   { id: "modes", label: "Full Access and UI Max" },
   { id: "connections", label: "Connections" },
   { id: "troubleshooting", label: "Troubleshooting" },
@@ -196,6 +197,39 @@ export default function DocsPage() {
                   </a>.
                 </p>
               </div>
+            </section>
+
+            <section id="teams" className="scroll-mt-28">
+              <h2 className="text-2xl font-bold text-ink">Desktop Team mode</h2>
+              <p className={copy}>
+                Team mode is part of Blue Desktop for Windows, not the VS Code
+                extension. With an active Teams plan and a supported model
+                connection, give Blue an outcome and let it assign specialists
+                for project coding, research or browser work. Open a specialist&apos;s
+                conversation to see its own progress, tools and results.
+              </p>
+              <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-7 text-ink-muted">
+                <li>Choose the workspace and describe the task, expected result and any limits. Use a local project folder when file changes are needed.</li>
+                <li>Let Blue divide independent work. Separate projects can progress in parallel; direct Full Access file-writing tasks in the same or overlapping folders queue to avoid conflicting edits.</li>
+                <li>Complete required sign-ins yourself, respond to permission requests, and review the specialist&apos;s actual results. A role does not remove service permissions or authorize unrelated external actions.</li>
+              </ol>
+              <div className={`${card} mt-5`}>
+                <h3 className={heading}>Keep Blue and your computer running</h3>
+                <p className={copy}>
+                  Agents run locally. Your computer must remain on, awake and
+                  connected to the internet, with Blue running, for tasks to
+                  continue. Closing Blue, sleep or shutdown can interrupt work;
+                  there is no always-on cloud worker. Check saved progress and
+                  any pending approvals after an interruption instead of
+                  assuming an external action completed.
+                </p>
+              </div>
+              <p className={copy}>
+                Teams access and model usage are separate. Provider quotas,
+                available workers, website compatibility and your permissions
+                can limit execution. Compare <Link href="/teams" className="font-medium text-brand hover:underline">Teams plans</Link>
+                {" "}or follow the practical <Link href="/guides/ai-agent-teams" className="font-medium text-brand hover:underline">AI agent teams guide</Link>.
+              </p>
             </section>
 
             <section id="modes" className="scroll-mt-28">

@@ -6,8 +6,8 @@ import { getBlueTeamsCheckoutConfig } from '@/lib/blueTeamsCheckoutMode';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = createPageMetadata(
   '/teams',
-  'Blue Teams | Your AI team, working together',
-  'Choose a Blue Teams plan for coordinated AI agents, organized project work and clear team limits.'
+  'Blue Teams | AI Agent Teams for Windows Projects',
+  'Coordinate specialist AI agents for coding, research and browser tasks in Blue Desktop. Compare Teams plans, project limits and local execution requirements.'
 );
 
 export default function TeamsPage() {

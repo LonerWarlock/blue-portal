@@ -3,7 +3,7 @@ import { ArrowRight, FolderSearch, Workflow, ShieldCheck, Plug } from "lucide-re
 import styles from "./PremiumLanding.module.css";
 
 const features = [
-  { icon: FolderSearch, title: "Understand what you're building.", description: "Explore a project's architecture, trace unfamiliar code, and ask for explanations while you work. Go beyond a copied answer to understand the change.", detail: "A clearer starting point for coursework and personal projects." },
+  { icon: FolderSearch, title: "Understand what you're building.", description: "Explore a project's architecture, trace unfamiliar code, and ask for explanations while you work. Go beyond a copied answer to understand the change.", detail: "A clearer starting point for coursework, personal apps and product code." },
   { icon: Workflow, title: "Move from idea to implementation.", description: "Ask Blue to plan a change, edit project files, and run relevant checks. When a task benefits from parallel work, eligible paid users can enable multiple agents.", detail: "Work in your project, not in an isolated prompt box." },
   { icon: ShieldCheck, title: "Make progress. Keep control.", description: "Review requested permissions and follow the changes in your project. Available task checkpoints let you review and restore supported file changes.", detail: "Check AI-generated code and results before you use or publish them." },
   { icon: Plug, title: "Connect the tools you already use.", description: "Bring supported GitHub, Canva, and Vercel connections into your workflow. Keep your account permissions and provider limits in view.", detail: "Connections require sign-in and depend on third-party availability." },
@@ -15,7 +15,7 @@ export default function Features() {
       <div className={styles.wrap}>
         <div className={styles.sectionHeading}>
           <div><span className={styles.eyebrow}>02 / Capabilities</span><h2 id="capabilities-title" className={styles.sectionTitle}>From a first idea.<br /><span>To a working change.</span></h2></div>
-          <p className={styles.sectionDescription}>Made specifically for students. Built to help you understand your code, develop your ideas, and gain confidence through hands-on work.</p>
+          <p className={styles.sectionDescription}>For students, developers and founders. Understand your code, develop your ideas, and learn through hands-on project work.</p>
         </div>
         <div className={styles.featureRows}>
           {features.map(({ icon: Icon, ...feature }, index) => <article key={feature.title} className={styles.featureRow}>

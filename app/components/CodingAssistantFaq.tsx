@@ -11,7 +11,19 @@ export default function CodingAssistantFaq() {
   const questions = [
     {
       question: "What is Blue?",
-      answer: <p>Blue is an AI coding assistant developed, owned, and operated by Imergene, made specifically for students. It brings code explanations, conversations, and project work into a Windows desktop app and a VS Code extension. Read <Link href="/about" className={link}>about Blue by Imergene</Link>.</p>,
+      answer: <p>Blue by Imergene is an AI coding workspace for Windows, with a coding assistant extension for VS Code. Students, developers and founders can use it to understand code, build projects and debug. Blue Desktop also includes Team mode for coordinating AI agents on coding, research and browser tasks. Read <Link href="/about" className={link}>about Blue by Imergene</Link>.</p>,
+    },
+    {
+      question: "What is Blue Teams, and is it available in VS Code?",
+      answer: <p>Blue Teams provides access to Team mode in Blue Desktop for Windows. Give Blue a goal, assign specialist roles and follow each agent&apos;s work in its own conversation. Agents can coordinate project work and hand off tasks, within your active plan&apos;s team and agent limits. The VS Code extension is for coding assistance; it does not include Desktop Team mode. See <Link href="/teams" className={link}>Blue Teams plans and the Team mode preview</Link>.</p>,
+    },
+    {
+      question: "Can Blue Teams work while my computer is off?",
+      answer: <p>No. Team agents run through Blue on your computer, not as always-on cloud workers. Keep Blue open, your computer on and awake, and an internet connection available for model requests and online tasks. Closing Blue, sleep or a restart can interrupt work. Automatic execution still depends on your plan, selected engine, permissions and available services.</p>,
+    },
+    {
+      question: "What can team agents do in the browser?",
+      answer: <p>When a task and the selected engine support it, Desktop agents can use Blue&apos;s built-in browser for research and work on websites you authorize. You remain responsible for signing in, completing verification and approving actions when required. Site permissions, account limits and connection failures can prevent completion; a Teams plan does not bypass them or guarantee a task&apos;s outcome.</p>,
     },
     {
       question: "How can Blue help with student projects?",
@@ -27,7 +39,7 @@ export default function CodingAssistantFaq() {
     },
     {
       question: "What does the Blue subscription cost?",
-      answer: <p>Blue costs ₹{monthly.priceInr} for {monthly.days} days, ₹{quarterly.priceInr} for {quarterly.days} days, or ₹{yearly.priceInr.toLocaleString("en-IN")} for {yearly.days} days. These are prepaid access periods with no auto-renewal. Model-provider costs remain separate. Compare eligible features and Blue Pro credits on the <Link href="/pricing" className={link}>pricing page</Link>.</p>,
+      answer: <p>Blue costs ₹{monthly.priceInr} for {monthly.days} days, ₹{quarterly.priceInr} for {quarterly.days} days, or ₹{yearly.priceInr.toLocaleString("en-IN")} for {yearly.days} days. These are prepaid access periods with no auto-renewal. Team mode requires a separate active <Link href="/teams" className={link}>Blue Teams plan</Link>. Model usage depends on your selected engine and connection; a Teams plan does not include unlimited AI requests. Compare eligible features and Blue Pro credits on the <Link href="/pricing" className={link}>pricing page</Link>.</p>,
     },
     {
       question: "Does every action use Blue Credits?",

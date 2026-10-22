@@ -3,12 +3,13 @@ import type { Metadata } from 'next';
 // Verified public production origin. Never use localhost or a preview host as
 // the canonical origin, including when this module runs in a local build.
 export const SITE_URL = 'https://blue.imergene.in';
-export const HOME_TITLE = 'Blue by Imergene | AI Coding Assistant for Students';
-export const HOME_DESCRIPTION = 'Blue by Imergene is an AI coding assistant made specifically for students, available on Windows and VS Code. App subscription access and AI model usage are separate.';
+export const HOME_TITLE = 'Blue by Imergene | AI Coding Assistant & Agent Teams';
+export const HOME_DESCRIPTION = 'Code, research and coordinate AI agent teams in Blue Desktop for Windows. Also available as a VS Code coding assistant. App subscription access and AI model usage are separate.';
 export const STUDENT_GUIDE_PATH = '/guides/ai-coding-assistant-for-students';
+export const TEAM_GUIDE_PATH = '/guides/ai-agent-teams';
 
 export const INDEXABLE_PATHS = [
-  '/', '/pricing', '/teams', '/docs', '/product/agents', STUDENT_GUIDE_PATH,
+  '/', '/pricing', '/teams', '/docs', '/product/agents', STUDENT_GUIDE_PATH, TEAM_GUIDE_PATH,
   '/about', '/contact', '/privacy', '/terms', '/refund',
 ] as const;
 
@@ -22,7 +23,7 @@ export function canonicalUrl(path = '/'): string {
 
 export function createPageMetadata(path: string, title: string, description: string): Metadata {
   const url = canonicalUrl(path);
-  const image = { url: canonicalUrl('/opengraph-image'), width: 1200, height: 630, alt: 'Blue — AI coding assistant made specifically for students' };
+  const image = { url: canonicalUrl('/opengraph-image'), width: 1200, height: 630, alt: 'Blue by Imergene — AI coding assistant and agent teams for Windows' };
   return {
     title,
     description,
@@ -39,7 +40,7 @@ export function privatePageMetadata(title: string): Metadata {
 export const SITE_SCHEMA = {
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'IMERGENE', alternateName: 'Imergene', description: 'Imergene owns and operates Blue, the AI coding assistant for students available as Blue Desktop for Windows and the Blue Coding Assistant VS Code extension.', url: SITE_URL, logo: canonicalUrl('/images/blue-symbol.png') },
+    { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'IMERGENE', alternateName: 'Imergene', description: 'Imergene develops and operates Blue Desktop for Windows, with AI coding, project teams and browser workflows, and the Blue Coding Assistant VS Code extension.', url: SITE_URL, logo: canonicalUrl('/images/blue-symbol.png') },
     { '@type': 'WebSite', '@id': `${SITE_URL}/#website`, name: 'Blue', alternateName: 'Blue by Imergene', description: HOME_DESCRIPTION, url: SITE_URL, inLanguage: 'en', publisher: { '@id': `${SITE_URL}/#organization` }, about: { '@id': `${SITE_URL}/#blue-desktop` } },
   ],
 };
@@ -52,5 +53,5 @@ export const DESKTOP_APP_SCHEMA = {
   publisher: { '@id': `${SITE_URL}/#organization` },
   creator: { '@id': `${SITE_URL}/#organization` },
   downloadUrl: 'https://apps.microsoft.com/detail/9NHV6GFJ64C8',
-  featureList: ['Explain project code', 'Plan and edit project files', 'Run relevant development checks', 'Choose supported AI models'],
+  featureList: ['Explain project code', 'Plan and edit project files', 'Run relevant development checks', 'Choose supported AI models', 'Coordinate specialist agents in Desktop Team mode with an active Teams plan', 'Research and browser work with permissions and user sign-in', 'Run independent project tasks in parallel while Blue and the computer stay on'],
 };
