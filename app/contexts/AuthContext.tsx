@@ -2,7 +2,6 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { AccountCache, AccountBootstrap, WALLET_CACHE_TTL_MS } from "@/lib/accountCache";
 
 interface AuthContextType {
@@ -83,14 +82,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     setLoading(!sessionRef.current?.user && !cache.current.peek());
     let authEventSeen = false;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, next: any) => {
-      authEventSeen = true;
-      acceptSession(next);
+    let subscription: { unsubscribe: () => void } | null = null;
+    // Public content must not require the auth SDK in order to hydrate. Load
+    // it only for an authenticated area, and contain a failed optional chunk.
+    void import("@/lib/supabase").then(({ supabase }) => {
+      if (!active) return;
+      subscription = supabase.auth.onAuthStateChange((_event: any, next: any) => {
+        authEventSeen = true;
+        acceptSession(next);
+      }).data.subscription;
+      supabase.auth.getSession().then(({ data: { session: next } }: any) => {
+        if (!authEventSeen) acceptSession(next);
+      }).catch(() => { if (!authEventSeen) acceptSession(null); });
+    }).catch(() => {
+      if (!active || authEventSeen) return;
+      acceptSession(null);
+      setAccountError("Account connection could not be loaded. Please try again.");
     });
-    supabase.auth.getSession().then(({ data: { session: next } }: any) => {
-      if (!authEventSeen) acceptSession(next);
-    }).catch(() => { if (!authEventSeen) acceptSession(null); });
-    return () => { active = false; subscription.unsubscribe(); };
+    return () => { active = false; subscription?.unsubscribe(); };
   }, [authEnabled]);
 
   useEffect(() => {
@@ -128,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     cache.current.setAccount(null);
     sessionRef.current = null;
     setAccount(null); setSession(null); setAccountError(""); setAccountLoading(false);
+    const { supabase } = await import("@/lib/supabase");
     await supabase.auth.signOut();
   };
   const visibleAccount = account?.user_id === session?.user?.id ? account : null;

@@ -61,6 +61,27 @@ or production proxy.
 
 ## Limits and release verification
 
+The first analytics-isolation release was deployed as `3e0e9aa` to production
+deployment `DMvZzmAWaLpPqrVw78jAER3H3zCE`. Fresh live tests at 14:59 and 15:00 IST
+still failed after receiving the new build: the guide failed a Supabase Auth
+chunk and Teams failed a mixed consent/animation chunk. Analytics was no longer
+on the initial dependency path, but that alone did not resolve the report.
+
+The follow-up removes the eager Supabase SDK import from the existing auth
+provider: the SDK is loaded only when the existing session-aware effect or
+sign-out operation needs it, preserving the subscription lifecycle and payment
+authorization. The purely decorative navigation loading overlay now uses CSS
+instead of making Framer Motion a root-layout dependency. Required public
+content, consent controls and theme context are preserved; real errors are not
+replaced with fabricated successful content.
+
+The follow-up production build/typecheck passed. It reduces the guide's First
+Load JS from 172 kB to 110 kB, and Teams from 179 kB to 118 kB relative to the
+first analytics-only build. Thirteen additional tests exercise the actual auth
+provider's lazy loading, subscription ordering, unmount races, failed imports,
+session fallback and sign-out/cache/error behavior with mocks. With the existing
+account-cache tests included, the focused regression set is 75 tests.
+
 This removes optional analytics from the critical rendering path and prevents
 its failure from taking down the pages. It does not prove why Google's original
 resource requests failed, guarantee delivery of every essential application

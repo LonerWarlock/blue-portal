@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 
 export default function LoadingOverlay() {
   const pathname = usePathname();
@@ -36,27 +35,18 @@ export default function LoadingOverlay() {
     return () => document.removeEventListener("click", handler, true);
   }, [pathname]);
 
+  // This small navigation decoration must not make an animation SDK a required
+  // dependency of every public page. CSS keeps the fade without that JS edge.
   return (
-    <AnimatePresence>
-      {loading && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-terminal/60"
-        >
-          <motion.div
-            className="font-mono font-medium text-lg tracking-tight bg-paper border border-line rounded-md px-4 py-2 text-ink"
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-          >
-            <span className="text-ink-muted">{`{ `}</span>
-            <span className="text-brand">loading</span>
-            <span className="text-ink-muted">{` }`}</span>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div
+      aria-hidden={!loading}
+      className={`fixed inset-0 z-[100] flex items-center justify-center bg-terminal/60 transition-opacity duration-150 motion-reduce:transition-none ${loading ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+    >
+      <div className={`font-mono font-medium text-lg tracking-tight bg-paper border border-line rounded-md px-4 py-2 text-ink ${loading ? 'animate-pulse motion-reduce:animate-none' : ''}`}>
+        <span className="text-ink-muted">{`{ `}</span>
+        <span className="text-brand">loading</span>
+        <span className="text-ink-muted">{` }`}</span>
+      </div>
+    </div>
   );
 }

@@ -5,6 +5,10 @@
 // request so the public website can be checked with a real browser. It is not
 // imported by the application and must never be deployed as a production proxy.
 // Build first, run Next on 127.0.0.1:3305, then run this script and visit :3306.
+// Startup also checks that public initial bundles do not require the deferred
+// auth SDK or Framer runtime. Only analytics requests are deliberately failed:
+// this fixture does not claim to survive missing React/Next/application chunks
+// or diagnose why Google's renderer sometimes fails to fetch a required asset.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
@@ -30,16 +34,30 @@ function discoverSdkChunks(buildRoot = BUILD_ROOT) {
     .flatMap(([, entry]) => entry.files || [])
     .filter(file => file.endsWith('.js')))];
   assert.ok(sdkFiles.length, 'No dynamic posthog-js SDK chunk found. Complete the production build first.');
+  const authFiles = [...new Set(Object.entries(loadable)
+    .filter(([name]) => name.endsWith(' -> @/lib/supabase'))
+    .flatMap(([, entry]) => entry.files || [])
+    .filter(file => file.endsWith('.js')))];
+  assert.ok(authFiles.length, 'No deferred Supabase module found. Complete the production build first.');
+
+  const sources = new Map();
+  function readChunk(file) {
+    assert.match(file, /^static\/chunks\//, 'Only built static JavaScript chunks may be inspected.');
+    const absolute = path.resolve(buildRoot, file);
+    assert.ok(absolute.startsWith(`${path.resolve(buildRoot)}${path.sep}`), 'Chunk escaped the build folder.');
+    if (!sources.has(file)) sources.set(file, fs.readFileSync(absolute, 'utf8'));
+    return sources.get(file);
+  }
 
   for (const file of sdkFiles) {
-    assert.match(file, /^static\/chunks\//, 'Only built static JavaScript chunks may be blocked.');
-    const absolute = path.resolve(buildRoot, file);
-    assert.ok(absolute.startsWith(`${path.resolve(buildRoot)}${path.sep}`), 'SDK chunk escaped the build folder.');
-    const source = fs.readFileSync(absolute, 'utf8');
+    const source = readChunk(file);
     assert.ok(/posthog/i.test(source) && source.includes('opt_out_capturing')
       && source.includes('disable_session_recording') && source.includes('get_distinct_id'),
     `Manifest entry is not a recognizable PostHog SDK implementation: ${file}`);
   }
+  // Supabase's manifest includes its own adapter chunk plus vendor chunks.
+  // Do not apply PostHog's implementation markers or blocking behavior to them.
+  for (const file of authFiles) readChunk(file);
 
   assert.ok(Array.isArray(app.pages?.['/layout']), 'Root layout build entry is missing.');
   for (const route of ROUTES) {
@@ -47,6 +65,18 @@ function discoverSdkChunks(buildRoot = BUILD_ROOT) {
     const required = new Set([...app.pages['/layout'], ...app.pages[route]]);
     for (const file of sdkFiles) {
       assert.equal(required.has(file), false, `Optional analytics is still required by the initial ${route} bundle: ${file}`);
+    }
+    for (const file of authFiles) {
+      assert.equal(required.has(file), false, `Deferred auth SDK is still required by the initial ${route} bundle: ${file}`);
+    }
+    for (const file of required) {
+      if (!file.endsWith('.js')) continue;
+      const source = readChunk(file);
+      // Distinct implementation markers in the installed Framer/Motion
+      // runtime, not incidental page text or CSS animation class names.
+      const hasFramerRuntime = source.includes('motionComponentSymbol')
+        || (source.includes('visualElement') && source.includes('onViewportEnter') && source.includes('layoutScroll'));
+      assert.equal(hasFramerRuntime, false, `Framer runtime is still required by the initial ${route} bundle: ${file}`);
     }
   }
   return sdkFiles.map(file => `/_next/${file}`);
