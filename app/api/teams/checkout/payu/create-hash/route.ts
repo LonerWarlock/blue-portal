@@ -5,7 +5,7 @@ import { getBearerToken } from '@/lib/bluePayg';
 import { checkRateLimit, rateLimitHeaders, requestIp } from '@/lib/trafficControl';
 import { moneyEquals, payuRequestHash, safeInternalUrl } from '@/lib/paymentSecurity';
 import { paymentSiteOrigin } from '@/lib/paymentOrigin';
-import { BLUE_TEAMS_LIVE_TEST_TIER, getBlueTeamsPlan, getBlueTeamsPriceInr, getBlueTeamsTierFromCheckoutPlan } from '@/lib/blueTeamsPlans';
+import { BLUE_TEAMS_LIVE_TEST_TIER, getBlueTeamsPlan, blueTeamsCheckoutAmount, getBlueTeamsCheckoutQuote, getBlueTeamsTierFromCheckoutPlan } from '@/lib/blueTeamsPlans';
 import { blueTeamsLiveTestPriceEnabled, teamsSessionModeAllowed } from '@/lib/blueTeamsCheckoutMode';
 
 export const runtime = 'nodejs';
@@ -50,6 +50,8 @@ export async function POST(request: Request) {
     if (testPrice && appliedImr > 0) return NextResponse.json({ error: 'IMR credits are not used for this ₹1 launch test.' }, { status: 400 });
     const expiresAt = new Date(session.expires_at).getTime();
     if (session.status !== 'pending' || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) return NextResponse.json({ error: 'Checkout session has expired. Please start again.' }, { status: 409 });
+    const preflight = await supabaseAdmin.rpc('validate_blue_teams_checkout', {session_id_param:session.id,currency_param:'INR'});
+    if (preflight.error) return NextResponse.json({error:'Your plan or payment quote changed. Return to Teams and review the current price before paying.'},{status:409});
 
     const key = process.env.PAYU_MERCHANT_KEY?.trim() || '';
     const salt = process.env.PAYU_MERCHANT_SALT?.trim() || '';
@@ -60,8 +62,10 @@ export async function POST(request: Request) {
     const balance = Number(wallet?.balance);
     if (walletError || !wallet || !Number.isFinite(balance)) return NextResponse.json({ error: 'Could not fetch wallet balance.' }, { status: 500 });
     if (appliedImr > balance) return NextResponse.json({ error: `Insufficient IMR balance. You only have ${balance} IMR available.` }, { status: 400 });
-    const amount = getBlueTeamsPriceInr(tier, testMode, appliedImr, liveTestMode);
-    let productinfo = `Blue Teams ${plan.name} - 30 days`;
+    const quote = getBlueTeamsCheckoutQuote(session.metadata);
+    if (quote?.mode === 'upgrade' && appliedImr > 0) return NextResponse.json({error:'IMR credits cannot be combined with an upgrade adjustment.'},{status:400});
+    const amount = blueTeamsCheckoutAmount(tier, 'INR', session.metadata, appliedImr);
+    let productinfo = `Blue Teams ${plan.name} - ${quote?.mode === 'upgrade' ? 'remaining-period upgrade' : '30 days'}`;
     let email = String(session.metadata?.email || auth.user.email || '').slice(0, 254);
     if (!email) {
       const { data } = await supabaseAdmin.auth.admin.getUserById(session.user_id);

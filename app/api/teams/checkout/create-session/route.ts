@@ -36,31 +36,29 @@ export async function POST(request: Request) {
     // This is intentionally server-owned. The temporary public Business
     // launch price can only be enabled in the production environment.
     const liveTestMode = plan.tier === BLUE_TEAMS_LIVE_TEST_TIER && config.liveTestPriceEnabled;
-    const testPrice = sandboxTestMode || liveTestMode;
-
-    const { data: session, error } = await supabaseAdmin.from('checkout_sessions').insert({
-      user_id: authData.user.id,
-      plan: `blue_teams_${plan.tier}`,
-      billing_cycle: 'monthly',
-      status: 'pending',
-      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-      metadata: {
-        email: authData.user.email || '',
-        product_kind: 'blue_teams',
-        product_sku: plan.sku,
-        base_price_inr: (testPrice ? 1 : plan.priceInr).toFixed(2),
-        base_price_usd: (testPrice ? 0.01 : plan.priceUsd).toFixed(2),
-        currency_inr: 'INR', currency_usd: 'USD', duration_days: plan.days,
-        blue_teams_test_mode: sandboxTestMode,
-        blue_teams_live_test_mode: liveTestMode,
-      },
-    }).select('id').single();
-
-    if (error || !session) {
-      console.error('[Blue Teams] Could not create checkout session:', error);
-      return NextResponse.json({ error: 'Could not start checkout. Please try again.' }, { status: 500 });
+    // Quote and admission are one database transaction: current access and any
+    // unresolved payment attempts are checked under the same account lock.
+    const { data, error } = await supabaseAdmin.rpc('create_blue_teams_checkout', {
+      user_id_param:authData.user.id,tier_param:plan.tier,
+      is_test_param:sandboxTestMode,live_test_param:liveTestMode,
+    });
+    if (error || !data?.session_id) {
+      // Return only allowlisted billing guidance, not arbitrary database errors.
+      const message = error?.message || '';
+      const guidance = /collected Teams payment is awaiting review|Multiple Teams checkout attempts need reconciliation/.test(message)
+        ? 'A previous payment needs review. Do not pay again; contact support to reconcile the receipt.'
+        : /previous Teams checkout is still pending/.test(message)
+          ? 'A previous Teams checkout is still pending. Finish or resolve it before choosing another plan.'
+          : /lower Teams plan starts only after/.test(message)
+            ? 'Your current plan stays active until expiry. Choose Change at expiry to save a lower plan without paying now.'
+            : /manual billing review/.test(message)
+              ? 'This upgrade needs a billing review to preserve your prepaid balance. No payment was started; contact support.'
+              : /checkout is no longer available|Teams access changed|Teams plan changed/.test(message)
+                ? 'Your Teams access changed. Refresh your current plan before starting another checkout.'
+                : null;
+      return NextResponse.json({ error: guidance || 'Could not prepare a verified payment quote. No payment was started.' }, { status:guidance ? 409 : 503 });
     }
-    return NextResponse.json({ session_id: session.id });
+    return NextResponse.json(data, {headers:{'Cache-Control':'private, no-store'}});
   } catch (error) {
     console.error('[Blue Teams] Checkout session failed:', error);
     return NextResponse.json({ error: 'Could not start checkout. Please try again.' }, { status: 500 });

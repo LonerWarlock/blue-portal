@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { randomBytes } from 'crypto';
-import { payuRequestHash, safeInternalUrl } from '@/lib/paymentSecurity';
+import { moneyEquals, payuRequestHash, safeInternalUrl } from '@/lib/paymentSecurity';
 import { getBearerToken } from '@/lib/bluePayg';
 import { checkRateLimit, rateLimitHeaders, requestIp } from '@/lib/trafficControl';
 import { bluePlanPriceInr, getBlueSubscriptionPlan, isBlueBillingCycle } from '@/lib/blueSubscriptionPlans';
@@ -9,6 +9,9 @@ import { paymentSiteOrigin } from '@/lib/paymentOrigin';
 
 export async function POST(request: Request) {
   try {
+    if (String(process.env.DISABLE_CHECKOUT || '').toLowerCase() === 'true') {
+      return NextResponse.json({ error: 'Checkout is temporarily paused.' }, { status: 503 });
+    }
     const { sessionId, returnUrl, redeemedImr } = await request.json();
 
     if (!sessionId) {
@@ -58,7 +61,8 @@ export async function POST(request: Request) {
     if (session.plan !== 'blue' || !subscriptionPlan || !isBlueBillingCycle(session.billing_cycle)) {
       return NextResponse.json({ error: 'Unsupported checkout session' }, { status: 400 });
     }
-    if (session.status !== 'pending' || new Date(session.expires_at).getTime() <= Date.now()) {
+    const expiresAt = new Date(session.expires_at).getTime();
+    if (session.status !== 'pending' || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
       return NextResponse.json({ error: 'Checkout session is no longer active' }, { status: 409 });
     }
 
@@ -82,9 +86,6 @@ export async function POST(request: Request) {
     const discount = appliedImr * 0.5;
     const amountStr = bluePlanPriceInr(session.billing_cycle, appliedImr);
 
-    // 3. Generate a unique transaction ID (txnid)
-    const txnid = `c2c_${randomBytes(12).toString('hex')}`;
-
     // Save only server-derived product and payment details.
     const existingMetadata = session.metadata || {};
     const siteUrl = paymentSiteOrigin(request.url);
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
     }
 
     // Fetch user email
-    let email = existingMetadata.email || '';
+    let email = authData.user.email || existingMetadata.email || '';
     if (!email) {
       try {
         const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(session.user_id);
@@ -112,6 +113,45 @@ export async function POST(request: Request) {
 
     const productinfo = session.billing_cycle === 'monthly' ? 'Blue Subscription' : `Blue Subscription - ${subscriptionPlan.label}`;
     const firstname = email ? email.split('@')[0] : 'Customer';
+
+    const { data: previousOrder, error: previousOrderError } = await supabaseAdmin
+      .from('payment_orders').select('*').eq('checkout_session_id', session.id).maybeSingle();
+    if (previousOrderError) throw new Error('Could not read payment order');
+    const orderMetadata = previousOrder?.metadata || {};
+    // A checkout has one immutable payment attempt. Never replace a pending
+    // provider order (it may already be paid) or rewrite completed history.
+    if (previousOrder && (previousOrder.status !== 'pending'
+      || previousOrder.gateway !== 'payu' || previousOrder.user_id !== session.user_id
+      || previousOrder.product_sku !== subscriptionPlan.sku || previousOrder.currency !== 'INR'
+      || !moneyEquals(previousOrder.amount, amountStr) || Number(previousOrder.redeemed_imr) !== appliedImr
+      || !previousOrder.provider_order_id || previousOrder.custom_id !== previousOrder.provider_order_id
+      || !Number.isFinite(new Date(previousOrder.expires_at).getTime())
+      || new Date(previousOrder.expires_at).getTime() <= Date.now()
+      || orderMetadata.productinfo !== productinfo || orderMetadata.firstname !== firstname || orderMetadata.email !== email
+      || (orderMetadata.return_url || existingMetadata.return_url) !== safeReturnUrl
+      || (existingMetadata.payment_provider && existingMetadata.payment_provider !== 'payu')
+      || (existingMetadata.txnid && existingMetadata.txnid !== previousOrder.provider_order_id))) {
+      return NextResponse.json({ error: 'This checkout already has a different or finished payment attempt. Start a new checkout instead.' }, { status: 409 });
+    }
+    if (!previousOrder && existingMetadata.payment_provider) {
+      return NextResponse.json({ error: 'This checkout already has a payment binding. Start a new checkout instead.' }, { status: 409 });
+    }
+    const txnid = previousOrder?.provider_order_id || `c2c_${randomBytes(12).toString('hex')}`;
+    if (!previousOrder) {
+      // Reserve the unique checkout row before returning any signed PayU form.
+      // Concurrent requests cannot issue a second payable transaction.
+      const { error: paymentOrderError } = await supabaseAdmin.from('payment_orders').insert({
+        checkout_session_id: session.id, user_id: session.user_id, product_sku: subscriptionPlan.sku,
+        amount: amountStr, currency: 'INR', redeemed_imr: appliedImr, gateway: 'payu',
+        provider_order_id: txnid, custom_id: txnid, status: 'pending', expires_at: session.expires_at,
+        metadata: { productinfo, firstname, email, billing_cycle: session.billing_cycle,
+          duration_days: subscriptionPlan.days, return_url: safeReturnUrl },
+        updated_at: new Date().toISOString(),
+      }).select('id').single();
+      if (paymentOrderError) {
+        return NextResponse.json({ error: 'A payment attempt already exists or could not be reserved. Reload this checkout to continue safely.' }, { status: 409 });
+      }
+    }
 
     const updatedMetadata = {
       ...existingMetadata,
@@ -132,29 +172,8 @@ export async function POST(request: Request) {
       .from('checkout_sessions')
       .update({ metadata: updatedMetadata })
       .eq('id', sessionId)
-      .eq('status', 'pending');
+      .eq('status', 'pending').select('id').single();
     if (expectedUpdateError) {
-      return NextResponse.json({ error: 'Could not initialize payment' }, { status: 500 });
-    }
-
-    const { error: paymentOrderError } = await supabaseAdmin
-      .from('payment_orders')
-      .upsert({
-        checkout_session_id: session.id,
-        user_id: session.user_id,
-        product_sku: subscriptionPlan.sku,
-        amount: amountStr,
-        currency: 'INR',
-        redeemed_imr: appliedImr,
-        gateway: 'payu',
-        provider_order_id: txnid,
-        custom_id: txnid,
-        status: 'pending',
-        expires_at: session.expires_at,
-        metadata: { productinfo, firstname, email, billing_cycle: session.billing_cycle, duration_days: subscriptionPlan.days },
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'checkout_session_id' });
-    if (paymentOrderError) {
       return NextResponse.json({ error: 'Could not initialize payment' }, { status: 500 });
     }
 

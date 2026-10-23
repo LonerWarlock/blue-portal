@@ -4,7 +4,7 @@ import { capturePaypalOrder, getPaypalOrder, type PayPalCaptureResult } from '@/
 import { checkRateLimit, requestIp } from '@/lib/trafficControl';
 import { moneyEquals, safeInternalUrl } from '@/lib/paymentSecurity';
 import { paymentSiteOrigin } from '@/lib/paymentOrigin';
-import { getBlueTeamsPlan, getBlueTeamsPriceUsd, getBlueTeamsTierFromCheckoutPlan } from '@/lib/blueTeamsPlans';
+import { getBlueTeamsPlan, blueTeamsCheckoutAmount, getBlueTeamsTierFromCheckoutPlan } from '@/lib/blueTeamsPlans';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -50,12 +50,12 @@ export async function GET(request: Request) {
       console.error('[Blue Teams] PayPal capture did not match its stored order', { sessionId, orderId });
       return redirect(returnUrl, 'invalid');
     }
-    const { error: completionError } = await supabaseAdmin.rpc('complete_blue_teams_checkout', {
+    const { data: completion, error: completionError } = await supabaseAdmin.rpc('complete_blue_teams_checkout', {
       session_id_param: session.id, provider_param: 'paypal', provider_order_id_param: orderId,
       provider_transaction_id_param: capture.captureId!, payer_email_param: capture.payerEmail || String(session.metadata?.email || ''),
     });
     if (completionError) throw new Error(`Could not activate Blue Teams: ${completionError.message}`);
-    return redirect(returnUrl, 'success');
+    return redirect(returnUrl, completion?.outcome === 'requires_review' ? 'pending' : 'success');
   } catch (error) {
     if (bindingVerified && supabaseAdmin) {
       try {
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
         const { data: order } = await supabaseAdmin.from('payment_orders').select('*').eq('checkout_session_id', sessionId).eq('gateway', 'paypal').maybeSingle();
         const params = new URL(request.url).searchParams;
         if (session?.status === 'completed' && order?.status === 'completed'
-          && validPaymentBinding(session, order, params.get('token') || '', params.get('txnid') || '')) return redirect(returnUrl, 'success');
+          && validPaymentBinding(session, order, params.get('token') || '', params.get('txnid') || '')) return redirect(returnUrl, session.metadata?.payment_outcome === 'requires_review' ? 'pending' : 'success');
       } catch { /* Keep the verified order available for a safe retry. */ }
     }
     console.error('[Blue Teams] PayPal capture failed:', error);
@@ -82,7 +82,7 @@ function validPaymentBinding(session: Record<string, any>, order: Record<string,
   const testPrice = testMode || liveTestMode;
   const redeemedImr = Number(order.redeemed_imr);
   const amount = tier && Number.isFinite(redeemedImr) && redeemedImr >= 0 && redeemedImr <= 100
-    ? getBlueTeamsPriceUsd(tier, testMode, redeemedImr, liveTestMode)
+    ? blueTeamsCheckoutAmount(tier, 'USD', metadata, redeemedImr)
     : null;
   return Boolean(tier && plan && session.billing_cycle === 'monthly' && metadata.product_kind === 'blue_teams'
     && metadata.payment_provider === 'paypal' && metadata.expected_currency === 'USD'

@@ -40,6 +40,13 @@ export default function PricingClient() {
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
   const bluePlan = BLUE_SUBSCRIPTION_PLANS[billingCycle];
   const activePlan = account?.subscription.plan || 'lite';
+  // Model-credit access can make the effective plan Blue Pro while the user's
+  // separately paid Blue app-access period is still active.
+  const accessExpiry = account?.subscription.monthly_expires_at;
+  const activeBlueAccess = Boolean(user && account?.subscription.monthly_plan === 'blue'
+    && (accessExpiry == null || (Number.isFinite(Date.parse(accessExpiry)) && Date.parse(accessExpiry) > Date.now())));
+  const activeBillingCycle = account?.subscription.billing_cycle;
+  const activeCycleLabel = isBlueBillingCycle(activeBillingCycle) ? BLUE_SUBSCRIPTION_PLANS[activeBillingCycle].label : null;
   const imrBalance = Number(account?.wallet.balance || 0);
 
   useEffect(() => {
@@ -84,15 +91,19 @@ export default function PricingClient() {
 
         {accountLoading && user && !account && <p role="status" className={styles.accountMessage}>Loading your plan…</p>}
         {accountError && <p role="alert" className={styles.error}>{accountError} <button type="button" onClick={() => void invalidateAccount()}>Retry</button></p>}
+        {activeBlueAccess && <p role="status" className={styles.accountMessage}>
+          Blue app access is active{accessExpiry ? ` until ${new Date(accessExpiry).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}` : ' with no expiry'}.
+          {activeCycleLabel && ` Last access purchase: ${activeCycleLabel}.`} Buying another duration adds time after your existing access; it does not replace or shorten it.
+        </p>}
 
         <div className={styles.grid}>
           {plans.map((plan, index) => {
             const featured = plan.id === 'blue';
-            const current = Boolean(user && account && activePlan === plan.id);
+            const current = Boolean(user && account && (plan.id === 'blue' ? activeBlueAccess : activePlan === plan.id));
             const card = <SpotlightCard className={`${styles.card} ${featured ? styles.featuredCard : styles.secondaryCard}`}
               spotlightColor={featured ? 'rgba(114, 179, 255, 0.2)' : 'rgba(94, 137, 245, 0.1)'}>
               <div className={styles.planName}><h2>{plan.name}</h2>
-                {featured ? <span className={styles.popular}>{current ? <Check size={11} aria-hidden="true" /> : <Sparkles size={11} aria-hidden="true" />}{current ? 'Current Plan' : 'Popular choice'}</span>
+                {featured ? <span className={styles.popular}>{current ? <Check size={11} aria-hidden="true" /> : <Sparkles size={11} aria-hidden="true" />}{current ? 'Active app access' : 'Popular choice'}</span>
                   : current && <span className={styles.current}><Check size={11} aria-hidden="true" /> Current Plan</span>}
               </div>
               <p className={styles.description}>{plan.description}</p>
@@ -141,7 +152,7 @@ export default function PricingClient() {
 
         <section aria-labelledby="billing-explanation-title" className="mt-6 border-t border-line pt-6">
           <h2 id="billing-explanation-title" className="text-base font-semibold text-ink">App access and model usage are separate.</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-7 text-ink-muted">Blue by Imergene subscriptions unlock app features. They do not require Blue Credits when you use your own provider key. BYOK model usage is billed by your provider where applicable; Blue Pro model usage is paid with Blue Credits. There is no fixed Blue Credit fee for each code edit, local test, or deployment.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-7 text-ink-muted">Blue by Imergene subscriptions unlock app features. Monthly, quarterly and yearly purchases have the same features; only the price and access duration differ. Further purchases extend remaining access. There is no automatic renewal to cancel. Blue Pro credits are separate, never expire and are not replaced by an app-access purchase. BYOK model usage is billed by your provider where applicable; Blue Pro model usage is paid with Blue Credits. There is no fixed Blue Credit fee for each code edit, local test, or deployment.</p>
           <Link href="/about#billing" className="mt-2 inline-flex min-h-10 items-center text-sm font-medium text-brand hover:underline">How Blue&apos;s billing works <ArrowUpRight size={14} aria-hidden="true" className="ml-1" /></Link>
         </section>
 

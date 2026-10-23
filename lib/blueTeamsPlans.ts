@@ -41,6 +41,56 @@ export function getBlueTeamsTierFromCheckoutPlan(value: unknown): BlueTeamsTier 
   return isBlueTeamsTier(tier) ? tier : null;
 }
 
+export type BlueTeamsCheckoutQuote = {
+  version: 1;
+  mode: 'new' | 'renewal' | 'upgrade';
+  from_plan?: BlueTeamsTier | null;
+  quoted_at: string;
+  effective_start: string;
+  effective_end: string;
+  base_amount_inr: string;
+  base_amount_usd: string;
+  currency_locked: 'INR' | 'USD' | null;
+};
+
+/** Only call with native database checkout metadata, never a request body. */
+export function getBlueTeamsCheckoutQuote(metadata: unknown): BlueTeamsCheckoutQuote | null {
+  const record = metadata && typeof metadata === 'object' ? metadata as Record<string,unknown> : {};
+  const value = record.teams_quote;
+  if (value === undefined || value === null) return null; // Legacy paid callbacks remain valid.
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid Teams payment quote.');
+  const q = value as Record<string,unknown>;
+  if (q.version !== 1 || !['new','renewal','upgrade'].includes(String(q.mode))
+    || ![null,undefined,'INR','USD'].includes(q.currency_locked as string | null | undefined)
+    || !['base_amount_inr','base_amount_usd'].every(key => typeof q[key] === 'string' && /^\d{1,8}\.\d{2}$/.test(q[key] as string) && Number(q[key]) > 0)
+    || !['quoted_at','effective_start','effective_end'].every(key => typeof q[key] === 'string' && Number.isFinite(Date.parse(q[key] as string)))
+    || Date.parse(q.effective_end as string) <= Date.parse(q.effective_start as string)
+    || Date.parse(q.effective_start as string) < Date.parse(q.quoted_at as string)
+    || q.mode === 'upgrade' && !isBlueTeamsTier(q.from_plan)
+    || q.from_plan !== undefined && q.from_plan !== null && !isBlueTeamsTier(q.from_plan)) {
+    throw new Error('Invalid Teams payment quote.');
+  }
+  return {version:1,mode:q.mode as BlueTeamsCheckoutQuote['mode'],from_plan:q.from_plan as BlueTeamsTier | null | undefined,
+    quoted_at:q.quoted_at as string,effective_start:q.effective_start as string,effective_end:q.effective_end as string,
+    base_amount_inr:q.base_amount_inr as string,base_amount_usd:q.base_amount_usd as string,
+    currency_locked:q.currency_locked as 'INR' | 'USD' | null || null};
+}
+
+/** Price a saved server quote, retaining legacy prices only for old checkouts. */
+export function blueTeamsCheckoutAmount(tier: BlueTeamsTier, currency: 'INR' | 'USD', metadata: unknown, redeemedImr = 0): string {
+  validateRedeemedImr(redeemedImr);
+  const quote = getBlueTeamsCheckoutQuote(metadata);
+  const record = metadata && typeof metadata === 'object' ? metadata as Record<string,unknown> : {};
+  if (!quote) return currency === 'INR'
+    ? getBlueTeamsPriceInr(tier,record.blue_teams_test_mode === true,redeemedImr,record.blue_teams_live_test_mode === true)
+    : getBlueTeamsPriceUsd(tier,record.blue_teams_test_mode === true,redeemedImr,record.blue_teams_live_test_mode === true);
+  if (quote.currency_locked && quote.currency_locked !== currency) throw new Error('Use the original payment currency for this upgrade.');
+  if (quote.mode === 'upgrade' && redeemedImr !== 0) throw new Error('IMR credits cannot be combined with an upgrade adjustment.');
+  const base = Number(currency === 'INR' ? quote.base_amount_inr : quote.base_amount_usd);
+  const discount = currency === 'INR' ? redeemedImr * 0.5 : redeemedImr * 0.5 / 100;
+  return Math.max(currency === 'INR' ? 1 : 0.01,base - discount).toFixed(2);
+}
+
 function validateRedeemedImr(redeemedImr: number): void {
   if (!Number.isFinite(redeemedImr) || redeemedImr < 0 || redeemedImr > 100) {
     throw new Error('Invalid IMR amount');

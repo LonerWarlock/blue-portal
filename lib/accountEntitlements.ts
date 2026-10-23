@@ -37,7 +37,7 @@ export async function loadAccountEntitlements(userId: string) {
   const threshold = lowBalanceThreshold(Math.max(0, Number(profile?.last_top_up_credits || 0)) || 1);
   return {
     user_id: userId, ...plan, discount: Number(subscription?.metadata?.imr_discount || 0),
-    teams: teamSubscriptionResult.error ? activeBlueTeamsEntitlement(null) : activeBlueTeamsEntitlement(teamSubscriptionResult.data),
+    teams: { ...(teamSubscriptionResult.error ? activeBlueTeamsEntitlement(null) : activeBlueTeamsEntitlement(teamSubscriptionResult.data)), available: !teamSubscriptionResult.error },
     ...(creditSummary ? { credit_summary: creditSummary } : {}),
     blue_pro: {
       eligible: plan.is_pro, account_type: String(wallet?.account_type || 'standard'),

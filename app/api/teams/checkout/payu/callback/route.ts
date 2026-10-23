@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { matchesExpectedPayuPayment, parsePayuForm, safeInternalUrl, validPayuCallbackSignature } from '@/lib/paymentSecurity';
 import { paymentSiteOrigin } from '@/lib/paymentOrigin';
-import { getBlueTeamsPlan, getBlueTeamsPriceInr, getBlueTeamsTierFromCheckoutPlan } from '@/lib/blueTeamsPlans';
+import { getBlueTeamsPlan, blueTeamsCheckoutAmount, getBlueTeamsTierFromCheckoutPlan } from '@/lib/blueTeamsPlans';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       && (!testPrice || redeemedImr === 0)
       && order.provider_order_id === data.txnid && order.custom_id === data.txnid
       && ['pending', 'completed'].includes(order.status) && metadata.payment_provider === 'payu'
-      && Number(order.amount).toFixed(2) === getBlueTeamsPriceInr(tier, testMode, redeemedImr, liveTestMode)
+      && Number(order.amount).toFixed(2) === blueTeamsCheckoutAmount(tier, 'INR', metadata, redeemedImr)
       && Number(metadata.redeemed_imr) === redeemedImr
       && order.metadata?.blue_teams_test_mode === testMode
       && Boolean(order.metadata?.blue_teams_live_test_mode) === liveTestMode;
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     resultUrl.searchParams.set('live_test', liveTestMode ? '1' : '0');
     const transactionId = data.mihpayid || data.payuMoneyId || data.txnid;
     if (session.status === 'completed' && order.status === 'completed' && order.provider_transaction_id === transactionId) {
-      resultUrl.searchParams.set('payment', 'success');
+      resultUrl.searchParams.set('payment', metadata.payment_outcome === 'requires_review' ? 'pending' : 'success');
       return NextResponse.redirect(resultUrl, 303);
     }
 
@@ -76,13 +76,13 @@ export async function POST(request: Request) {
     }
 
     verifiedPaid = true;
-    const { error: completionError } = await supabaseAdmin.rpc('complete_blue_teams_checkout', {
+    const { data: completion, error: completionError } = await supabaseAdmin.rpc('complete_blue_teams_checkout', {
       session_id_param: session.id, provider_param: 'payu', provider_order_id_param: data.txnid,
       provider_transaction_id_param: transactionId,
       payer_email_param: data.email || String(metadata.email || ''),
     });
     if (completionError) throw new Error(`Could not activate Blue Teams: ${completionError.message}`);
-    resultUrl.searchParams.set('payment', 'success');
+    resultUrl.searchParams.set('payment', completion?.outcome === 'requires_review' ? 'pending' : 'success');
     return NextResponse.redirect(resultUrl, 303);
   } catch (error) {
     console.error('[Blue Teams] PayU callback failed:', error);

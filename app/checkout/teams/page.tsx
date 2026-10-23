@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { paymentSiteOrigin } from '@/lib/paymentOrigin';
 import { safeInternalUrl } from '@/lib/paymentSecurity';
-import { getBlueTeamsPlan, getBlueTeamsTierFromCheckoutPlan } from '@/lib/blueTeamsPlans';
+import { getBlueTeamsPlan, getBlueTeamsCheckoutQuote, getBlueTeamsTierFromCheckoutPlan } from '@/lib/blueTeamsPlans';
 import { getBlueTeamsCheckoutConfig } from '@/lib/blueTeamsCheckoutMode';
 import TeamsCheckoutForm from './checkout-form';
 
@@ -40,7 +40,10 @@ export default async function TeamsCheckoutPage({ searchParams }: { searchParams
     .eq('user_id', session.user_id)
     .single();
   const imrBalance = Number(wallet?.balance || 0);
+  let quote;
+  try { quote = getBlueTeamsCheckoutQuote(session.metadata); }
+  catch { return <ErrorState message="The saved payment quote could not be verified. Return to Teams to create a new checkout." />; }
 
   return <TeamsCheckoutForm sessionId={session.id} returnUrl={returnUrl} email={email} tier={tier} sandboxTestMode={sandboxTestMode} liveTestMode={liveTestMode}
-    imrBalance={imrBalance} />;
+    imrBalance={imrBalance} quote={quote} />;
 }

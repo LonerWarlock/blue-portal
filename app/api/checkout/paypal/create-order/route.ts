@@ -81,34 +81,75 @@ export async function POST(request: Request) {
     const { data: previousOrder, error: previousOrderError } = await supabaseAdmin
       .from('payment_orders').select('*').eq('checkout_session_id', session.id).maybeSingle();
     if (previousOrderError) throw new Error('Could not read payment order');
-    if (previousOrder && previousOrder.status !== 'pending') {
-      return NextResponse.json({ error: 'Checkout session is no longer active' }, { status: 409 });
-    }
-    // Reuse the same pending order on a retry with identical checkout settings.
     const previousMetadata = previousOrder?.metadata || {};
-    if (previousOrder?.gateway === 'paypal' && previousOrder.user_id === session.user_id
-      && previousOrder.product_sku === plan.sku && previousOrder.currency === 'USD'
-      && moneyEquals(previousOrder.amount, amount) && Number(previousOrder.redeemed_imr) === appliedImr
-      && previousOrder.provider_order_id === existingMetadata.expected_order_id
-      && previousOrder.custom_id === existingMetadata.expected_custom_id
-      && previousMetadata.approve_url && previousMetadata.return_url === safeReturnUrl) {
-      return NextResponse.json({
-        approveUrl: previousMetadata.approve_url,
-        orderId: previousOrder.provider_order_id,
-        txnid: previousOrder.custom_id,
-      });
+    if (previousOrder && (previousOrder.status !== 'pending'
+      || previousOrder.gateway !== 'paypal' || previousOrder.user_id !== session.user_id
+      || previousOrder.product_sku !== plan.sku || previousOrder.currency !== 'USD'
+      || !moneyEquals(previousOrder.amount, amount) || Number(previousOrder.redeemed_imr) !== appliedImr
+      || !Number.isFinite(new Date(previousOrder.expires_at).getTime())
+      || new Date(previousOrder.expires_at).getTime() <= Date.now()
+      || !previousOrder.custom_id || previousMetadata.expected_custom_id !== previousOrder.custom_id
+      || previousMetadata.expected_invoice_id !== previousOrder.custom_id
+      || previousMetadata.return_url !== safeReturnUrl
+      || (existingMetadata.payment_provider && existingMetadata.payment_provider !== 'paypal')
+      || (existingMetadata.expected_order_id && existingMetadata.expected_order_id !== previousOrder.provider_order_id)
+      || (existingMetadata.expected_custom_id && existingMetadata.expected_custom_id !== previousOrder.custom_id))) {
+      return NextResponse.json({ error: 'This checkout already has a different or finished payment attempt. Start a new checkout instead.' }, { status: 409 });
     }
-
-    const txnid = `ppc_${randomBytes(12).toString('hex')}`;
+    if (!previousOrder && existingMetadata.payment_provider) {
+      return NextResponse.json({ error: 'This checkout already has a payment binding. Start a new checkout instead.' }, { status: 409 });
+    }
+    // Reserve before contacting PayPal. Its immutable invoice ID is also the
+    // provider idempotency key, so a network retry cannot create a new charge.
+    const txnid = previousOrder?.custom_id || `ppc_${randomBytes(12).toString('hex')}`;
+    const orderMetadata = {
+      expected_custom_id: txnid, expected_invoice_id: txnid, billing_cycle: session.billing_cycle,
+      duration_days: plan.days, return_url: safeReturnUrl,
+    };
+    if (!previousOrder) {
+      const { error: reserveError } = await supabaseAdmin.from('payment_orders').insert({
+        checkout_session_id: session.id, user_id: session.user_id, product_sku: plan.sku,
+        amount, currency: 'USD', redeemed_imr: appliedImr, gateway: 'paypal',
+        provider_order_id: null, custom_id: txnid, status: 'pending', expires_at: session.expires_at,
+        metadata: orderMetadata, updated_at: new Date().toISOString(),
+      }).select('id').single();
+      if (reserveError) {
+        return NextResponse.json({ error: 'A payment attempt already exists or could not be reserved. Reload this checkout to continue safely.' }, { status: 409 });
+      }
+    }
     const paypalReturnUrl = new URL('/api/checkout/paypal/capture', siteUrl);
     paypalReturnUrl.searchParams.set('session_id', session.id);
     paypalReturnUrl.searchParams.set('txnid', txnid);
-    const order = await createPaypalOrder({
-      amount, currency: 'USD',
-      description: `Blue Subscription - ${plan.label} Plan (${plan.days} days)`,
-      returnUrl: paypalReturnUrl.toString(), cancelUrl: safeReturnUrl,
-      customId: txnid, invoiceId: txnid,
-    });
+    let order = previousOrder?.provider_order_id && previousMetadata.approve_url
+      ? { orderId: previousOrder.provider_order_id, approveUrl: previousMetadata.approve_url }
+      : null;
+    if (!order) {
+      // A bound row without its approval URL cannot safely be recreated.
+      if (previousOrder?.provider_order_id) {
+        return NextResponse.json({ error: 'This payment attempt needs confirmation. Start a new checkout only after checking its payment status.' }, { status: 409 });
+      }
+      order = await createPaypalOrder({
+        amount, currency: 'USD',
+        description: `Blue Subscription - ${plan.label} Plan (${plan.days} days)`,
+        returnUrl: paypalReturnUrl.toString(), cancelUrl: safeReturnUrl,
+        customId: txnid, invoiceId: txnid,
+      });
+      const { error: bindError } = await supabaseAdmin.from('payment_orders').update({
+        provider_order_id: order.orderId, metadata: { ...orderMetadata, approve_url: order.approveUrl },
+        updated_at: new Date().toISOString(),
+      }).eq('checkout_session_id', session.id).eq('status', 'pending').eq('custom_id', txnid)
+        .is('provider_order_id', null).select('id').single();
+      if (bindError) {
+        // Another identical request may have bound the same idempotent order.
+        // Never overwrite a different provider ID or a completed ledger row.
+        const { data: bound, error: boundError } = await supabaseAdmin.from('payment_orders')
+          .select('*').eq('checkout_session_id', session.id).maybeSingle();
+        if (boundError || bound?.status !== 'pending' || bound.custom_id !== txnid
+          || bound.provider_order_id !== order.orderId || bound.metadata?.approve_url !== order.approveUrl) {
+          return NextResponse.json({ error: 'This payment attempt changed while being prepared. Reload to check its status.' }, { status: 409 });
+        }
+      }
+    }
     const email = authData.user.email || existingMetadata.email || '';
     const updatedMetadata = {
       ...existingMetadata, email, paypal_order_id: order.orderId, txnid,
@@ -123,24 +164,6 @@ export async function POST(request: Request) {
       .eq('id', sessionId).eq('status', 'pending').select('id').single();
     if (updateError) throw new Error('Failed to bind PayPal order to checkout session');
 
-    const paymentOrder = {
-      checkout_session_id: session.id, user_id: session.user_id, product_sku: plan.sku,
-      amount, currency: 'USD', redeemed_imr: appliedImr, gateway: 'paypal',
-      provider_order_id: order.orderId, custom_id: txnid, status: 'pending',
-      expires_at: session.expires_at,
-      metadata: {
-        expected_custom_id: txnid, expected_invoice_id: txnid, billing_cycle: session.billing_cycle,
-        duration_days: plan.days, approve_url: order.approveUrl, return_url: safeReturnUrl,
-      },
-      updated_at: new Date().toISOString(),
-    };
-    const persistence = previousOrder
-      ? supabaseAdmin.from('payment_orders').update(paymentOrder)
-        .eq('checkout_session_id', session.id).eq('status', 'pending')
-        .eq('provider_order_id', previousOrder.provider_order_id)
-      : supabaseAdmin.from('payment_orders').insert(paymentOrder);
-    const { error: paymentOrderError } = await persistence.select('id').single();
-    if (paymentOrderError) throw new Error('Failed to persist PayPal payment order');
     return NextResponse.json({ approveUrl: order.approveUrl, orderId: order.orderId, txnid });
   } catch (error) {
     console.error('[Subscription] PayPal create order failed:', error);

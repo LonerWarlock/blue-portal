@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     const discount = Number(subscription?.metadata?.imr_discount || 0);
     // Team information is supplemental: an unavailable Team table must not
     // prevent a user from opening their existing Blue account.
-    const teams = teamSubscriptionResult.error ? activeBlueTeamsEntitlement(null) : activeBlueTeamsEntitlement(teamSubscriptionResult.data);
+    const teams = { ...(teamSubscriptionResult.error ? activeBlueTeamsEntitlement(null) : activeBlueTeamsEntitlement(teamSubscriptionResult.data)), available: !teamSubscriptionResult.error };
 
     // Balance revalidation skips keys, purchase history and usage queries.
     if (new URL(request.url).searchParams.get('scope') === 'wallet') {

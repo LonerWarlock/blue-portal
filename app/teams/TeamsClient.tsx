@@ -9,21 +9,75 @@ import PageLayout from '@/app/components/PageLayout';
 import TeamWorkspacePreview from '@/app/components/TeamWorkspacePreview';
 import { BLUE_TEAMS_PLANS, BLUE_TEAMS_TEST_PRICE_INR, BLUE_TEAMS_TEST_PRICE_USD, isBlueTeamsTier, type BlueTeamsTier } from '@/lib/blueTeamsPlans';
 import type { getBlueTeamsCheckoutConfig } from '@/lib/blueTeamsCheckoutMode';
+import { activeBlueTeamsEntitlement } from '@/lib/blueTeamsEntitlement';
 import styles from './teams.module.css';
 
 type CheckoutConfig = ReturnType<typeof getBlueTeamsCheckoutConfig>;
 const tiers: BlueTeamsTier[] = ['solo', 'pro', 'business'];
 
 export default function TeamsClient({ checkout }: { checkout: CheckoutConfig }) {
-  const { user, session } = useAuth();
+  const { user, session, loading, account, accountLoading, accountError, invalidateAccount } = useAuth();
   const router = useRouter();
   const [busyTier, setBusyTier] = useState<BlueTeamsTier | null>(null);
   const [error, setError] = useState('');
   const [paymentState, setPaymentState] = useState('');
+  const [changingPlan, setChangingPlan] = useState(false);
+  const [planNotice, setPlanNotice] = useState('');
   const resumedCheckout = useRef(false);
+  const accountIdentity = useRef(user?.id); accountIdentity.current = user?.id;
+  const [planClock, setPlanClock] = useState(() => Date.now());
+  // Use the shared, server-verified account snapshot. Never infer access from
+  // a payment return URL, local storage, the regular Blue plan or a former user.
+  const teamsUnavailable = Boolean(user?.id && account && account.user_id === user.id && (!account.teams || account.teams.available === false));
+  const accountReady = Boolean(user?.id && account?.user_id === user.id && !loading && !accountLoading && !accountError && !teamsUnavailable);
+  const activeTeams = activeBlueTeamsEntitlement(accountReady ? account?.teams : null, Math.max(planClock, Date.now()));
+  const activeTier = activeTeams.plan;
+  const expiry = activeTeams.current_period_end;
+  const savedChange = accountReady ? account?.teams?.scheduled_change : null;
+  const scheduledChange = savedChange && isBlueTeamsTier(savedChange.plan) && typeof savedChange.change_at === 'string'
+    && Number.isFinite(new Date(savedChange.change_at).getTime()) && savedChange.payment_required === true ? savedChange : null;
+  const chosenPlanDue = Boolean(scheduledChange && !activeTier && new Date(scheduledChange.change_at).getTime() <= Math.max(planClock, Date.now()));
+  const checkingPlan = Boolean(loading || user && (!accountReady && !accountError && !teamsUnavailable));
+
+  useEffect(() => {
+    resumedCheckout.current = false;
+    setBusyTier(null); setChangingPlan(false); setError(''); setPlanNotice('');
+  }, [user?.id]);
+  useEffect(() => {
+    const nextChange = expiry || scheduledChange?.change_at;
+    if (!nextChange || new Date(nextChange).getTime() <= Date.now()) return;
+    const timer = window.setTimeout(() => setPlanClock(Date.now()), Math.min(Math.max(new Date(nextChange).getTime() - Date.now() + 1, 1), 86_400_000));
+    return () => window.clearTimeout(timer);
+  }, [expiry, scheduledChange?.change_at, planClock]);
+
+  const changeAtExpiry = async (tier: BlueTeamsTier | null) => {
+    if (!user?.id || !session?.access_token || !accountReady || busyTier || changingPlan) return;
+    const checkoutOwner = user.id;
+    setChangingPlan(true); setBusyTier(tier); setError(''); setPlanNotice('');
+    try {
+      const response = await fetch('/api/teams/plan-change', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ tier }),
+      });
+      const data = await response.json();
+      if (accountIdentity.current !== checkoutOwner) return;
+      if (!response.ok) throw new Error(data.error || 'Could not update your plan change. Please try again.');
+      await invalidateAccount();
+      if (accountIdentity.current === checkoutOwner) setPlanNotice(tier ? 'Plan change saved for the end of your current access. Payment will be required to start the new plan; you will not be charged automatically.' : 'Your scheduled plan change was cancelled. Your current access is unchanged.');
+    } catch (cause) {
+      if (accountIdentity.current === checkoutOwner) setError(cause instanceof Error ? cause.message : 'Could not update your plan change. Please try again.');
+    } finally {
+      if (accountIdentity.current === checkoutOwner) { setChangingPlan(false); setBusyTier(null); }
+    }
+  };
 
   const choosePlan = async (tier: BlueTeamsTier) => {
-    if (!checkout.checkoutEnabled || busyTier) return;
+    if (busyTier || changingPlan || loading || user && !accountReady) return;
+    if (activeTier && tiers.indexOf(tier) < tiers.indexOf(activeTier)) {
+      await changeAtExpiry(tier);
+      return;
+    }
+    if (!checkout.checkoutEnabled) return;
     if (!user) {
       // Console completes sign-in, then this page resumes directly into the
       // selected checkout rather than asking the person to choose again.
@@ -32,7 +86,8 @@ export default function TeamsClient({ checkout }: { checkout: CheckoutConfig }) 
       return;
     }
     setBusyTier(tier);
-    setError('');
+    setError(''); setPlanNotice('');
+    const checkoutOwner = user.id;
     try {
       if (!session?.access_token) throw new Error('Please sign in again to continue.');
       const response = await fetch('/api/teams/checkout/create-session', {
@@ -41,10 +96,12 @@ export default function TeamsClient({ checkout }: { checkout: CheckoutConfig }) 
         body: JSON.stringify({ tier }),
       });
       const data = await response.json();
+      if (accountIdentity.current !== checkoutOwner) return;
       if (!response.ok || !data.session_id) throw new Error(data.error || 'Could not start checkout. Please try again.');
       const returnUrl = `${window.location.origin}/console`;
       window.location.href = `/checkout/teams?session_id=${encodeURIComponent(data.session_id)}&return_url=${encodeURIComponent(returnUrl)}`;
     } catch (cause) {
+      if (accountIdentity.current !== checkoutOwner) return;
       setError(cause instanceof Error ? cause.message : 'Could not start checkout. Please try again.');
       setBusyTier(null);
     }
@@ -54,11 +111,11 @@ export default function TeamsClient({ checkout }: { checkout: CheckoutConfig }) 
     const params = new URLSearchParams(window.location.search);
     setPaymentState(`${params.get('payment') || ''}:${params.get('test_mode') || ''}:${params.get('live_test') || ''}`);
     const tier = params.get('checkout');
-    if (!resumedCheckout.current && user && session?.access_token && isBlueTeamsTier(tier)) {
+    if (!resumedCheckout.current && user && session?.access_token && accountReady && isBlueTeamsTier(tier)) {
       resumedCheckout.current = true;
       void choosePlan(tier);
     }
-  }, [session?.access_token, user]);
+  }, [session?.access_token, user, accountReady]);
 
   const [payment, testFlag, liveTestFlag] = paymentState.split(':');
   return <PageLayout>
@@ -106,15 +163,27 @@ export default function TeamsClient({ checkout }: { checkout: CheckoutConfig }) 
             <p>Monthly prepaid access. No auto-renewal or automatic repeat charges.</p>
           </div>
 
+          {checkingPlan && <p className={styles.info} role="status">Checking your Teams plan…</p>}
+          {user && (accountError || teamsUnavailable) && <div className={styles.error} role="alert"><p>Your Teams plan could not be verified. Checkout is paused until your current access can be checked. <button type="button" onClick={() => void invalidateAccount()}>Retry account refresh</button></p></div>}
+          {accountReady && activeTier && expiry && <section className={styles.notice} aria-label="Your active Blue Teams plan">
+            <ShieldCheck size={18} aria-hidden="true" /><div><strong>Teams {BLUE_TEAMS_PLANS[activeTier].name} is active</strong><p>Access until <time dateTime={expiry}>{new Date(expiry).toLocaleString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}</time>.</p><p>{activeTeams.active_project_teams} active project {activeTeams.active_project_teams === 1 ? 'team' : 'teams'} · Up to {activeTeams.agents_per_team} agents per team.</p><p>Prepaid access, with no auto-renewal. Renew the same plan to add another 30 days.</p><p>Upgrades take effect after payment and charge the remaining-period price difference shown at checkout. A lower plan can be scheduled for expiry; you pay to start it, with no automatic charge.</p><button type="button" onClick={() => void invalidateAccount()}>Refresh plan</button></div>
+          </section>}
+          {scheduledChange && <section className={styles.info} aria-label="Scheduled Teams plan change"><div><strong>{chosenPlanDue ? `Chosen next plan: Teams ${BLUE_TEAMS_PLANS[scheduledChange.plan].name} — payment required` : `Teams ${BLUE_TEAMS_PLANS[scheduledChange.plan].name} is scheduled`}</strong><p>{chosenPlanDue ? 'The selected change date was ' : 'From '}<time dateTime={scheduledChange.change_at}>{new Date(scheduledChange.change_at).toLocaleString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}</time>. Payment is required to start this prepaid plan; there is no automatic charge.</p>{chosenPlanDue && <><p>Your previous Teams access has expired. The chosen plan does not become active until you complete payment.</p><button type="button" disabled={!checkout.checkoutEnabled || changingPlan || busyTier !== null} onClick={() => void choosePlan(scheduledChange.plan)}>{busyTier === scheduledChange.plan ? 'Starting checkout…' : `Complete ${BLUE_TEAMS_PLANS[scheduledChange.plan].name} checkout`}</button>{' '}</>}<button type="button" disabled={changingPlan || busyTier !== null} onClick={() => void changeAtExpiry(null)}>{changingPlan ? 'Updating change…' : 'Cancel scheduled change'}</button></div></section>}
+          {planNotice && <p className={styles.info} role="status">{planNotice}</p>}
+          {accountReady && !activeTier && <p className={styles.info} role="status">No active Blue Teams plan. Your regular Blue plan and credits are separate.</p>}
+
           <div className={styles.grid}>
             {tiers.map((tier, index) => {
               const plan = BLUE_TEAMS_PLANS[tier];
               const featured = tier === 'pro';
+              const current = accountReady && activeTier === tier;
+              const downgrade = Boolean(activeTier && tiers.indexOf(tier) < tiers.indexOf(activeTier));
+              const upgrade = Boolean(activeTier && tiers.indexOf(tier) > tiers.indexOf(activeTier));
               const testPrice = (checkout.testMode && tier === 'solo') || (checkout.liveTestPriceEnabled && tier === 'business');
               const inr = testPrice ? BLUE_TEAMS_TEST_PRICE_INR : plan.priceInr;
               const usd = testPrice ? BLUE_TEAMS_TEST_PRICE_USD : plan.priceUsd;
-              return <article key={tier} className={`${styles.card} ${featured ? styles.featured : ''}`} style={{ '--card-order': index } as CSSProperties}>
-                <div className={styles.cardTop}><div><p className={styles.tier}>{plan.name}</p><p className={styles.audience}>{plan.audience}</p></div>{featured && <span className={styles.recommended}>Best starting offer</span>}</div>
+              return <article key={tier} aria-label={`Teams ${plan.name}`} className={`${styles.card} ${featured ? styles.featured : ''}`} style={{ '--card-order': index } as CSSProperties}>
+                <div className={styles.cardTop}><div><p className={styles.tier}>{plan.name}</p><p className={styles.audience}>{plan.audience}</p></div>{current ? <span className={styles.recommended}>Current plan</span> : featured && <span className={styles.recommended}>Best starting offer</span>}</div>
                 <div className={styles.price}><span>₹{inr.toLocaleString('en-IN')}</span><small>/month</small></div>
                 {checkout.paypalAvailable && <p className={styles.usdPrice}>or ${usd.toFixed(2)} USD · PayPal</p>}
                 <ul className={styles.features}>
@@ -122,10 +191,10 @@ export default function TeamsClient({ checkout }: { checkout: CheckoutConfig }) 
                   <li><Check size={15} aria-hidden="true" /><span>Up to {plan.agentsPerTeam} AI agents per team</span></li>
                   {plan.features.map(feature => <li key={feature}><Check size={15} aria-hidden="true" /><span>{feature}</span></li>)}
                 </ul>
-                <button className={featured ? styles.primaryButton : styles.secondaryButton} type="button" onClick={() => void choosePlan(tier)} disabled={!checkout.checkoutEnabled || busyTier !== null}>
-                  {busyTier === tier ? <>Starting checkout… <Loader2 size={16} className={styles.spinner} aria-hidden="true" /></>
-                    : !checkout.checkoutEnabled ? 'Checkout not configured'
-                      : <>{user ? `Choose ${plan.name}` : 'Sign in to choose'} <ArrowUpRight size={16} aria-hidden="true" /></>}
+                <button className={featured ? styles.primaryButton : styles.secondaryButton} type="button" onClick={() => void choosePlan(tier)} disabled={(!checkout.checkoutEnabled && !downgrade) || busyTier !== null || changingPlan || loading || Boolean(user && !accountReady)}>
+                  {busyTier === tier ? <>{changingPlan ? 'Saving plan change…' : 'Starting checkout…'} <Loader2 size={16} className={styles.spinner} aria-hidden="true" /></>
+                    : !checkout.checkoutEnabled && !downgrade ? 'Checkout not configured'
+                      : <>{loading ? 'Checking sign-in…' : user && !accountReady ? checkingPlan ? 'Checking your plan…' : 'Plan unavailable' : user ? current ? `Renew ${plan.name}` : downgrade ? `Change to ${plan.name} at expiry` : upgrade ? `Upgrade to ${plan.name}` : `Choose ${plan.name}` : 'Sign in to choose'} <ArrowUpRight size={16} aria-hidden="true" /></>}
                 </button>
               </article>;
             })}

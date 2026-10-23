@@ -20,7 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null, session: null, loading: false, account: null, accountLoading: false, accountError: "",
   refreshAccount: async () => null, invalidateAccount: async () => null, signOut: async () => {},
 });
-const AUTH_AWARE_ROUTES = ["/console", "/subscribe", "/pricing", "/blue-pro", "/checkout"];
+const AUTH_AWARE_ROUTES = ["/console", "/subscribe", "/pricing", "/teams", "/blue-pro", "/checkout"];
 function needsSession(pathname: string): boolean {
   return AUTH_AWARE_ROUTES.some(route => pathname === route || pathname.startsWith(`${route}/`));
 }

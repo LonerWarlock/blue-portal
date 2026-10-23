@@ -11,6 +11,7 @@ export interface AccountBootstrap {
     monthly_plan?: string;
     monthly_expires_at?: string | null;
     payg_account?: boolean;
+    billing_cycle?: 'monthly' | 'quarterly' | 'yearly' | null;
   };
   teams: {
     plan: 'solo' | 'pro' | 'business' | null;
@@ -18,6 +19,8 @@ export interface AccountBootstrap {
     current_period_end: string | null;
     active_project_teams: number;
     agents_per_team: number;
+    available?: boolean;
+    scheduled_change?: { plan: 'solo' | 'pro' | 'business'; change_at: string; payment_required: true } | null;
   };
   blue_pro: any;
   pack_config?: any;
