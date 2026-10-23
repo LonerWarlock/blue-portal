@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 // Verified public production origin. Never use localhost or a preview host as
 // the canonical origin, including when this module runs in a local build.
 export const SITE_URL = 'https://blue.imergene.in';
+export const SITE_NAME = 'Blue by Imergene';
 export const HOME_TITLE = 'Blue by Imergene | AI Coding Assistant & Agent Teams';
 export const HOME_DESCRIPTION = 'Code, research and coordinate AI agent teams in Blue Desktop for Windows. Also available as a VS Code coding assistant. App subscription access and AI model usage are separate.';
 export const STUDENT_GUIDE_PATH = '/guides/ai-coding-assistant-for-students';
@@ -28,7 +29,7 @@ export function createPageMetadata(path: string, title: string, description: str
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { type: 'website', locale: 'en_US', siteName: 'Blue by Imergene', title, description, url, images: [image] },
+    openGraph: { type: 'website', locale: 'en_US', siteName: SITE_NAME, title, description, url, images: [image] },
     twitter: { card: 'summary_large_image', title, description, images: [image.url] },
   };
 }
@@ -41,7 +42,7 @@ export const SITE_SCHEMA = {
   '@context': 'https://schema.org',
   '@graph': [
     { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'IMERGENE', alternateName: 'Imergene', description: 'Imergene develops and operates Blue Desktop for Windows, with AI coding, project teams and browser workflows, and the Blue Coding Assistant VS Code extension.', url: SITE_URL, logo: canonicalUrl('/images/blue-symbol.png') },
-    { '@type': 'WebSite', '@id': `${SITE_URL}/#website`, name: 'Blue', alternateName: 'Blue by Imergene', description: HOME_DESCRIPTION, url: SITE_URL, inLanguage: 'en', publisher: { '@id': `${SITE_URL}/#organization` }, about: { '@id': `${SITE_URL}/#blue-desktop` } },
+    { '@type': 'WebSite', '@id': `${SITE_URL}/#website`, name: SITE_NAME, alternateName: ['Blue', 'Blue Desktop', 'blue.imergene.in'], description: HOME_DESCRIPTION, url: SITE_URL, inLanguage: 'en', publisher: { '@id': `${SITE_URL}/#organization` }, about: { '@id': `${SITE_URL}/#blue-desktop` } },
   ],
 };
 

@@ -10,7 +10,7 @@ import { useAuth } from "../contexts/AuthContext";
 import ThemeToggle from "./ThemeToggle";
 
 const NAV_LINKS = [
-  { href: "/product/agents", label: "Agents" },
+  { href: "/product/agents", label: "Coding agents" },
   { href: "/pricing", label: "Pricing" },
   { href: "/teams", label: "Teams" },
   { href: "/docs", label: "Docs" },
@@ -47,7 +47,7 @@ export default function Navbar({ signedIn }: { signedIn?: boolean } = {}) {
       )}
       <header className="sticky top-0 z-50 w-full border-b border-line bg-paper">
       <div className="site-container flex min-h-[76px] items-center justify-between gap-3 py-3">
-        <Link prefetch={false} href="/" className="flex min-w-0 items-center gap-2.5">
+        <Link prefetch={false} href="/" aria-label="Blue by Imergene home" className="flex min-w-0 items-center gap-2.5">
           <Image src="/images/blue-symbol.png" alt="" width={38} height={38} unoptimized priority />
           <div className="min-w-0">
             <span className="block text-2xl font-display font-semibold tracking-tight text-ink">Blue</span>

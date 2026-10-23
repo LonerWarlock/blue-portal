@@ -8,7 +8,7 @@ import { useCookieConsent } from "../contexts/CookieConsentContext";
 
 const footerLinks = {
   Product: [
-    { label: "Agents", href: "/product/agents" },
+    { label: "AI coding agent", href: "/product/agents" },
     { label: "Pricing", href: "/pricing" },
     { label: "Blue Teams", href: "/teams" },
   ],

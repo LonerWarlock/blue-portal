@@ -12,7 +12,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { CookieConsentProvider } from "./contexts/CookieConsentContext";
 import JsonLd from "./components/JsonLd";
-import { HOME_DESCRIPTION, HOME_TITLE, SITE_SCHEMA, SITE_URL } from "@/lib/seo";
+import { HOME_DESCRIPTION, HOME_TITLE, SITE_NAME, SITE_SCHEMA, SITE_URL } from "@/lib/seo";
 
 // Resolves and applies the theme before first paint, so there is no
 // flash of the wrong theme on load. Reads the same localStorage key
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: HOME_TITLE, template: "%s" },
   description: HOME_DESCRIPTION,
-  applicationName: "Blue",
+  applicationName: SITE_NAME,
   creator: "IMERGENE",
   publisher: "IMERGENE",
   icons: { icon: "/images/blue-symbol.png", apple: "/images/blue-symbol.png" },

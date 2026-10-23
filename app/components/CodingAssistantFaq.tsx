@@ -14,6 +14,10 @@ export default function CodingAssistantFaq() {
       answer: <p>Blue by Imergene is an AI coding workspace for Windows, with a coding assistant extension for VS Code. Students, developers and founders can use it to understand code, build projects and debug. Blue Desktop also includes Team mode for coordinating AI agents on coding, research and browser tasks. Read <Link href="/about" className={link}>about Blue by Imergene</Link>.</p>,
     },
     {
+      question: "What is an AI coding agent, and how does Blue work?",
+      answer: <p>A coding agent can work through a task using project files and development tools, rather than only suggesting the next line of code. In Blue, ask for a bounded change, follow its tool activity, and inspect the changed files and check results. Permissions, your selected model and local tools determine what can run; completion is not guaranteed. Explore <Link href="/product/agents" className={link}>Blue&apos;s AI coding agent and example tasks</Link>.</p>,
+    },
+    {
       question: "What is Blue Teams, and is it available in VS Code?",
       answer: <p>Blue Teams provides access to Team mode in Blue Desktop for Windows. Give Blue a goal, assign specialist roles and follow each agent&apos;s work in its own conversation. Agents can coordinate project work and hand off tasks, within your active plan&apos;s team and agent limits. The VS Code extension is for coding assistance; it does not include Desktop Team mode. See <Link href="/teams" className={link}>Blue Teams plans and the Team mode preview</Link>.</p>,
     },
