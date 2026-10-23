@@ -7,7 +7,7 @@ import FloatingAssistant from "./components/FloatingAssistant";
 import MetaPixelPageView from "./components/MetaPixel";
 import ConditionalMetaPixel from "./components/ConditionalMetaPixel";
 import CookieConsentBanner from "./components/CookieConsentBanner";
-import { PostHogProvider } from "./providers/PostHogProvider";
+import { PostHogPageView } from "./providers/PostHogProvider";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { CookieConsentProvider } from "./contexts/CookieConsentContext";
@@ -90,15 +90,14 @@ export default function RootLayout({
         <CookieConsentProvider>
           <ConditionalMetaPixel />
           <MetaPixelPageView />
+          <PostHogPageView />
           <ThemeProvider>
-            <PostHogProvider>
-              <AuthProvider>
-                <LoadingOverlay />
-                {children}
-                <FloatingAssistant />
-                <CookieConsentBanner />
-              </AuthProvider>
-            </PostHogProvider>
+            <AuthProvider>
+              <LoadingOverlay />
+              {children}
+              <FloatingAssistant />
+              <CookieConsentBanner />
+            </AuthProvider>
           </ThemeProvider>
         </CookieConsentProvider>
       </body>

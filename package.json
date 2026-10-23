@@ -14,6 +14,7 @@
     "test:subscriptions-ui": "node scripts/test-blue-subscription-checkout.cjs",
     "test:approval-reviewer": "node --experimental-strip-types --test lib/approvalReviewer.test.mjs lib/approvalReviewerMigration.test.mjs lib/blueRuntimeContracts.test.mjs lib/usageAccounting.test.mjs",
     "test:account": "node --experimental-strip-types --test lib/accountCache.test.mjs lib/accountPlan.test.mjs lib/couponTransactions.test.mjs lib/supabaseAdmin.test.mjs",
+    "test:analytics": "node --experimental-strip-types --test lib/optionalAnalytics.test.mjs",
     "start": "next start",
     "lint": "next lint"
   },

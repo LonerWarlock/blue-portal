@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { usePostHog } from 'posthog-js/react';
+import { analytics } from '@/lib/optionalAnalytics';
 import LazyVideo from '@/app/components/LazyVideo';
 
 type PaymentResult = 'success' | 'failed' | null;
@@ -108,7 +108,6 @@ export default function NoCodeCoursePage() {
   const searchParams = useSearchParams();
   const paymentResult = searchParams.get('payment') as PaymentResult;
   const txnid = searchParams.get('txnid');
-  const posthog = usePostHog();
 
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormData>(initial);
@@ -169,7 +168,7 @@ export default function NoCodeCoursePage() {
     const err = validateStep();
     if (err) { setError(err); return; }
     try {
-      posthog?.capture('vibe_coding_wizard_step_completed', {
+      void analytics.capture('vibe_coding_wizard_step_completed', {
         step_index: step,
         next_step: step + 1,
         email: form.email || undefined,
@@ -186,7 +185,7 @@ export default function NoCodeCoursePage() {
     if (err) { setError(err); return; }
 
     try {
-      posthog?.capture('vibe_coding_payment_initiated', {
+      void analytics.capture('vibe_coding_payment_initiated', {
         email: form.email,
         phone: form.phone,
         degree: form.degree,
