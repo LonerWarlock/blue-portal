@@ -13,6 +13,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { CookieConsentProvider } from "./contexts/CookieConsentContext";
 import JsonLd from "./components/JsonLd";
 import { HOME_DESCRIPTION, HOME_TITLE, SITE_NAME, SITE_SCHEMA, SITE_URL } from "@/lib/seo";
+import { FAILED_INITIAL_CHUNK_CLEANUP } from "@/lib/chunk-recovery.cjs";
 
 // Resolves and applies the theme before first paint, so there is no
 // flash of the wrong theme on load. Reads the same localStorage key
@@ -77,6 +78,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${plexSans.variable} ${plexMono.variable}`}>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: FAILED_INITIAL_CHUNK_CLEANUP }} />
         <meta name="google-site-verification" content="vruaj02oU1QJFSmV1acG52x92IhkDp8oy8v2A2hLfzw" />
         <meta name="google-site-verification" content="wqF8Sn252JSvcirnIe2eLK68qZCYddKPIeWIk1ILbFU" />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

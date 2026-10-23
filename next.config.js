@@ -1,10 +1,15 @@
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants');
 const { publicMarketingRedirects } = require('./lib/seoRedirects.cjs');
+const { ChunkLoadRecoveryPlugin } = require('./lib/chunk-recovery.cjs');
 
 /** @type {import('next').NextConfig} */
 module.exports = phase => ({
   distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
   poweredByHeader: false,
+  webpack(config, { dev, isServer }) {
+    if (!dev && !isServer) config.plugins.push(new ChunkLoadRecoveryPlugin());
+    return config;
+  },
   async redirects() {
     return publicMarketingRedirects();
   },

@@ -4,6 +4,8 @@ export interface PublishedDesktopStoreRelease {
   version: string;
   status: 'published';
   confirmedBy: 'partner-center';
+  // Conservative publication-notice time: actual publication time when
+  // exposed, otherwise the time this version was independently verified live.
   publishedAt: string;
   notes: readonly string[];
 }
@@ -14,6 +16,20 @@ export interface PublishedDesktopStoreRelease {
 // publication evidence. Do not generate this catalog from package.json, CI,
 // build artifacts, or the current submission. See BlueV2's publisher workflow.
 export const publishedDesktopStoreReleases: readonly PublishedDesktopStoreRelease[] = Object.freeze([
+  {
+    version: '0.1.31.0',
+    status: 'published',
+    confirmedBy: 'partner-center',
+    // Submission 11 is the live Store presence; Current packages independently
+    // lists 0.1.31.0. Partner Center exposes the date, not the exact publish
+    // instant. This records our conservative live-verification time instead.
+    publishedAt: '2026-10-23T12:07:31.000Z',
+    notes: [
+      'Setup Wizard now clearly separates OpenCode account sign-in from using a Zen API key.',
+      'Saved connections and credentials are preserved when choosing a setup method.',
+      'Includes the built-in browser stability, site permission and file download improvements.'
+    ]
+  },
   {
     version: '0.1.28.0',
     status: 'published',
