@@ -100,7 +100,7 @@ export default function ConsolePage() {
   const [proWallet, setProWallet] = useState<any>(null);
   const [proTransactions, setProTransactions] = useState<any[]>([]);
   const [proUsage, setProUsage] = useState<any>(null);
-  const [proPackConfig, setProPackConfig] = useState<any>({ priceINR: 100, credits: 1 });
+  const [proPackConfig, setProPackConfig] = useState<any>({ priceINR: 130, credits: 1 });
   const [proTab, setProTab] = useState<"overview" | "purchases" | "usage">("overview");
   const [isClaimCouponOpen, setIsClaimCouponOpen] = useState(false);
 
@@ -179,7 +179,7 @@ export default function ConsolePage() {
     const bluePro = data?.blue_pro;
     const nextProWallet = bluePro?.wallet || null;
     setBalance(Number(data?.wallet.balance || 0));
-    setProPackConfig(data?.pack_config || { priceINR: 100, credits: 1 });
+    setProPackConfig(data?.pack_config || { priceINR: 130, credits: 1 });
     setPlan(data?.subscription.plan || "lite");
     setDiscount(Number(data?.subscription.discount || 0));
     setIsProPayg(data?.subscription.is_pro === true);
@@ -381,7 +381,7 @@ export default function ConsolePage() {
   }
 
   const hasActiveSubscription = plan !== 'lite';
-  const teamsPlan = auth.account?.teams?.status === 'active' ? auth.account.teams.plan : null;
+  const teamsPlan = user?.id && auth.account && auth.account.user_id === user.id && auth.account.teams?.available !== false && auth.account.teams?.status === 'active' ? auth.account.teams.plan : null;
   const proFeaturesLocked = !isProPayg && !accountLoading && !accountError;
 
   return (
@@ -412,7 +412,7 @@ export default function ConsolePage() {
               </span>
               {!accountLoading && !accountError && teamsPlan && (
                 <Link prefetch={false} href="/teams" className="inline-flex items-center rounded-md border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-xs font-semibold text-purple-700 dark:text-purple-300">
-                  Teams {teamsPlan.charAt(0).toUpperCase() + teamsPlan.slice(1)}
+                  {teamsPlan === 'payg' ? 'Teams active' : 'Teams active · legacy access'}
                 </Link>
               )}
             </div>
@@ -605,7 +605,7 @@ export default function ConsolePage() {
                 ) : !isProPayg && (
                   <Link prefetch={false} href="/blue-pro" className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-brand hover:text-brand transition">
                     <i className="fa-solid fa-bolt"></i>
-                    Try Blue Pro for ₹100 — no subscription or expiry
+                    Try Blue Pro from ₹130 including the 30% platform fee — no expiry
                   </Link>
                 )}
               </div>
@@ -618,11 +618,11 @@ export default function ConsolePage() {
                     </div>
                     <h4 className="text-sm font-bold text-ink tracking-tight">Add Blue Credits to continue</h4>
                     <p className="text-xs text-ink-muted max-w-sm mt-1.5 leading-relaxed">
-                      Start with the renewable ₹100 trial or choose the ₹1,500 full-access pack.
+                      Buy Blue Credits with a 30% platform fee at checkout. A purchase of at least 25 credits unlocks Teams.
                     </p>
                     <Link prefetch={false} href="/blue-pro/checkout?pack=starter" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-bold text-white">
                       <i className="fa-solid fa-cart-plus"></i>
-                      Buy ₹100 Trial
+                      Buy 1 Blue Credit
                     </Link>
                   </div>
                 )}
@@ -914,8 +914,8 @@ export default function ConsolePage() {
                 }
 
                 const catalogModels = modelsList.map(model => {
-                  const inputCredits = Number(model.inputPrice || 0) * 1.5;
-                  const outputCredits = Number(model.outputPrice || 0) * 1.5;
+                  const inputCredits = Number(model.inputPrice || 0);
+                  const outputCredits = Number(model.outputPrice || 0);
                   return {
                     ...model,
                     displayName: model.displayName || model.id,

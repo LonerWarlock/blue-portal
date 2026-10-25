@@ -14,7 +14,10 @@ export interface AccountBootstrap {
     billing_cycle?: 'monthly' | 'quarterly' | 'yearly' | null;
   };
   teams: {
-    plan: 'solo' | 'pro' | 'business' | null;
+    plan: 'payg' | 'solo' | 'pro' | 'business' | null;
+    access_source?: 'credits' | 'legacy_subscription' | null;
+    required_purchase_credits?: 25; blue_models_only?: true;
+    available_blue_credits?: number; total_blue_credits?: number;
     status: 'active' | 'inactive';
     current_period_end: string | null;
     active_project_teams: number;

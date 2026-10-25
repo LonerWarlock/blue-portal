@@ -203,7 +203,7 @@ export default function DocsPage() {
               <h2 className="text-2xl font-bold text-ink">Desktop Team mode</h2>
               <p className={copy}>
                 Team mode is part of Blue Desktop for Windows, not the VS Code
-                extension. With an active Teams plan and a supported model
+                extension. With active Teams credit access and a Blue Model
                 connection, give Blue an outcome and let it assign specialists
                 for project coding, research or browser work. Open a specialist&apos;s
                 conversation to see its own progress, tools and results.
@@ -227,7 +227,7 @@ export default function DocsPage() {
               <p className={copy}>
                 Teams access and model usage are separate. Provider quotas,
                 available workers, website compatibility and your permissions
-                can limit execution. Compare <Link href="/teams" className="font-medium text-brand hover:underline">Teams plans</Link>
+                can limit execution. Compare <Link href="/teams" className="font-medium text-brand hover:underline">Teams credit access</Link>
                 {" "}or follow the practical <Link href="/guides/ai-agent-teams" className="font-medium text-brand hover:underline">AI agent teams guide</Link>.
               </p>
             </section>

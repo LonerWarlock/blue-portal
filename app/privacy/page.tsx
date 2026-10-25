@@ -44,6 +44,19 @@ export default function PrivacyPage() {
 
               <GoogleWorkspaceNotice />
 
+              <div id="desktop-reporting">
+                <h2 className="text-xl font-bold text-ink mb-4">Blue Desktop operational reporting</h2>
+                <p className="text-sm text-ink-muted leading-relaxed mb-3">
+                  While signed in, Blue Desktop can send account-linked operational metadata to IMERGENE to understand app activity and diagnose reliability problems. This includes app version, online presence, model and provider identifiers, task start and completion states, duration, token counts when available, and broad error categories. Paid model usage and credit charges are recorded separately for billing.
+                </p>
+                <p className="text-sm text-ink-muted leading-relaxed mb-3">
+                  These activity reports do not include your prompts, AI replies, file contents, project names or paths, browser activity, credentials, or raw error messages. Missing model or token information is recorded as unknown rather than guessed. Reports are visible only through restricted administrative access.
+                </p>
+                <p className="text-sm text-ink-muted leading-relaxed">
+                  Operational reporting is on by default while signed in. In Blue Desktop, open Help &gt; About &gt; Privacy and reporting and turn off &quot;Share operational diagnostics&quot; to stop future activity reports and clear the pending local reporting queue. Unsent reports expire from that queue after seven days. Turning reporting off does not erase already received reports or necessary account and billing records; contact us below for data requests.
+                </p>
+              </div>
+
               <div>
                 <h2 className="text-xl font-bold text-ink mb-4">2. Notice & Consent at Point of Collection</h2>
                 <p className="text-sm text-ink-muted leading-relaxed mb-3">

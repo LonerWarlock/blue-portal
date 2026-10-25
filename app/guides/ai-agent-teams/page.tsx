@@ -3,7 +3,6 @@ import { ArrowRight, Download } from "lucide-react";
 import PageLayout from "@/app/components/PageLayout";
 import DesktopDownloadLink from "@/app/components/DesktopDownloadLink";
 import JsonLd from "@/app/components/JsonLd";
-import { BLUE_TEAMS_PLANS } from "@/lib/blueTeamsPlans";
 import { canonicalUrl, createPageMetadata, TEAM_GUIDE_PATH } from "@/lib/seo";
 
 const guidePath = TEAM_GUIDE_PATH;
@@ -37,8 +36,8 @@ const faqs = [
     answer: "No. A Team workspace can organize research or browser work without an existing code folder. Give Blue a specific outcome, permitted sources and a deliverable. For inspecting or changing an existing app, select its actual project folder.",
   },
   {
-    question: "Does a Blue Teams plan include unlimited model usage?",
-    answer: "No. Team capacity and AI model usage are separate. BYOK requests use your connected provider account and its charges and limits. Eligible Blue models use Blue Credits. More agents or longer tasks can make more model requests; check the current Teams and pricing pages before purchasing.",
+    question: "Does Blue Teams include unlimited model usage?",
+    answer: "No. Teams uses Blue Models and your Blue Credits. A purchase of at least 25 credits activates Teams while your wallet has credits. 1 credit covers $1 of actual OpenRouter usage, and a 30% platform fee is charged at checkout. More agents or longer tasks can increase usage.",
   },
   {
     question: "Will agents send messages or publish changes without permission?",
@@ -90,7 +89,7 @@ export default function AiAgentTeamsGuide() {
           <p className="mt-4 text-sm text-ink-muted">By the Blue team at Imergene · Product workflow guide</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <DesktopDownloadLink className="btn btn-primary min-h-11"><Download size={16} aria-hidden="true" className="mr-2" />Download Blue for Windows</DesktopDownloadLink>
-            <Link href="/teams" className="btn btn-secondary min-h-11">View Blue Teams plans</Link>
+            <Link href="/teams" className="btn btn-secondary min-h-11">View Blue Teams credit access</Link>
           </div>
         </header>
 
@@ -125,7 +124,7 @@ export default function AiAgentTeamsGuide() {
             <section id="first-workflow" className="scroll-mt-28">
               <h2 className={heading}>Start with a bounded workflow</h2>
               <ol className="mt-5 list-decimal space-y-4 pl-6 text-base leading-8 text-ink-muted">
-                <li><strong className="font-semibold text-ink">Set up the connection.</strong> Sign in to Blue, choose an available model connection, and check your active Teams plan. Follow the <Link href="/docs" className={link}>setup documentation</Link> if this is your first run.</li>
+                <li><strong className="font-semibold text-ink">Set up the connection.</strong> Sign in to Blue, choose a Blue Model, and check your Teams credit access. Follow the <Link href="/docs" className={link}>setup documentation</Link> if this is your first run.</li>
                 <li><strong className="font-semibold text-ink">Choose the right workspace.</strong> Select your project folder for file work, or use a separate Team workspace for a research or browser task. Keep unrelated projects separate.</li>
                 <li><strong className="font-semibold text-ink">Describe the outcome and boundaries.</strong> Include sources, files, constraints, what must not change, and what evidence would count as complete. Say whether external actions are authorized.</li>
                 <li><strong className="font-semibold text-ink">Follow the actual activity.</strong> Open a specialist&apos;s chat for its work details. Respond to required approvals or sign-in handoffs; queued or waiting is not the same as working.</li>
@@ -186,22 +185,16 @@ export default function AiAgentTeamsGuide() {
                 their scope and actual progress; completed, stopped or expired
                 work should not be replayed.
               </p>
-              <div className="mt-6 overflow-x-auto rounded-xl border border-line">
-                <table className="w-full text-left text-sm">
-                  <caption className="border-b border-line bg-paper-alt px-5 py-4 text-left font-semibold text-ink">Blue Teams plan capacity</caption>
-                  <thead><tr className="border-b border-line text-ink"><th scope="col" className="px-5 py-3 font-medium">Plan</th><th scope="col" className="px-5 py-3 font-medium">Active project teams</th><th scope="col" className="px-5 py-3 font-medium">Agents per team</th></tr></thead>
-                  <tbody className="divide-y divide-line text-ink-muted">{Object.values(BLUE_TEAMS_PLANS).map(plan => <tr key={plan.tier}><th scope="row" className="px-5 py-3 font-medium text-ink">{plan.name}</th><td className="px-5 py-3">{plan.projectTeams}</td><td className="px-5 py-3">Up to {plan.agentsPerTeam}</td></tr>)}</tbody>
-                </table>
-              </div>
               <p className={copy}>
-                Teams access is prepaid for 30 days without automatic renewal.
-                See <Link href="/teams" className={link}>current Teams prices and included features</Link>,
-                including any temporary offer, before checkout. Team capacity is
-                separate from ordinary Blue app plans and model usage. BYOK
-                requests use your connected provider account; eligible Blue
-                models use Blue Credits. Longer tasks and additional agents can
-                increase usage. See <Link href="/pricing" className={link}>model access and pricing</Link> and
-                start with one bounded task before scaling up.
+                Activate Teams with a purchase of at least 25 Blue Credits in one payment.
+                Access continues while your wallet has credits, with up to 10 project teams and 8 agents per team.
+                Both the main agent and specialists use Blue Models and the same wallet. Top-ups add to your remaining balance;
+                credits do not expire or reset monthly. If the balance reaches zero, Teams pauses and another purchase of at least 25 credits reactivates it.
+              </p>
+              <p className={copy}>
+                1 Blue Credit covers $1 of actual OpenRouter usage. A 30% platform fee is added at checkout, without another platform markup during usage.
+                See <Link href="/teams" className={link}>Blue Teams credit access</Link> and <Link href="/blue-pro/checkout?pack=custom&amp;credits=25" className={link}>current checkout totals</Link> before purchasing.
+                Longer tasks and additional agents can increase usage. Start with one bounded task before scaling up.
               </p>
             </section>
 
@@ -210,7 +203,7 @@ export default function AiAgentTeamsGuide() {
               <dl className="mt-6 divide-y divide-line">
                 {faqs.map(faq => <div key={faq.question} className="py-6 first:pt-0"><dt className="text-lg font-semibold leading-7 text-ink">{faq.question}</dt><dd className="mt-3 text-base leading-8 text-ink-muted">{faq.answer}</dd></div>)}
               </dl>
-              <Link href="/teams" className="mt-6 inline-flex min-h-11 items-center gap-2 font-medium text-brand hover:underline">Choose a Blue Teams plan <ArrowRight size={16} aria-hidden="true" /></Link>
+              <Link href="/teams" className="mt-6 inline-flex min-h-11 items-center gap-2 font-medium text-brand hover:underline">Explore Blue Teams credit access <ArrowRight size={16} aria-hidden="true" /></Link>
             </section>
           </div>
         </div>

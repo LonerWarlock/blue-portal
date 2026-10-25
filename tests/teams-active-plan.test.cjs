@@ -55,9 +55,9 @@ function harness(initial = {}) {
   const { default: TeamsClient } = evaluate('app/teams/TeamsClient.tsx', {
     react, 'react/jsx-runtime': { jsx, jsxs: jsx },
     'next/navigation': { useRouter: () => ({ push: value => navigation.push(value) }) },
-    'next/link': 'link', 'lucide-react': Object.fromEntries(['ArrowRight', 'ArrowUpRight', 'Check', 'Loader2', 'ShieldCheck', 'Sparkles'].map(name => [name, name])),
+    'next/link': { default: 'link' }, 'lucide-react': Object.fromEntries(['ArrowRight', 'ArrowUpRight', 'Check', 'Loader2', 'ShieldCheck', 'Sparkles'].map(name => [name, name])),
     '@/app/contexts/AuthContext': { useAuth: () => auth },
-    '@/app/components/PageLayout': 'layout', '@/app/components/TeamWorkspacePreview': 'preview',
+    '@/app/components/PageLayout': { default: 'layout' }, '@/app/components/TeamWorkspacePreview': { default: 'preview' },
     '@/lib/blueTeamsPlans': plans, '@/lib/blueTeamsEntitlement': entitlement,
     './teams.module.css': new Proxy({}, { get: (_, key) => key }),
   }, { Date: ClockDate, window: browser, sessionStorage: { setItem() {} }, fetch: async (...args) => { requests.push(args); return fetchResponse(...args); } });
@@ -75,148 +75,48 @@ function harness(initial = {}) {
   return { auth, requests, navigation, browser, text: () => text(tree), find, button, setAuth, render, setFetch: value => { fetchResponse = value; }, advance(ms) { now += ms; for (const [id, callback] of [...timers]) { timers.delete(id); callback(); } render(); }, async flush() { await new Promise(resolve => setImmediate(resolve)); if (dirty) render(); } };
 }
 
-test('Teams shows only the authenticated current plan, exact expiry, capacity and same-plan renewal', () => {
-  const expires = future(), h = harness({ user: { id: 'buyer' }, session: { access_token: 'fixture-token' }, account: account('buyer', 'pro', expires) });
-  assert.match(h.text(), /Teams Pro is active/);
-  assert.match(h.text(), /3 active project teams · Up to 5 agents per team/);
-  assert.match(h.text(), /no auto-renewal/);
-  assert.equal(h.find(node => node.type === 'time').props.dateTime, expires);
-  assert.ok(h.button('Renew Pro'));
-  assert.ok(h.button('Change to Solo at expiry')); assert.ok(h.button('Upgrade to Business'));
-  assert.equal((h.text().match(/Current plan/g) || []).length, 1);
-  assert.equal(h.requests.length, 0, 'active plan reuses AuthContext instead of duplicating the account fetch');
+function paidAccount(id, balance = 15, active = true) {
+  return { user_id: id, teams: { plan: active ? 'payg' : null, status: active ? 'active' : 'inactive', access_source: active ? 'credits' : null,
+    blue_models_only: true, available: true, current_period_end: null, available_blue_credits: balance, total_blue_credits: balance,
+    required_purchase_credits: 25, active_project_teams: active ? 10 : 0, agents_per_team: active ? 8 : 0 } };
+}
+test('Teams displays only the authenticated server credit entitlement and uses credit top-up links', () => {
+  const h = harness({ user: { id: 'buyer' }, account: paidAccount('buyer') });
+  assert.match(h.text(), /Blue Teams is active/); assert.match(h.text(), /15 Blue Credits available/);
+  assert.match(h.text(), /Top up before your balance runs out/);
+  assert.equal(h.find(node => node.type === 'link' && /Add Blue Credits/.test(String(node.props.children))).props.href, '/blue-pro/checkout');
+  assert.doesNotMatch(h.text(), /Choose Solo|Choose Pro|Choose Business|Renew Pro|Upgrade to Business|monthly prepaid/i);
+  assert.equal(h.requests.length,0);
 });
-
-test('expired, missing, malformed and regular Blue-only plans never appear as active Teams', () => {
-  const h = harness({ user: { id: 'buyer' }, account: account('buyer', 'pro', new Date(Date.now() - 1000).toISOString()) });
-  assert.doesNotMatch(h.text(), /Teams Pro is active|Current plan|Renew Pro/);
-  assert.match(h.text(), /No active Blue Teams plan/);
-  h.setAuth({ account: account('buyer', null) });
-  assert.match(h.text(), /Your regular Blue plan and credits are separate/);
-  assert.ok(h.button('Choose Pro'));
-  for (const teams of [undefined, { plan: 'admin', status: 'active', current_period_end: future() }, { plan: 'pro', status: 'active', current_period_end: 'not-a-date' }]) {
-    h.setAuth({ account: { ...account('buyer'), teams } });
-    assert.doesNotMatch(h.text(), /Teams Pro is active|Current plan|Renew Pro/);
-  }
+test('a positive wallet alone never activates Teams and the activation CTA selects a single25credit purchase', () => {
+  const h=harness({ user:{id:'buyer'},account:paidAccount('buyer',100,false)});
+  assert.doesNotMatch(h.text(),/Blue Teams is active/); assert.match(h.text(), /qualifying credit purchase/);
+  assert.match(h.text(), /100 Blue Credits available/);
+  assert.equal(h.find(node=>node.type==='link' && node.props.href.includes('credits=25')).props.href,'/blue-pro/checkout?pack=custom&credits=25');
+  assert.equal(h.requests.length,0);
 });
-
-test('loading, failed refresh, sign-out and account switches hide any former current-plan badge', async () => {
-  const h = harness({ user: { id: 'buyer-a' }, account: account('buyer-a') });
-  h.setAuth({ accountLoading: true });
-  assert.match(h.text(), /Checking your Teams plan/); assert.doesNotMatch(h.text(), /Teams Pro is active|Current plan|Renew Pro/);
-  h.setAuth({ accountLoading: false, accountError: 'Network unavailable' });
-  assert.match(h.text(), /could not be verified/); assert.doesNotMatch(h.text(), /Teams Pro is active|Current plan/);
-  await h.button('Retry account refresh').props.onClick(); assert.equal(h.auth.refreshes, 1);
-  h.setAuth({ accountError: '', user: { id: 'buyer-b' } });
-  assert.doesNotMatch(h.text(), /Teams Pro is active|Current plan|Renew Pro/);
-  h.setAuth({ account: account('buyer-b', 'solo') }); assert.match(h.text(), /Teams Solo is active/); assert.ok(h.button('Renew Solo'));
-  h.setAuth({ user: null, session: null });
-  assert.doesNotMatch(h.text(), /Teams Solo is active|Current plan|Renew Solo/);
-  assert.ok(h.button('Sign in to choose'));
-  assert.equal(h.requests.length, 0);
+test('loading, account errors and account switches hide the previous access decision', async () => {
+  const h=harness({user:{id:'buyer-a'},account:paidAccount('buyer-a')});
+  h.setAuth({accountLoading:true});assert.doesNotMatch(h.text(),/Blue Teams is active/);assert.match(h.text(),/Checking your Teams access/);
+  h.setAuth({accountLoading:false,accountError:'Failed'});assert.doesNotMatch(h.text(),/Blue Teams is active/);
+  await h.button('Retry account refresh').props.onClick();assert.equal(h.auth.refreshes,1);
+  h.setAuth({accountError:'',user:{id:'buyer-b'}});assert.doesNotMatch(h.text(),/Blue Teams is active|15 Blue Credits available/);
+  h.setAuth({account:paidAccount('buyer-b',40)});assert.match(h.text(),/40 Blue Credits available/);
+  h.setAuth({user:null,account:null});assert.doesNotMatch(h.text(),/Blue Teams is active|40 Blue Credits available/);
 });
-
-test('refresh controls use the shared account invalidator and refreshed account updates the plan', async () => {
-  const h = harness({ user: { id: 'buyer' }, account: account('buyer', null) });
-  h.setAuth({ account: account('buyer', 'business') });
-  assert.ok(h.button('Renew Business')); await h.button('Refresh plan').props.onClick();
-  assert.equal(h.auth.refreshes, 1); assert.equal(h.requests.length, 0);
-  h.setAuth({ account: account('buyer', null) }); assert.doesNotMatch(h.text(), /Teams Business is active|Current plan/);
+test('legacy paid access is labelled by its verified expiry and never creates another subscription', () => {
+  const record=paidAccount('buyer');Object.assign(record.teams,{plan:'pro',access_source:'legacy_subscription',current_period_end:future()});
+  const h=harness({user:{id:'buyer'},account:record});assert.match(h.text(),/previously purchased Teams access is honoured until/);
+  assert.ok(h.find(node=>node.type==='time'));assert.doesNotMatch(h.text(),/Renew Pro|Change to Solo|Upgrade to Business/);
+  record.teams.current_period_end=new Date(Date.now()-1000).toISOString();h.setAuth({account:record});assert.doesNotMatch(h.text(),/Blue Teams is active|honoured until/);
 });
-
-test('Renew keeps the existing checkout API and sends only the selected tier', async () => {
-  const h = harness({ user: { id: 'buyer' }, session: { access_token: 'fixture-token' }, account: account('buyer') });
-  await h.button('Renew Pro').props.onClick(); await h.flush();
-  assert.equal(h.requests.length, 1);
-  assert.equal(h.requests[0][0], '/api/teams/checkout/create-session');
-  assert.deepEqual(JSON.parse(h.requests[0][1].body), { tier: 'pro' });
-  assert.equal(h.requests[0][1].headers.Authorization, 'Bearer fixture-token');
-  assert.match(h.browser.location.href, /^\/checkout\/teams\?session_id=synthetic-checkout&return_url=/);
+test('failed verification cannot display active access even if stale fields say active', () => {
+  const record=paidAccount('buyer');record.teams.available=false;
+  const h=harness({user:{id:'buyer'},account:record});assert.doesNotMatch(h.text(),/Blue Teams is active/);assert.match(h.text(),/could not be verified/);
 });
-
-test('the active badge expires while the Teams page remains open', () => {
-  const h = harness({ user: { id: 'buyer' }, account: account('buyer') });
-  assert.ok(h.button('Renew Pro'));
-  h.advance(31 * 86_400_000);
-  assert.doesNotMatch(h.text(), /Teams Pro is active|Current plan|Renew Pro/);
-  assert.match(h.text(), /No active Blue Teams plan/);
-});
-
-test('an old account checkout result cannot redirect a newly signed-in user', async () => {
-  const h = harness({ user: { id: 'buyer-a' }, session: { access_token: 'fixture-a' }, account: account('buyer-a') });
-  let resolve;
-  h.setFetch(() => new Promise(done => { resolve = done; }));
-  const pending = h.button('Renew Pro').props.onClick();
-  h.setAuth({ user: { id: 'buyer-b' }, session: { access_token: 'fixture-b' }, account: account('buyer-b', 'solo') });
-  resolve({ ok: true, json: async () => ({ session_id: 'old-account-checkout' }) });
-  await pending; await h.flush();
-  assert.equal(h.browser.location.href, '');
-  assert.match(h.text(), /Teams Solo is active/);
-  assert.doesNotMatch(h.text(), /Teams Pro is active/);
-});
-
-test('lower tiers schedule a no-charge expiry change through the authenticated endpoint', async () => {
-  const h = harness({ user: { id: 'buyer' }, session: { access_token: 'fixture-token' }, account: account('buyer', 'business') });
-  await h.button('Change to Pro at expiry').props.onClick(); await h.flush();
-  assert.equal(h.requests.length, 1); assert.equal(h.requests[0][0], '/api/teams/plan-change');
-  assert.deepEqual(JSON.parse(h.requests[0][1].body), { tier: 'pro' });
-  assert.equal(h.requests[0][1].headers.Authorization, 'Bearer fixture-token');
-  assert.equal(h.browser.location.href, '', 'a scheduled downgrade does not initiate checkout');
-  assert.equal(h.auth.refreshes, 1);
-  assert.match(h.text(), /Payment will be required to start the new plan; you will not be charged automatically/);
-});
-
-test('scheduled changes show their verified effective date and may be cancelled without checkout', async () => {
-  const record = account('buyer', 'business');
-  record.teams.scheduled_change = { plan: 'solo', change_at: record.teams.current_period_end, payment_required: true };
-  const h = harness({ user: { id: 'buyer' }, session: { access_token: 'fixture-token' }, account: record });
-  assert.match(h.text(), /Teams Business is active/); assert.match(h.text(), /Teams Solo is scheduled/);
-  assert.match(h.text(), /Payment is required to start this prepaid plan; there is no automatic charge/);
-  await h.button('Cancel scheduled change').props.onClick(); await h.flush();
-  assert.equal(h.requests[0][0], '/api/teams/plan-change');
-  assert.deepEqual(JSON.parse(h.requests[0][1].body), { tier: null });
-  assert.equal(h.auth.refreshes, 1); assert.equal(h.browser.location.href, '');
-  assert.match(h.text(), /Your scheduled plan change was cancelled/);
-});
-
-test('a Teams-specific server lookup outage never becomes an inactive plan or a purchasable new subscription', async () => {
-  const record = account('buyer'); record.teams.available = false;
-  const h = harness({ user: { id: 'buyer' }, session: { access_token: 'fixture-token' }, account: record });
-  assert.match(h.text(), /Your Teams plan could not be verified/);
-  assert.doesNotMatch(h.text(), /Teams Pro is active|Current plan|No active Blue Teams plan/);
-  assert.equal(h.button('Plan unavailable').props.disabled, true);
-  await h.button('Plan unavailable').props.onClick();
-  assert.equal(h.requests.length, 0);
-  await h.button('Retry account refresh').props.onClick(); assert.equal(h.auth.refreshes, 1);
-  record.teams.available = true; h.setAuth({ account: record }); assert.ok(h.button('Renew Pro'));
-});
-
-test('the chosen lower plan remains visible after expiry without granting access, and starts a normal checkout only on click', async () => {
-  const record = account('buyer', 'business');
-  record.teams.scheduled_change = { plan: 'solo', change_at: record.teams.current_period_end, payment_required: true };
-  const h = harness({ user: { id: 'buyer' }, session: { access_token: 'fixture-token' }, account: record });
-  h.advance(31 * 86_400_000);
-  assert.match(h.text(), /Chosen next plan: Teams Solo — payment required/);
-  assert.match(h.text(), /does not become active until you complete payment/);
-  assert.doesNotMatch(h.text(), /Teams (?:Business|Solo) is active|Current plan|Renew Solo/);
-  assert.match(h.text(), /No active Blue Teams plan/);
-  assert.equal(h.requests.length, 0, 'a stored preference never charges automatically');
-  // The server now returns an inactive entitlement, preserving only the safe
-  // scheduled choice; this is the state after a fresh post-expiry account load.
-  h.setAuth({ account: { ...record, teams: { ...noTeams, scheduled_change: record.teams.scheduled_change } } });
-  assert.match(h.text(), /Chosen next plan: Teams Solo — payment required/);
-  await h.button('Complete Solo checkout').props.onClick(); await h.flush();
-  assert.equal(h.requests.length, 1); assert.equal(h.requests[0][0], '/api/teams/checkout/create-session');
-  assert.deepEqual(JSON.parse(h.requests[0][1].body), { tier: 'solo' });
-});
-
-test('a chosen plan may be cancelled after expiry and hides at sign-out or an account switch', async () => {
-  const saved = { plan: 'pro', change_at: new Date(Date.now() - 1000).toISOString(), payment_required: true };
-  const record = { ...account('buyer', null), teams: { ...noTeams, scheduled_change: saved } };
-  const h = harness({ user: { id: 'buyer' }, session: { access_token: 'fixture-token' }, account: record });
-  assert.ok(h.button('Cancel scheduled change'));
-  await h.button('Cancel scheduled change').props.onClick(); await h.flush();
-  assert.equal(h.requests[0][0], '/api/teams/plan-change'); assert.deepEqual(JSON.parse(h.requests[0][1].body), { tier: null });
-  h.setAuth({ user: { id: 'another-user' } }); assert.doesNotMatch(h.text(), /Chosen next plan|is scheduled/);
-  h.setAuth({ user: null, session: null }); assert.doesNotMatch(h.text(), /Chosen next plan|is scheduled/);
+test('Teams keeps its workspace preview and clearly explains model billing, fees, top-ups and zero-balance pause', () => {
+  const h=harness();assert.ok(h.find(node=>node.type==='preview' && node.props.variant==='pricing'));
+  assert.match(h.text(),/25 Blue Credits in one payment/);assert.match(h.text(),/30% platform fee/);assert.match(h.text(),/32.50 USD/);
+  assert.match(h.text(),/Main agent and specialists use Blue Models/);assert.match(h.text(),/Your agents, tasks and conversations remain saved/);
+  assert.match(h.text(),/balance becomes 40 Blue Credits/);assert.equal(h.requests.length,0);
 });

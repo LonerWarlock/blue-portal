@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       .from('credit_payments')
       .insert({
         user_id: data.user.id,
-        amount_paid: pack.priceINR,
+        amount_paid: pack.priceUSD,
         currency: 'USD',
         credits_purchased: pack.credits,
         pack_id: pack.id,
@@ -51,6 +51,11 @@ export async function POST(request: Request) {
         provider_txnid: txnid,
         status: 'pending',
         metadata: {
+          pricing_version: 'blue-credit-1to1-platform-30-v1',
+          base_price_usd: pack.basePriceUSD, base_price_inr: pack.basePriceINR,
+          platform_fee_usd: pack.platformFeeUSD, platform_fee_inr: pack.platformFeeINR,
+          platform_fee_percent: pack.platformFeePercent,
+          blue_credit_multiplier: pack.multiplier,
           paypal_order_id: order.orderId,
           usd_amount: pack.priceUSD,
           exchange_rate: APPROX_USD_TO_INR,
@@ -76,6 +81,6 @@ export async function POST(request: Request) {
 
   } catch (err: any) {
     console.error('PayPal Blue Pro Create Order Error:', err);
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: err.message || 'Server error' }, { status: err instanceof RangeError ? 400 : 500 });
   }
 }

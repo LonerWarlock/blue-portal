@@ -7,7 +7,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { getOrCreateUserKey } from '@/lib/userKey';
 import { effectiveAccountPlan } from '@/lib/accountPlan';
 import { getBlueCreditSummary } from '@/lib/blueCreditSummary';
-import { activeBlueTeamsEntitlement } from '@/lib/blueTeamsEntitlement';
+import { loadBlueTeamsCreditEntitlement } from '@/lib/blueTeamsCreditAccess';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     if (!supabaseAdmin) throw statusError(503, 'Database is not configured');
     const userId = await verifiedSessionUser(request);
 
-    const [walletResult, profileResult, subscriptionResult, teamSubscriptionResult, creditSummary] = await Promise.all([
+    const [walletResult, profileResult, subscriptionResult, teams, creditSummary] = await Promise.all([
       supabaseAdmin
         .from('wallets')
         .select('balance, account_type, blue_credits')
@@ -40,12 +40,7 @@ export async function GET(request: Request) {
         .select('plan, status, current_period_end, metadata')
         .eq('user_id', userId)
         .maybeSingle(),
-      supabaseAdmin
-        .from('team_subscriptions')
-        .select('plan, status, current_period_end, metadata')
-        .eq('user_id', userId)
-        .eq('is_test', false)
-        .maybeSingle(),
+      loadBlueTeamsCreditEntitlement(supabaseAdmin,userId),
       getBlueCreditSummary(supabaseAdmin, userId),
     ]);
 
@@ -62,10 +57,6 @@ export async function GET(request: Request) {
     const activeBluePro = wallet?.account_type === 'pro_payg'
       && profile?.status === 'active';
     const discount = Number(subscription?.metadata?.imr_discount || 0);
-    // Team information is supplemental: an unavailable Team table must not
-    // prevent a user from opening their existing Blue account.
-    const teams = { ...(teamSubscriptionResult.error ? activeBlueTeamsEntitlement(null) : activeBlueTeamsEntitlement(teamSubscriptionResult.data)), available: !teamSubscriptionResult.error };
-
     // Balance revalidation skips keys, purchase history and usage queries.
     if (new URL(request.url).searchParams.get('scope') === 'wallet') {
       const balance = Math.max(0, Number(wallet?.blue_credits || 0));

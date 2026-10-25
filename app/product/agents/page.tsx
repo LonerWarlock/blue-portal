@@ -98,7 +98,7 @@ export default function AgentsPage() {
             <section aria-labelledby="coding-agent-explained">
               <h2 id="coding-agent-explained" className="text-2xl md:text-3xl font-display font-bold tracking-tight text-ink">What is an AI coding agent?</h2>
               <p className="mt-5 text-base leading-8 text-ink-muted">Code completion suggests the next lines while you type. Coding chat helps answer questions. A coding agent can use project files and tools to work through a requested change: inspect the code, plan an edit, change files and run checks. Blue provides a workspace for that work, using your selected supported engine and model connection. It is not a guarantee of correct, secure or finished code.</p>
-              <p className="mt-4 text-base leading-8 text-ink-muted">Start with ordinary coding chat for an explanation or a focused change. Blue Desktop&apos;s <Link href="/teams" className={link}>Team mode</Link> adds specialist assignments for a larger goal and requires an active Blue Teams plan. The VS Code extension provides coding assistance, not Desktop Team mode. Independent projects may progress in parallel; tasks that write to overlapping folders can queue.</p>
+              <p className="mt-4 text-base leading-8 text-ink-muted">Start with ordinary coding chat for an explanation or a focused change. Blue Desktop&apos;s <Link href="/teams" className={link}>Team mode</Link> adds specialist assignments for a larger goal and requires an active Blue Teams access. The VS Code extension provides coding assistance, not Desktop Team mode. Independent projects may progress in parallel; tasks that write to overlapping folders can queue.</p>
             </section>
 
             <section aria-labelledby="coding-agent-examples">

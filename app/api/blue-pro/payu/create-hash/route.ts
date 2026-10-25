@@ -46,6 +46,11 @@ export async function POST(request: Request) {
         provider_txnid: txnid,
         status: 'pending',
         metadata: {
+          pricing_version: 'blue-credit-1to1-platform-30-v1',
+          base_price_usd: pack.basePriceUSD, base_price_inr: pack.basePriceINR,
+          platform_fee_usd: pack.platformFeeUSD, platform_fee_inr: pack.platformFeeINR,
+          platform_fee_percent: pack.platformFeePercent,
+          blue_credit_multiplier: pack.multiplier,
           usd_amount: pack.priceUSD,
           exchange_rate: APPROX_USD_TO_INR,
           return_url: returnUrl,
@@ -72,7 +77,7 @@ export async function POST(request: Request) {
       paymentId: payment.id
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Server error' }, { status: error instanceof RangeError ? 400 : 500 });
   }
 }
 

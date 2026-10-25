@@ -26,7 +26,7 @@ const plans = [
     benefitsTitle: 'Everything in Lite, plus', benefits: ['Multi-agent teams & Figma-to-Code', 'GitHub, Vercel & Canva integrations', 'Web search & premium UI creation'],
     features: [true, true, true, true, true, true, true, true, true, true, true, true, true, false] },
   { id: 'blue_pro', name: 'Blue Pro', description: 'Premium models. On your terms.',
-    benefitsTitle: 'Everything in Blue, plus', benefits: ['Selected Premium Models', 'Credits that never expire', '₹1,500 full-access pack available'],
+    benefitsTitle: 'Everything in Blue, plus', benefits: ['Selected Premium Models', 'Credits that never expire', '25-credit purchase unlocks Teams'],
     features: [true, true, true, true, true, true, true, true, true, true, true, true, true, true] },
 ] as const;
 
@@ -86,7 +86,7 @@ export default function PricingClient() {
         <header className={styles.intro}>
           <div className={styles.kicker}><span>Pricing</span><span className={styles.kickerRule} /><GraduationCap size={15} aria-hidden="true" /> Made specifically for students</div>
           <h1 id="pricing-title" className={styles.title}>Build more. <span>Spend less.</span></h1>
-          <p className={styles.introCopy}>From your first project to your next big launch. Choose your way to build. <Link href="/teams" className="text-brand underline underline-offset-4">See Blue Teams plans</Link>.</p>
+          <p className={styles.introCopy}>From your first project to your next big launch. Choose your way to build. <Link href="/teams" className="text-brand underline underline-offset-4">See Blue Teams credit access</Link>.</p>
         </header>
 
         {accountLoading && user && !account && <p role="status" className={styles.accountMessage}>Loading your plan…</p>}
@@ -117,8 +117,8 @@ export default function PricingClient() {
                   </div>
                   <p className={styles.priceContext}>{billingCycle === 'monthly' ? '30 days of access · paid upfront' : `₹${(bluePlan.priceInr / bluePlan.months).toLocaleString('en-IN', { maximumFractionDigits: 2 })}/month equivalent · ${bluePlan.days} days`}</p>
                 </div> : <>
-                  <div className={styles.priceLine}><span className={styles.price}><span className={styles.currency}>₹</span>{plan.id === 'lite' ? '0' : '100'}</span><span className={styles.period}>{plan.id === 'lite' ? '/forever' : '/trial'}</span></div>
-                  <p className={styles.priceContext}>{plan.id === 'lite' ? 'No payment needed' : '1 credit · no expiry'}</p>
+                  <div className={styles.priceLine}><span className={styles.price}><span className={styles.currency}>₹</span>{plan.id === 'lite' ? '0' : '130'}</span><span className={styles.period}>{plan.id === 'lite' ? '/forever' : '/trial'}</span></div>
+                  <p className={styles.priceContext}>{plan.id === 'lite' ? 'No payment needed' : '1 credit + 30% platform fee · no expiry'}</p>
                 </>}
               </div>
 

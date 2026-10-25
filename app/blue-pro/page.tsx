@@ -1,238 +1,40 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/app/contexts/AuthContext";
-import PageLayout from "@/app/components/PageLayout";
 import Link from "next/link";
-
-const modelPricing = [
-  { model: "DeepSeek V4 Flash", inputCredits: "0.147", outputCredits: "0.294", tier: "Low Cost" },
-  { model: "Poolside Laguna S 2.1", inputCredits: "0.150", outputCredits: "0.300", tier: "Low Cost" },
-  { model: "KAT Coder Air 2.5", inputCredits: "0.225", outputCredits: "0.900", tier: "Low Cost" },
-  { model: "DeepSeek V4 Pro", inputCredits: "0.653", outputCredits: "1.305", tier: "Standard" },
-  { model: "Qwen 3.7 Plus", inputCredits: "0.480", outputCredits: "1.920", tier: "Standard" },
-  { model: "GLM 5", inputCredits: "0.900", outputCredits: "2.880", tier: "Standard" },
-];
-
-const tiers = [
-  { name: "Low Cost", color: "from-brand to-brand", description: "Everyday coding tasks, autocomplete, quick fixes" },
-  { name: "Standard", color: "from-brand to-brand", description: "Complex reasoning, refactoring, multi-file edits" },
-  { name: "High Cost", color: "from-brand to-brand", description: "Advanced agentic workflows, deep research" },
-  { name: "Premium", color: "from-brand to-brand", description: "Maximum intelligence, flagship models" },
-];
+import PageLayout from "@/app/components/PageLayout";
 
 const faqs = [
-  {
-    q: "What are Blue Credits?",
-    a: "Blue Credits are service-usage units for Blue's pay-as-you-go models. The renewable Starter pack costs ₹100 for 1 Blue Credit and the Full pack costs ₹1,500 for 15 Blue Credits. There is no time limit."
-  },
-  {
-    q: "How is credit usage calculated?",
-    a: "Blue uses the actual cost reported by OpenRouter for each completed request, then converts it into Blue Credits at the published Blue rate. The extension updates your remaining balance after every request."
-  },
-  {
-    q: "Do my credits expire?",
-    a: "No. Blue Credits do not expire and do not reset monthly. They remain in your wallet until you use them."
-  },
-  {
-    q: "What happens when I run out of credits?",
-    a: "Paid model requests stop when your balance reaches zero. You can buy another pack at any time to continue. Your account stays active — there is no subscription to cancel."
-  },
-  {
-    q: "Can I use free models without credits?",
-    a: "Blue Pro is for paid OpenRouter models. Users without active Blue Pro credits can continue with their own OpenCode API key."
-  },
-  {
-    q: "Are there any refunds?",
-    a: "Refunds for unused Blue Credits are handled on a case-by-case basis. Please contact support for assistance."
-  },
+  { q: "How are Blue Credits calculated?", a: "1 Blue Credit covers $1 of actual OpenRouter model usage. If a request costs $0.10 at OpenRouter, Blue deducts 0.10 Blue Credits. Input, output, reasoning, caching and model tool-use costs follow the selected model's actual usage." },
+  { q: "When do I pay the platform fee?", a: "A 30% platform fee is added at checkout. Buying 25 Blue Credits costs $25.00 for credits plus a $7.50 platform fee, for a total of $32.50 USD. The fee does not add credits, and there is no additional platform markup when credits are used. INR prices are shown before payment." },
+  { q: "How do Blue Credits unlock Teams?", a: "Purchase at least 25 Blue Credits in one payment to activate Teams. Teams uses Blue Models for the main agent and specialists. Access continues while your wallet has credits. When your balance reaches zero, Teams pauses; another purchase of at least 25 credits reactivates it. Your agents, tasks and conversations stay saved." },
+  { q: "Can I top up before my credits run out?", a: "Yes. Buy any available pack while Teams is active and its credits are added to your remaining balance. For example, buy 25, use 10, then add 25: you have 40 credits and Teams stays active. No balance is replaced or reset." },
+  { q: "Do my credits expire?", a: "No. Blue Credits do not expire and do not reset monthly. They remain in your wallet until used. They are service-usage units, not cash or stored monetary value." },
+  { q: "Can I use my own OpenRouter key?", a: "Your OpenRouter connection remains available for ordinary project work. Blue Teams uses Blue Models and your Blue Credit wallet." },
 ];
 
 export default function BlueProPage() {
-  const { user } = useAuth();
-  const router = useRouter();
-
-  const handleGetStarted = () => {
-    if (!user) {
-      sessionStorage.setItem("redirectAfterLogin", "/blue-pro/checkout?pack=starter");
-      router.push("/console");
-      return;
-    }
-    router.push("/blue-pro/checkout?pack=starter");
-  };
-
-  return (
-    <PageLayout>
-      <div className="fixed inset-0 pointer-events-none">
-<div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-brand/10 rounded-full blur-[128px]"></div>
+  return <PageLayout>
+    <section className="relative overflow-hidden py-20">
+      <div className="max-w-5xl mx-auto px-6">
+        <header className="max-w-3xl mx-auto text-center">
+          <p className="text-xs font-bold tracking-widest uppercase text-brand">Blue Credits · Pay as you go</p>
+          <h1 className="mt-5 text-4xl sm:text-6xl font-bold tracking-tight text-ink">Model usage at cost.<br /><span className="text-brand">One clear platform fee.</span></h1>
+          <p className="mt-6 text-lg leading-relaxed text-ink-muted">1 Blue Credit covers $1 of actual OpenRouter usage. Add credits when you need them, with a 30% platform fee shown separately at checkout.</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3"><Link href="/blue-pro/checkout?pack=custom&credits=25" className="btn btn-primary min-h-11">Buy 25 Blue Credits</Link><Link href="/teams" className="btn btn-secondary min-h-11">Explore Blue Teams</Link></div>
+        </header>
+        <div className="mt-14 grid gap-5 md:grid-cols-3">
+          <article className="rounded-xl panel border border-line p-6"><h2 className="text-xl font-bold text-ink">25 credits</h2><p className="mt-3 text-ink-muted">$25.00 for model usage + $7.50 platform fee = <strong className="text-ink">$32.50 USD</strong>. INR payment totals appear at checkout.</p></article>
+          <article className="rounded-xl panel border border-line p-6"><h2 className="text-xl font-bold text-ink">Teams included</h2><p className="mt-3 text-ink-muted">A purchase of at least 25 credits activates Teams while your wallet has credits. No separate Teams subscription.</p></article>
+          <article className="rounded-xl panel border border-line p-6"><h2 className="text-xl font-bold text-ink">Your balance carries forward</h2><p className="mt-3 text-ink-muted">Top-ups add to your remaining credits. No expiry, monthly reset or automatic repeat charge.</p></article>
+        </div>
+        <section className="mt-16 max-w-3xl mx-auto" aria-labelledby="credit-usage-title">
+          <h2 id="credit-usage-title" className="text-3xl font-bold text-ink">Pay for the usage your task needs.</h2>
+          <p className="mt-4 leading-relaxed text-ink-muted">Different models and tasks use different amounts of credits. A short question may cost much less than a long task with reasoning, tools or multiple agents. Blue uses the actual cost reported by OpenRouter and shows your updated wallet balance.</p>
+          <div className="mt-6 overflow-hidden rounded-xl border border-line"><table className="w-full text-sm text-left"><caption className="p-4 text-left font-semibold text-ink bg-paper-alt">Usage examples</caption><thead><tr className="border-y border-line text-ink"><th className="p-4" scope="col">Actual OpenRouter cost</th><th className="p-4" scope="col">Blue Credits used</th></tr></thead><tbody className="divide-y divide-line text-ink-muted"><tr><td className="p-4">$0.10</td><td className="p-4">0.10</td></tr><tr><td className="p-4">$1.00</td><td className="p-4">1.00</td></tr><tr><td className="p-4">$5.00</td><td className="p-4">5.00</td></tr></tbody></table></div>
+        </section>
+        <section className="mt-16 max-w-3xl mx-auto" aria-labelledby="credit-faq-title"><h2 id="credit-faq-title" className="text-3xl font-bold text-ink">Questions about Blue Credits</h2><div className="mt-7 divide-y divide-line">{faqs.map(faq => <details key={faq.q} className="py-5"><summary className="cursor-pointer font-semibold text-ink">{faq.q}</summary><p className="mt-3 text-sm leading-relaxed text-ink-muted">{faq.a}</p></details>)}</div></section>
+        <p className="mt-12 text-center text-xs text-ink-faint">Purchases follow our <Link href="/terms" className="underline">Terms</Link> and <Link href="/refund" className="underline">Refund Policy</Link>.</p>
       </div>
-
-      <section className="relative overflow-hidden pt-20 pb-16">
-        <div className="max-w-5xl mx-auto px-6 relative z-10">
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand/10 border border-brand/30 text-brand text-xs font-semibold mb-8">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand"></span>
-              Blue Pro
-            </div>
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight">
-              <span className="text-ink">
-                Pay As You Code
-              </span>
-              <br />
-              <span className="bg-brand bg-clip-text text-transparent">
-                Only for What You Use
-              </span>
-            </h1>
-            <p className="mt-6 text-lg text-ink-muted max-w-3xl mx-auto leading-relaxed">
-              Start with a renewable ₹100 paid trial for selected paid models, or choose the ₹1,500 full-access pack. Credits never expire.
-            </p>
-          </div>
-
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="p-6 rounded-lg panel border border-line text-center">
-              <div className="w-12 h-12 rounded-lg bg-brand/10 border border-line flex items-center justify-center mx-auto mb-4">
-                <i className="fa-solid fa-cart-shopping text-brand"></i>
-              </div>
-              <h3 className="text-lg font-bold text-ink mb-2">₹100 Trial Pack</h3>
-              <p className="text-sm text-ink-muted">Get 1 Blue Credit for selected paid models. No expiry; purchase it again after using the credit.</p>
-            </div>
-            <div className="p-6 rounded-lg panel border border-line text-center">
-              <div className="w-12 h-12 rounded-lg bg-brand/10 border border-line flex items-center justify-center mx-auto mb-4">
-                <i className="fa-solid fa-microchip text-brand"></i>
-              </div>
-              <h3 className="text-lg font-bold text-ink mb-2">₹1,500 Full Pack</h3>
-              <p className="text-sm text-ink-muted">Get 15 Blue Credits and access the full Blue Pro model catalog.</p>
-            </div>
-            <div className="p-6 rounded-lg panel border border-line text-center">
-              <div className="w-12 h-12 rounded-lg bg-brand/10 border border-line flex items-center justify-center mx-auto mb-4">
-                <i className="fa-solid fa-infinity text-brand"></i>
-              </div>
-              <h3 className="text-lg font-bold text-ink mb-2">Never Expire</h3>
-              <p className="text-sm text-ink-muted">Credits stay in your wallet until you use them. No monthly resets.</p>
-            </div>
-          </div>
-
-          <div className="mt-12 text-center">
-            <button
-              onClick={handleGetStarted}
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-lg bg-brand font-bold text-white shadow-lg shadow-sm transition duration-200 text-base"
-            >
-              <><i className="fa-solid fa-cart-plus"></i> Choose ₹100 Trial or Add Credits</>
-            </button>
-            <p className="text-xs text-ink-faint mt-3">Blue Pro activates only after a successful payment.</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="relative overflow-hidden pb-20">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-              <span className="text-ink">
-                Model Pricing in Blue Credits
-              </span>
-            </h2>
-            <p className="mt-4 text-ink-muted max-w-2xl mx-auto">
-              Each model shows its cost in Blue Credits per one million tokens (input and output).
-              Lower cost models are ideal for everyday tasks; premium models deliver maximum intelligence.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2 mb-8 justify-center">
-            {tiers.map((tier) => (
-              <div key={tier.name} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r ${tier.color} bg-clip-text text-transparent text-xs font-bold border border-line`}>
-                <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${tier.color}`}></span>
-                {tier.name}
-              </div>
-            ))}
-          </div>
-
-          <div className="overflow-x-auto rounded-lg panel border border-line">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line">
-                  <th className="text-left py-4 px-6 text-ink-muted font-semibold text-xs uppercase tracking-wider">Model</th>
-                  <th className="text-right py-4 px-6 text-ink-muted font-semibold text-xs uppercase tracking-wider">Input / 1M tokens</th>
-                  <th className="text-right py-4 px-6 text-ink-muted font-semibold text-xs uppercase tracking-wider">Output / 1M tokens</th>
-                  <th className="text-right py-4 px-6 text-ink-muted font-semibold text-xs uppercase tracking-wider">Tier</th>
-                </tr>
-              </thead>
-              <tbody>
-                {modelPricing.map((m, i) => (
-                  <tr key={i} className="border-b border-line hover:bg-paper-alt transition">
-                    <td className="py-4 px-6 text-ink font-semibold">{m.model}</td>
-                    <td className="py-4 px-6 text-right font-mono text-ink-muted">{m.inputCredits}</td>
-                    <td className="py-4 px-6 text-right font-mono text-ink-muted">{m.outputCredits}</td>
-                    <td className="py-4 px-6 text-right">
-                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
-                        m.tier === "Low Cost" ? "bg-green-950/60 text-green-400 border border-green-900/60" :
-                        m.tier === "Standard" ? "bg-brand/10 text-brand border border-brand/30" :
-                        m.tier === "High Cost" ? "bg-yellow-950/60 text-yellow-400 border border-yellow-900/60" :
-                        "bg-brand/10 text-brand border border-brand/30"
-                      }`}>{m.tier}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {tiers.map((tier) => (
-              <div key={tier.name} className="p-4 rounded-lg panel border border-line">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`w-3 h-3 rounded-full bg-gradient-to-r ${tier.color}`}></span>
-                  <h4 className="text-sm font-bold text-ink">{tier.name}</h4>
-                </div>
-                <p className="text-xs text-ink-muted">{tier.description}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 p-4 rounded-lg bg-brand/10 border border-line text-center">
-            <p className="text-xs text-brand">
-              Blue Credits consumed = measured model usage × applicable rate. Rates reflect model inference cost and platform services.
-              Actual consumption per request depends on token count, caching, reasoning, and tool usage.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="relative overflow-hidden pb-20">
-        <div className="max-w-3xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-              <span className="text-ink">
-                Frequently Asked Questions
-              </span>
-            </h2>
-          </div>
-
-          <div className="space-y-4">
-            {faqs.map((faq, i) => (
-              <details key={i} className="group rounded-lg panel border border-line overflow-hidden">
-                <summary className="flex items-center justify-between p-5 cursor-pointer text-sm font-semibold text-ink hover:text-brand transition list-none">
-                  {faq.q}
-                  <i className="fa-solid fa-chevron-down text-ink-faint group-open:rotate-180 transition-transform"></i>
-                </summary>
-                <div className="px-5 pb-5 text-sm text-ink-muted leading-relaxed border-t border-line pt-4">
-                  {faq.a}
-                </div>
-              </details>
-            ))}
-          </div>
-
-          <div className="mt-12 text-center">
-            <p className="text-sm text-ink-faint mb-4">Ready to get started?</p>
-            <button
-              onClick={handleGetStarted}
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-lg bg-brand font-bold text-white shadow-lg shadow-sm transition duration-200 text-base"
-            >
-              <><i className="fa-solid fa-cart-plus"></i> Choose ₹100 Trial or Add Credits</>
-            </button>
-          </div>
-        </div>
-      </section>
-    </PageLayout>
-  );
+    </section>
+  </PageLayout>;
 }

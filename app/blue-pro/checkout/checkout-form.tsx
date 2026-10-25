@@ -4,15 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CurrencySelector } from "@/app/components/CurrencySelector";
+import { customCreditPackDisplay, initialCreditCheckoutSelection, validCreditPackDisplay, type CreditPackDisplay } from "@/lib/creditCheckoutDisplay";
 
-interface CreditPack {
-  id: "starter" | "standard" | "custom";
-  name: string;
-  description: string;
-  priceINR: number;
-  priceUSD: number;
-  credits: number;
-}
+type CreditPack = CreditPackDisplay;
 
 export function CheckoutForm() {
   const router = useRouter();
@@ -20,43 +14,47 @@ export function CheckoutForm() {
   const [error, setError] = useState("");
   const [packs, setPacks] = useState<CreditPack[]>([]);
   const [selectedPackId, setSelectedPackId] = useState<CreditPack["id"]>("starter");
-  const [customCredits, setCustomCredits] = useState(10);
+  const [customCredits, setCustomCredits] = useState(25);
   const [currency, setCurrency] = useState<"INR" | "USD">("INR");
   const [paypalLoaded, setPaypalLoaded] = useState(false);
   const txnidRef = useRef<string>('');
 
-  const pack = packs.find(item => item.id === selectedPackId) || {
-    id: "starter" as const,
-    name: "Blue Pro Starter",
-    description: "Renewable paid trial with selected models and no expiry.",
-    priceINR: 100,
-    priceUSD: 1.00,
-    credits: 1
+  const [configError, setConfigError] = useState("");
+  const pack = packs.find(item => item.id === selectedPackId);
+  const activePack = selectedPackId === "custom" ? customCreditPackDisplay(packs.find(item => item.id === "starter"), customCredits) : pack;
+  const formatPrice = (value: number) => currency === "INR" ? `₹${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `$${value.toFixed(2)}`;
+  const loadPacks = async () => {
+    setConfigError("");
+    try {
+      const response = await fetch("/api/blue-pro/pack-config", { cache: "no-store" });
+      if (!response.ok) throw new Error("Credit prices could not be loaded.");
+      const data = await response.json();
+      if (!Array.isArray(data?.packs) || !data.packs.length || !data.packs.every(validCreditPackDisplay)) throw new Error("Credit prices could not be verified.");
+      const ids = data.packs.map((item: CreditPack) => item.id);
+      if (!ids.includes("starter") || !ids.includes("standard") || new Set(ids).size !== ids.length) throw new Error("Credit pack choices could not be verified.");
+      setPacks(data.packs);
+    } catch (cause) { setPacks([]); setConfigError(cause instanceof Error ? cause.message : "Credit prices could not be loaded."); }
   };
-
-  const activePack = selectedPackId === "custom"
-    ? { ...pack, id: "custom" as const, name: "Blue Pro Custom", credits: customCredits, priceINR: customCredits * 100, priceUSD: customCredits * 1, description: `Custom pack with exactly ${customCredits} Blue Credits.` }
-    : pack;
 
   const [email, setEmail] = useState("");
 
   useEffect(() => {
+    const selected = initialCreditCheckoutSelection(window.location.search);
+    setSelectedPackId(selected.packId); setCustomCredits(selected.customCredits);
     supabase.auth.getSession().then(({ data: { session } }: any) => {
       if (!session) {
-        sessionStorage.setItem("redirectAfterLogin", "/blue-pro/checkout");
+        sessionStorage.setItem("redirectAfterLogin", `/blue-pro/checkout${window.location.search}`);
         router.push("/console");
         return;
       }
       setEmail(session.user?.email || "");
     });
 
-    fetch("/api/blue-pro/pack-config").then(r => r.ok && r.json()).then(d => {
-      if (Array.isArray(d?.packs)) setPacks(d.packs);
-    }).catch(() => {});
+    void loadPacks();
   }, []);
 
   useEffect(() => {
-    if (currency === "USD" && !paypalLoaded) {
+    if (activePack && currency === "USD" && !paypalLoaded) {
       const script = document.createElement("script");
       script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD`;
       script.async = true;
@@ -64,10 +62,10 @@ export function CheckoutForm() {
       script.onerror = () => console.error("Failed to load PayPal SDK");
       document.body.appendChild(script);
     }
-  }, [currency, paypalLoaded]);
+  }, [currency, paypalLoaded, Boolean(activePack)]);
 
   useEffect(() => {
-    if (currency === "USD" && paypalLoaded && (window as any).paypal) {
+    if (activePack && currency === "USD" && paypalLoaded && (window as any).paypal) {
       const container = document.getElementById("paypal-button-container-bluepro");
       if (container) container.innerHTML = "";
 
@@ -99,9 +97,10 @@ export function CheckoutForm() {
         },
       }).render("#paypal-button-container-bluepro");
     }
-  }, [currency, paypalLoaded, selectedPackId, customCredits]);
+  }, [currency, paypalLoaded, selectedPackId, customCredits, Boolean(activePack)]);
 
   const handlePayment = async () => {
+    if (!activePack || configError) return;
     setLoading(true);
     setError("");
 
@@ -159,6 +158,12 @@ export function CheckoutForm() {
     }
   };
 
+  if (!activePack) return <main className="min-h-screen bg-paper flex items-center justify-center p-6"><section className="max-w-md rounded-lg border border-line p-6 bg-paper-alt" aria-live="polite">
+    <h1 className="text-xl font-bold text-ink">Blue Credit checkout</h1>
+    <p className="mt-3 text-sm text-ink-muted">{configError || "Loading current credit prices…"}</p>
+    {configError && <button type="button" className="btn btn-primary mt-4" onClick={() => void loadPacks()}>Retry prices</button>}
+  </section></main>;
+
   return (
     <div className="min-h-screen bg-paper flex items-center">
       <section className="relative w-full flex items-center overflow-hidden">
@@ -193,7 +198,7 @@ export function CheckoutForm() {
                   <div className="pt-3 border-t border-line">
                     <h3 className="text-xs font-bold text-ink-muted uppercase tracking-wider mb-3">Choose a credit pack</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {(packs.length ? packs : [pack]).map(item => (
+                      {packs.map(item => (
                         <button
                           key={item.id}
                           type="button"
@@ -204,7 +209,7 @@ export function CheckoutForm() {
                         >
                           <span className="block text-sm font-semibold text-ink">{item.name}</span>
                           <span className="mt-1 block text-xl font-bold text-ink">
-                            {currency === "INR" ? `₹${(item.priceINR || item.priceUSD * 100).toLocaleString("en-IN")}` : `$${item.priceUSD.toFixed(2)}`}
+                            {formatPrice(currency === "INR" ? item.priceINR : item.priceUSD)}
                           </span>
                           <span className="mt-1 block text-xs text-ink-muted">{item.credits} Blue Credits</span>
                           <span className="mt-2 block text-[10px] leading-relaxed text-ink-faint">{item.description}</span>
@@ -217,7 +222,7 @@ export function CheckoutForm() {
                           ? "border-brand bg-brand/10"
                           : "border-line bg-paper-alt hover:border-line-strong"}`}
                       >
-                        <span className="block text-sm font-semibold text-ink">Blue Pro Custom</span>
+                        <span className="block text-sm font-semibold text-ink">Blue Credits Custom</span>
                         <span className="mt-1 block text-xs text-ink-muted">{customCredits} Blue Credits</span>
                         <span className="mt-2 block text-[10px] leading-relaxed text-ink-faint">Choose exactly how many credits you need (10–100).</span>
                       </button>
@@ -238,7 +243,7 @@ export function CheckoutForm() {
                           className="w-24 px-3 py-2 rounded-lg bg-paper-alt border border-line text-ink text-sm text-center focus:outline-none focus:border-brand transition"
                         />
                         <span className="text-[10px] text-ink-faint">
-                          {currency === "INR" ? "₹100 per credit" : "$1 per credit"}
+                          {currency === "INR" ? "Credit subtotal uses the checkout INR rate; 30% fee added" : "$1 per credit + 30% platform fee"}
                         </span>
                       </div>
                     )}
@@ -282,7 +287,7 @@ export function CheckoutForm() {
                       {loading ? (
                         <><i className="fa-solid fa-spinner animate-spin"></i> Redirecting to PayU...</>
                       ) : (
-                        <><i className="fa-solid fa-lock"></i> Pay ₹{(activePack.priceINR || activePack.priceUSD * 100).toLocaleString("en-IN")} - Add {activePack.credits} Blue Credits</>
+                        <><i className="fa-solid fa-lock"></i> Pay {formatPrice(activePack.priceINR)} - Add {activePack.credits} Blue Credits</>
                       )}
                     </button>
                   ) : (
@@ -323,18 +328,24 @@ export function CheckoutForm() {
                     <span className="text-ink font-semibold">{activePack.credits} Blue Credits</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-ink-muted">Price</span>
+                    <span className="text-ink-muted">Credit subtotal</span>
                     <span className="text-ink font-semibold">
-                      {currency === "INR" ? `₹${(activePack.priceINR || activePack.priceUSD * 100).toLocaleString("en-IN")}` : `$${activePack.priceUSD.toFixed(2)}`}
+                      {formatPrice(currency === "INR" ? activePack.basePriceINR : activePack.basePriceUSD)}
                     </span>
                   </div>
                 </div>
 
+                <div className="py-4 space-y-3 border-b border-line">
+                  <div className="flex justify-between text-sm"><span className="text-ink-muted">Platform fee (30%)</span><span className="text-ink font-semibold">{formatPrice(currency === "INR" ? activePack.platformFeeINR : activePack.platformFeeUSD)}</span></div>
+                  <div className="flex justify-between text-base"><span className="text-ink font-bold">Total payable</span><span className="text-ink font-bold">{formatPrice(currency === "INR" ? activePack.priceINR : activePack.priceUSD)}</span></div>
+                </div>
                 <div className="pt-4 space-y-2">
+                  <p className="text-xs text-ink-muted">{activePack.credits >= 25 ? "This purchase qualifies to activate or reactivate Blue Teams." : "Teams activation and reactivation need at least 25 credits in one purchase. Smaller packs can extend access that is already active."}</p>
+                  <p className="text-xs text-ink-muted">1 Blue Credit covers $1 of actual OpenRouter model usage. The platform fee does not add credits.</p>
                   <p className="text-[10px] text-ink-faint leading-relaxed">
                     Blue Credits are service-usage units used to access Blue&apos;s AI coding models.
                     They are not cash or stored monetary value. Credit consumption varies by model
-                    and may include model inference, reasoning, caching, tools, and platform services.
+                    and may include model inference, reasoning, caching and tool-related model usage.
                     Credits do not expire; add another pack whenever your balance runs out.
                   </p>
                 </div>

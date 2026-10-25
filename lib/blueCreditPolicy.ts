@@ -1,8 +1,8 @@
-export const DEFAULT_BLUE_CREDIT_MULTIPLIER = 1.5;
+/** Runtime usage is passed through one-for-one. The 30% platform fee is collected at checkout. */
+export const DEFAULT_BLUE_CREDIT_MULTIPLIER = 1;
+export const BLUE_PLATFORM_FEE_PERCENT = 30;
+export const BLUE_TEAMS_ACTIVATION_CREDITS = 25;
 
-export function configuredBlueCreditMultiplier(value: unknown): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 1
-    ? parsed
-    : DEFAULT_BLUE_CREDIT_MULTIPLIER;
-}
+// Keep the exported function for installed callers, but an old environment
+// variable must never charge a second platform fee during model usage.
+export function configuredBlueCreditMultiplier(_value: unknown): number { return 1; }

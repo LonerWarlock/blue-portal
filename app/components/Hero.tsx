@@ -27,7 +27,7 @@ export default function Hero() {
         <div className={styles.platformStrip}>
           <p className={styles.platformIntro}>Built around your workflow</p>
           <div className={styles.platformItem}><Monitor size={21} aria-hidden="true" /><div>Your project, connected<small>Local tools. Real code.</small></div></div>
-          <div className={styles.platformItem}><UsersRound size={21} aria-hidden="true" /><div>Independent work, in parallel<small>Team mode with a Blue Teams plan.</small></div></div>
+          <div className={styles.platformItem}><UsersRound size={21} aria-hidden="true" /><div>Independent work, in parallel<small>Team mode with a qualifying Blue Credit purchase.</small></div></div>
           <div className={styles.platformItem}><ShieldCheck size={21} aria-hidden="true" /><div>You stay in control<small>Guarded approvals and checkpoints.</small></div></div>
         </div>
       </div>

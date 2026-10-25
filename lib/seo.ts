@@ -54,5 +54,5 @@ export const DESKTOP_APP_SCHEMA = {
   publisher: { '@id': `${SITE_URL}/#organization` },
   creator: { '@id': `${SITE_URL}/#organization` },
   downloadUrl: 'https://apps.microsoft.com/detail/9NHV6GFJ64C8',
-  featureList: ['Explain project code', 'Plan and edit project files', 'Run relevant development checks', 'Choose supported AI models', 'Coordinate specialist agents in Desktop Team mode with an active Teams plan', 'Research and browser work with permissions and user sign-in', 'Run independent project tasks in parallel while Blue and the computer stay on'],
+  featureList: ['Explain project code', 'Plan and edit project files', 'Run relevant development checks', 'Choose supported AI models', 'Coordinate specialist agents in Desktop Team mode with active Teams credit access and Blue Models', 'Research and browser work with permissions and user sign-in', 'Run independent project tasks in parallel while Blue and the computer stay on'],
 };

@@ -14,7 +14,7 @@ Set these server-only environment variables in Blue Portal:
 - `BLUE_DIRECT_RUNTIME_ENABLED`: set to `true` for new admissions; `false` is the kill switch.
 - `BLUE_DIRECT_RUNTIME_USER_IDS`: optional comma-separated Supabase user IDs for a five-user canary.
 
-Retain the existing `BLUE_CREDIT_MULTIPLIER`, Supabase, and legacy
+Apply migration036 and see `docs/TEAMS_PAYG_25_CREDITS_DEPLOYMENT.md` for the current checkout fee and bound per-task billing rates. New usage is one-to-one and ignores the old `BLUE_CREDIT_MULTIPLIER` override. Retain Supabase and legacy
 `OPENROUTER_API_KEY` variables while old VSIX releases still use the proxy.
 
 Generate the encryption key locally without printing or committing it:

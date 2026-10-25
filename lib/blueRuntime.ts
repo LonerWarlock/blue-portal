@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { BluePaygAccount, BLUE_CREDIT_MULTIPLIER, settleUsage, statusError } from '@/lib/bluePayg';
+import { BluePaygAccount, settleUsage, statusError } from '@/lib/bluePayg';
 import { decryptRuntimeSecret, encryptRuntimeSecret } from '@/lib/blueRuntimeCrypto';
 import {
   assertManagedKeyCanUseModel,
@@ -24,6 +24,7 @@ import {
   nextStableUsageObservation
 } from '@/lib/runtimeSettlement';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { loadBlueTeamsCreditEntitlement } from '@/lib/blueTeamsCreditAccess';
 import { approvalReviewerFromCatalog, normalizeApprovalReviewer, reviewedRuntimeReplayAllowance, runtimeAllowedModelSet, runtimeTaskIsBillable } from '@/lib/approvalReviewer';
 
 export const BLUE_RUNTIME_NORMAL_ALLOWANCE = 0.20;
@@ -59,6 +60,8 @@ type RuntimeTaskState = 'queued' | 'provisioning' | 'active' | 'stopping'
   | 'completed' | 'cancelled' | 'failed' | 'expired';
 
 interface RuntimeTaskRow {
+  feature?: 'project' | 'teams';
+  credit_multiplier?: number | string;
   request_id: string;
   user_id: string;
   device_hash: string;
@@ -118,6 +121,7 @@ interface RuntimeCredentialRow {
 }
 
 export interface BlueRuntimeAdmissionInput {
+  feature?: 'project' | 'teams';
   requestId: string;
   model: string;
   mode: RuntimeMode;
@@ -284,6 +288,7 @@ export async function admitBlueRuntimeTask(
   const payloadHash = sha256(stableJson({
     requestId: input.requestId,
     model: model.id,
+    ...(input.feature === 'teams' ? {feature:'teams'} : {}),
     ...(reviewerModel ? { approvalReviewerModel: reviewerModel } : {}),
     mode: input.mode,
     requestedCeiling,
@@ -338,13 +343,14 @@ export async function admitBlueRuntimeTask(
   } catch {
     // Non-blocking fallback for pre-admission cleanup
   }
-  const { data, error } = await supabaseAdmin!.rpc(reviewerModel ? 'admit_blue_runtime_task_v3' : 'admit_blue_runtime_task_v2', {
+  const { data, error } = await supabaseAdmin!.rpc('admit_blue_runtime_task_v4', {
     user_id_param: refreshedAccount.userId,
     request_id_param: input.requestId,
     device_hash_param: deviceHash,
     payload_hash_param: payloadHash,
     model_param: model.id,
-    ...(reviewerModel ? { reviewer_model_param: reviewerModel } : {}),
+    reviewer_model_param: reviewerModel || null,
+    feature_param: input.feature || 'project',
     mode_param: input.mode,
     is_free_param: publicInfo.isFree,
     access_tier_param: refreshedAccount.accessTier,
@@ -510,6 +516,11 @@ export async function extendBlueRuntimeTask(
   if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{7,127}$/.test(extensionId)) {
     throw statusError(400, 'Invalid Blue runtime extension ID');
   }
+  if (task.feature === 'teams' && !runtimeTaskIsBillable(task)) {
+    const access=await loadBlueTeamsCreditEntitlement(supabaseAdmin!,account.userId);
+    if (!access.available) throw statusError(503,'Blue could not verify Teams credit access.');
+    if (access.status !== 'active') throw statusError(403,'Blue Teams requires a purchase of at least 25 Blue Credits and remaining credits.');
+  }
   if (!runtimeTaskIsBillable(task)) {
     const model = resolveModel(await getOpenRouterModels(), task.model, task.is_free);
     if (!model) throw statusError(503, 'The selected Blue model is no longer available');
@@ -524,7 +535,7 @@ export async function extendBlueRuntimeTask(
   // inside the RPC; this minimum is not permission to overdraw the wallet.
   const amount = roundCredits(Math.max(MIN_PAID_ALLOWANCE, Math.min(BLUE_RUNTIME_EXTENSION_ALLOWANCE, refreshed.balance)));
   const expiresAt = credentialExpiry();
-  const { data, error } = await supabaseAdmin!.rpc('extend_blue_runtime_task', {
+  const { data, error } = await supabaseAdmin!.rpc('extend_blue_runtime_task_v2', {
     user_id_param: account.userId,
     request_id_param: requestId,
     extension_id_param: extensionId,
@@ -969,6 +980,11 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
   if (task.state !== 'provisioning' && task.state !== 'active') {
     throw statusError(409, 'This Blue runtime has not received an execution slot');
   }
+  if (task.feature === 'teams') {
+    const access = await loadBlueTeamsCreditEntitlement(supabaseAdmin!,task.user_id);
+    if (!access.available) throw statusError(503,'Blue could not verify Teams credit access.');
+    if (access.status !== 'active') throw statusError(403,'Blue Teams requires a purchase of at least 25 Blue Credits and remaining credits.');
+  }
   const remainingProviderAllowance = await remainingProviderAllowanceForTask(task);
   if (runtimeTaskIsBillable(task) && remainingProviderAllowance <= 0) {
     throw statusError(402, 'This Blue task has reached its reserved provider allowance');
@@ -1167,7 +1183,7 @@ async function remainingProviderAllowanceForTask(task: RuntimeTaskRow): Promise<
     const end = Math.max(start, Number(row.provider_usage_final ?? start));
     return sum + end - start;
   }, 0);
-  const ceiling = !runtimeTaskIsBillable(task) ? FREE_PROVIDER_CEILING : Number(task.reserved_blue_credits) / BLUE_CREDIT_MULTIPLIER;
+  const ceiling = !runtimeTaskIsBillable(task) ? FREE_PROVIDER_CEILING : Number(task.reserved_blue_credits) / runtimeCreditMultiplier(task);
   return roundProvider(Math.max(0, ceiling - consumed));
 }
 
@@ -1186,7 +1202,7 @@ async function absoluteLimitForActiveCredential(
     const end = Math.max(start, Number(row.provider_usage_final ?? start));
     return sum + end - start;
   }, 0);
-  const taskCeiling = Number(task.reserved_blue_credits) / BLUE_CREDIT_MULTIPLIER;
+  const taskCeiling = Number(task.reserved_blue_credits) / runtimeCreditMultiplier(task);
   return roundProvider(
     Math.max(0, Number(active.provider_usage_start || 0) + taskCeiling - previousUsage)
   );
@@ -1304,9 +1320,9 @@ async function admissionPayload(
     billing: {
       reserved_blue_credits: Number(task.reserved_blue_credits),
       remaining_blue_credits: Math.max(0, Number(remaining || 0)),
-      provider_limit: !runtimeTaskIsBillable(task) ? FREE_PROVIDER_CEILING : Number(task.reserved_blue_credits) / BLUE_CREDIT_MULTIPLIER,
+      provider_limit: !runtimeTaskIsBillable(task) ? FREE_PROVIDER_CEILING : Number(task.reserved_blue_credits) / runtimeCreditMultiplier(task),
       extension_blue_credits: BLUE_RUNTIME_EXTENSION_ALLOWANCE,
-      multiplier: BLUE_CREDIT_MULTIPLIER,
+      multiplier: runtimeCreditMultiplier(task),
       free_model: task.is_free,
       ...(reviewer ? { billable_task: runtimeTaskIsBillable(task) } : {})
     },
@@ -1403,6 +1419,7 @@ async function isRuntimeModelBlocked(model: string): Promise<boolean> {
 }
 
 function validateAdmissionInput(input: BlueRuntimeAdmissionInput): void {
+  if (input.feature !== undefined && input.feature !== 'project' && input.feature !== 'teams') throw statusError(400,'Invalid Blue runtime feature');
   try { normalizeApprovalReviewer(input.approvalReviewerModel); }
   catch (error) { throw statusError(400, safeMessage(error)); }
   if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{7,127}$/.test(input.requestId)) throw statusError(400, 'Invalid Blue runtime task ID');
@@ -1438,6 +1455,7 @@ export function publicBlueRuntimeError(error: unknown, fallback = 'Blue runtime 
 }
 
 function mapDatabaseError(message: string): Error & { status: number } {
+  if (/Blue Teams requires/.test(message)) return statusError(403,'Blue Teams requires a purchase of at least 25 Blue Credits and remaining credits.');
   if (/insufficient/i.test(message)) return statusError(402, 'Your Blue Credits are too low for this task');
   if (/queue is full/i.test(message)) return statusError(429, 'Blue runtime capacity is full; retry shortly');
   if (/concurrency/i.test(message)) return statusError(429, 'Your Blue account already has the maximum number of active tasks');
@@ -1519,4 +1537,10 @@ function roundProvider(value: number): number {
 
 function safeMessage(error: unknown): string {
   return error instanceof Error ? error.message.slice(0, 500) : 'Unknown provider management error';
+}
+
+function runtimeCreditMultiplier(task: Pick<RuntimeTaskRow,'credit_multiplier'>): number {
+  const multiplier=Number(task.credit_multiplier);
+  if (!Number.isFinite(multiplier) || multiplier<1) throw statusError(503,'Blue task billing rate is unavailable.');
+  return multiplier;
 }

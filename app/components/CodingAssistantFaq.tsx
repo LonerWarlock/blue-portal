@@ -19,7 +19,7 @@ export default function CodingAssistantFaq() {
     },
     {
       question: "What is Blue Teams, and is it available in VS Code?",
-      answer: <p>Blue Teams provides access to Team mode in Blue Desktop for Windows. Give Blue a goal, assign specialist roles and follow each agent&apos;s work in its own conversation. Agents can coordinate project work and hand off tasks, within your active plan&apos;s team and agent limits. The VS Code extension is for coding assistance; it does not include Desktop Team mode. See <Link href="/teams" className={link}>Blue Teams plans and the Team mode preview</Link>.</p>,
+      answer: <p>Blue Teams provides access to Team mode in Blue Desktop for Windows. Give Blue a goal, assign specialist roles and follow each agent&apos;s work in its own conversation. Agents can coordinate project work and hand off tasks, using Blue Models and the same Blue Credit wallet. A purchase of at least 25 credits activates Teams while your wallet has credits. The VS Code extension is for coding assistance; it does not include Desktop Team mode. See <Link href="/teams" className={link}>Blue Teams credit access and the Team mode preview</Link>.</p>,
     },
     {
       question: "Can Blue Teams work while my computer is off?",
@@ -27,7 +27,7 @@ export default function CodingAssistantFaq() {
     },
     {
       question: "What can team agents do in the browser?",
-      answer: <p>When a task and the selected engine support it, Desktop agents can use Blue&apos;s built-in browser for research and work on websites you authorize. You remain responsible for signing in, completing verification and approving actions when required. Site permissions, account limits and connection failures can prevent completion; a Teams plan does not bypass them or guarantee a task&apos;s outcome.</p>,
+      answer: <p>When a task and the selected engine support it, Desktop agents can use Blue&apos;s built-in browser for research and work on websites you authorize. You remain responsible for signing in, completing verification and approving actions when required. Site permissions, account limits and connection failures can prevent completion; Teams access does not bypass them or guarantee a task&apos;s outcome.</p>,
     },
     {
       question: "How can Blue help with student projects?",
@@ -43,7 +43,7 @@ export default function CodingAssistantFaq() {
     },
     {
       question: "What does the Blue subscription cost?",
-      answer: <p>Blue costs ₹{monthly.priceInr} for {monthly.days} days, ₹{quarterly.priceInr} for {quarterly.days} days, or ₹{yearly.priceInr.toLocaleString("en-IN")} for {yearly.days} days. These are prepaid access periods with no auto-renewal. Team mode requires a separate active <Link href="/teams" className={link}>Blue Teams plan</Link>. Model usage depends on your selected engine and connection; a Teams plan does not include unlimited AI requests. Compare eligible features and Blue Pro credits on the <Link href="/pricing" className={link}>pricing page</Link>.</p>,
+      answer: <p>Blue costs ₹{monthly.priceInr} for {monthly.days} days, ₹{quarterly.priceInr} for {quarterly.days} days, or ₹{yearly.priceInr.toLocaleString("en-IN")} for {yearly.days} days. These are prepaid access periods with no auto-renewal. Team mode is activated by a purchase of at least 25 <Link href="/teams" className={link}>Blue Credits</Link> and uses Blue Models while your wallet has credits. Model usage depends on your selected engine and connection; Teams does not include unlimited AI requests. Compare eligible features and Blue Pro credits on the <Link href="/pricing" className={link}>pricing page</Link>.</p>,
     },
     {
       question: "Does every action use Blue Credits?",

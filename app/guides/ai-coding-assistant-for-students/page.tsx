@@ -149,7 +149,7 @@ export default function StudentCodingAssistantGuide() {
               </p>
               <p className={copy}>
                 Blue Pro offers selected premium models through Blue Credits.
-                Its ₹100 starter trial provides one credit with no expiry;
+                Its starter pack provides one credit for ₹130 including the 30% platform fee, with no expiry;
                 consumption varies by model and task. It is not an unlimited
                 premium-model subscription. Check <Link href="/pricing" className={link}>current plans and pricing</Link>,
                 then begin with a short task so you can understand usage before
