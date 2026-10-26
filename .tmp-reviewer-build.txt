@@ -1,0 +1,128 @@
+
+> blue-portal@0.1.0 build
+> next build
+
+  ▲ Next.js 14.2.35
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+ ⚠ Using edge runtime on a page currently disables static generation for that page
+   Generating static pages (0/68) ...
+   Generating static pages (17/68) 
+   Generating static pages (34/68) 
+   Generating static pages (51/68) 
+ ✓ Generating static pages (68/68)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                      Size     First Load JS
+┌ ○ /                                            14.8 kB         170 kB
+├ ○ /_not-found                                  876 B            89 kB
+├ ○ /about                                       1.87 kB         110 kB
+├ ƒ /api/auth/send-otp                           0 B                0 B
+├ ƒ /api/auth/verify-otp                         0 B                0 B
+├ ƒ /api/autocomplete                            0 B                0 B
+├ ƒ /api/blue-pro/buy-credits                    0 B                0 B
+├ ○ /api/blue-pro/pack-config                    0 B                0 B
+├ ƒ /api/blue-pro/paypal/capture                 0 B                0 B
+├ ƒ /api/blue-pro/paypal/create-order            0 B                0 B
+├ ƒ /api/blue-pro/payu/callback                  0 B                0 B
+├ ƒ /api/blue-pro/payu/create-hash               0 B                0 B
+├ ƒ /api/blue-pro/setup                          0 B                0 B
+├ ƒ /api/blue-pro/transactions                   0 B                0 B
+├ ƒ /api/blue-pro/usage                          0 B                0 B
+├ ƒ /api/blue-pro/wallet                         0 B                0 B
+├ ƒ /api/chat                                    0 B                0 B
+├ ƒ /api/chat/completions                        0 B                0 B
+├ ƒ /api/chat/requests/[requestId]               0 B                0 B
+├ ƒ /api/chat/requests/cancel-active             0 B                0 B
+├ ƒ /api/checkout/create-session                 0 B                0 B
+├ ƒ /api/checkout/paypal/capture                 0 B                0 B
+├ ƒ /api/checkout/paypal/create-order            0 B                0 B
+├ ƒ /api/checkout/payu/callback                  0 B                0 B
+├ ƒ /api/checkout/payu/create-hash               0 B                0 B
+├ ƒ /api/contact                                 0 B                0 B
+├ ƒ /api/courses/java/payment-status             0 B                0 B
+├ ƒ /api/courses/java/payu/callback              0 B                0 B
+├ ƒ /api/courses/java/payu/create-order          0 B                0 B
+├ ƒ /api/courses/payu/callback                   0 B                0 B
+├ ƒ /api/courses/payu/create-hash                0 B                0 B
+├ ƒ /api/cron/blue-runtime-reconcile             0 B                0 B
+├ ƒ /api/cron/jobs                               0 B                0 B
+├ ƒ /api/cron/marketing-campaign                 0 B                0 B
+├ ƒ /api/cron/subscription-check                 0 B                0 B
+├ ƒ /api/desktop/activity                        0 B                0 B
+├ ƒ /api/desktop/store-release                   0 B                0 B
+├ ƒ /api/hackathon/payu/callback                 0 B                0 B
+├ ƒ /api/hackathon/payu/create-hash              0 B                0 B
+├ ƒ /api/health                                  0 B                0 B
+├ ƒ /api/internships/payu/callback               0 B                0 B
+├ ƒ /api/internships/payu/create-hash            0 B                0 B
+├ ƒ /api/me/bootstrap                            0 B                0 B
+├ ƒ /api/models                                  0 B                0 B
+├ ƒ /api/runtime/v1/health                       0 B                0 B
+├ ƒ /api/runtime/v1/tasks                        0 B                0 B
+├ ƒ /api/runtime/v1/tasks/[requestId]            0 B                0 B
+├ ƒ /api/runtime/v1/tasks/[requestId]/cancel     0 B                0 B
+├ ƒ /api/runtime/v1/tasks/[requestId]/complete   0 B                0 B
+├ ƒ /api/runtime/v1/tasks/[requestId]/extend     0 B                0 B
+├ ƒ /api/runtime/v1/tasks/[requestId]/heartbeat  0 B                0 B
+├ ƒ /api/teams/checkout/create-session           0 B                0 B
+├ ƒ /api/teams/checkout/paypal/capture           0 B                0 B
+├ ƒ /api/teams/checkout/paypal/create-order      0 B                0 B
+├ ƒ /api/teams/checkout/payu/callback            0 B                0 B
+├ ƒ /api/teams/checkout/payu/create-hash         0 B                0 B
+├ ƒ /api/teams/plan-change                       0 B                0 B
+├ ƒ /api/user/claim-coupon                       0 B                0 B
+├ ƒ /api/user/entitlements                       0 B                0 B
+├ ƒ /api/user/key                                0 B                0 B
+├ ƒ /api/user/subscription                       0 B                0 B
+├ ƒ /api/user/use-imr                            0 B                0 B
+├ ƒ /api/user/wallet                             0 B                0 B
+├ ○ /blog                                        1.88 kB         110 kB
+├ ○ /blue-pro                                    3.74 kB         112 kB
+├ ○ /blue-pro/checkout                           5.43 kB         155 kB
+├ ƒ /blue-pro/dashboard                          208 B          88.4 kB
+├ ○ /careers                                     1.86 kB         110 kB
+├ ○ /changelog                                   1.87 kB         110 kB
+├ ƒ /checkout/blue                               5.51 kB         164 kB
+├ ƒ /checkout/teams                              9.03 kB         167 kB
+├ ○ /community                                   1.88 kB         110 kB
+├ ○ /console                                     11.7 kB         182 kB
+├ ○ /contact                                     5.52 kB         116 kB
+├ ○ /courses                                     7.04 kB        95.2 kB
+├ ○ /courses/create-software-without-code        8.04 kB        96.2 kB
+├ ○ /courses/java                                9.41 kB         106 kB
+├ ○ /docs                                        1.87 kB         110 kB
+├ ○ /enterprise                                  1.88 kB         110 kB
+├ ○ /guides/ai-agent-teams                       1.87 kB         110 kB
+├ ○ /guides/ai-coding-assistant-for-students     2.42 kB         111 kB
+├ ○ /hackathon                                   7.65 kB         105 kB
+├ ○ /icon.png                                    0 B                0 B
+├ ○ /internships                                 7.18 kB         104 kB
+├ ƒ /opengraph-image                             0 B                0 B
+├ ○ /pricing                                     9.82 kB         222 kB
+├ ○ /privacy                                     1.86 kB         110 kB
+├ ○ /product/agents                              6 kB            157 kB
+├ ○ /refund                                      1.86 kB         110 kB
+├ ○ /robots.txt                                  0 B                0 B
+├ ○ /security                                    1.88 kB         110 kB
+├ ○ /services                                    1.88 kB         110 kB
+├ ○ /sitemap.xml                                 0 B                0 B
+├ ○ /status                                      1.88 kB         110 kB
+├ ○ /subscribe                                   208 B          88.4 kB
+├ ƒ /teams                                       4.51 kB         117 kB
+├ ○ /terms                                       1.86 kB         110 kB
+└ ○ /training                                    1.86 kB         110 kB
++ First Load JS shared by all                    88.2 kB
+  ├ chunks/2117-53ad066d3e80cc29.js              31.7 kB
+  ├ chunks/fd9d1056-d280917f29ebddc0.js          53.6 kB
+  └ other shared chunks (total)                  2.8 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

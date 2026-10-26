@@ -1,0 +1,71 @@
+(node:17472) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/ASUS/Desktop/blue-portal/lib/approvalReviewer.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\ASUS\Desktop\blue-portal\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ free reviewer and legacy paid reviewer are exactly allowlisted without fallback or meta-routers (1.2525ms)
+✔ free review requires native structured output and reasoning but does not require coding tools (0.2452ms)
+✔ free reviewer pricing requires explicit exact-zero token prices and rejects malformed prices (0.4042ms)
+✔ every exposed auxiliary reviewer fee must be verified zero, including future provider fees (0.7919ms)
+✔ normalization retains the exact structured-only free reviewer without exposing it as a coding model (1.0829ms)
+✔ free coding with free review remains nonbillable while paid coding or legacy paid review stays billable (0.3095ms)
+✔ low-balance retry restores only its immutable existing legacy paid reviewed allowance (0.2381ms)
+✔ free reviewed retries preserve zero allowance and cannot change immutable runtime settings (0.2309ms)
+✔ two-model guardrails require exact workspace and set, never unrestricted or expanded (14.5073ms)
+✔ key-filtered catalogue must expose exactly coding+reviewer, retaining route variants (5410.3339ms)
+✔ runtime keeps old project hash through v4 and accounts for reviewer costs without blocking free coding (10.9626ms)
+✔ whole-task-free reviewed extensions return a credential before any paid extension RPC (1.4701ms)
+✔ free coding and free reviewer admit and replay at zero balance in one trial slot (835.8709ms)
+✔ only exact reviewers and the correct free or paid allowance are admitted (530.67ms)
+✔ reviewer and runtime identity mismatches cannot widen or reuse a task (474.4419ms)
+✔ repeated migration retains service-only admission execution (448.193ms)
+✔ paid coding with free review retains one paid hold and idempotent extension and settlement (466.6321ms)
+✔ pre-upgrade paid reviewer bindings survive migration retries, replay, extension and queued promotion (531.6936ms)
+✔ historical Qwen free bindings retain their zero-credit accounting after the Dots reviewer upgrade (475.746ms)
+(node:23632) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/ASUS/Desktop/blue-portal/lib/blueRuntimeCrypto.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\ASUS\Desktop\blue-portal\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ runtime credentials use authenticated AES-256-GCM encryption and task-bound AAD (1.7911ms)
+✔ management credentials only call key and exact-model guardrail endpoints (19.3036ms)
+✔ catalogue aliases resolve to observed permanent model routes (1.0515ms)
+✔ guardrail creation gives every model policy a unique name and retries a name conflict (2.6117ms)
+✔ guardrail creation does not mask a non-conflict management error (0.412ms)
+✔ guardrail name-conflict retry is bounded (0.8237ms)
+✔ dated canonical billing IDs retain the live free route for guardrail provisioning (0.6223ms)
+✔ paid and free routes keep separate identities, pricing and access in either catalogue order (0.5917ms)
+✔ catalogue never invents a dated route for a moving-only alias or malformed row (1.0548ms)
+✔ variant aliases cannot cross a paid/free boundary or take another model canonical ID (0.4178ms)
+✔ legacy proxy keeps canonical billing separate from the observed provider route (8.5071ms)
+✔ child-key verification rejects a credential that can see another model (774.125ms)
+✔ child-key verification accepts the one public alias of a canonical model (0.4747ms)
+✔ child-key verification rejects additional route variants sharing one canonical ID (780.5478ms)
+✔ Blue removes provider meta-routers and never treats variable pricing as free (0.3391ms)
+✔ a paid permanent catalogue row wins over an earlier free alias (0.1171ms)
+✔ runtime verifies exact child-key model access after assigning its guardrail (3.1041ms)
+✔ failed runtime admissions and settlements expose a redacted terminal reason (3.2409ms)
+✔ runtime migration enforces idempotency, concurrency, encrypted replay, and safe legacy cleanup (1.4404ms)
+✔ an ambiguous last-credit extension can replay its ID without a second wallet charge (1.8235ms)
+✔ runtime admission repair reuses orphan reservations without charging twice (0.972ms)
+✔ active direct tasks heartbeat and only stale tasks are reclaimed before admission (3.1926ms)
+✔ legacy gateway Stop is durable, process-scoped, and checked before billing or upstream work (3.4968ms)
+✔ paid runtime usage waits for two separated authoritative observations before settlement (0.4834ms)
+✔ zero reported paid usage remains reserved through the delayed-usage grace period (0.1206ms)
+✔ delayed settlement migration persists observations and excludes settling tasks from execution concurrency (1.1557ms)
+✔ runtime admission route rejects prompt and source payload fields (1.9853ms)
+✔ public Blue model metadata never exposes the internal transport (0.2143ms)
+(node:1156) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/ASUS/Desktop/blue-portal/lib/usageAccounting.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\ASUS\Desktop\blue-portal\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ authoritative provider cost wins for paid models (0.7478ms)
+✔ catalogued free models always charge zero Blue Credits upstream cost (0.129ms)
+✔ zero-cost reservations are explicitly supported and remain idempotent (5.8636ms)
+✔ new Blue usage settles one-for-one; a stale environment multiplier cannot charge the checkout fee twice (1.4799ms)
+ℹ tests 51
+ℹ suites 0
+ℹ pass 51
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5786.4508

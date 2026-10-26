@@ -5,10 +5,12 @@ import reviewerModels from './approvalReviewerModels.cjs';
 // Do not accept arbitrary reviewer IDs or a provider's auto/meta-router here.
 export const BLUE_APPROVAL_REVIEWER_MODEL = reviewerModels.free;
 const LEGACY_PAID_REVIEWER = reviewerModels.legacy;
+const isFreeReviewer = (value: unknown): boolean => value === BLUE_APPROVAL_REVIEWER_MODEL
+  || reviewerModels.retiredFree.includes(value as string);
 
 export function normalizeApprovalReviewer(value: unknown): string | undefined {
   if (value === undefined || value === null || value === '') return undefined;
-  if (typeof value !== 'string' || (value !== BLUE_APPROVAL_REVIEWER_MODEL && value !== LEGACY_PAID_REVIEWER)) {
+  if (typeof value !== 'string' || (!isFreeReviewer(value) && value !== LEGACY_PAID_REVIEWER)) {
     throw new Error('The selected Blue approval reviewer is not supported');
   }
   return value;
@@ -22,8 +24,8 @@ export function approvalReviewerFromCatalog(models: OpenRouterModel[], requested
   if (!model) throw new Error('The Blue approval reviewer is unavailable in the provider catalogue');
   const parameters = new Set(model.supported_parameters || []);
   // Native assessments return a structured result, not coding tool calls.
-  const required = requested === BLUE_APPROVAL_REVIEWER_MODEL
-    ? ['structured_outputs', 'reasoning', 'reasoning_effort']
+  const required = isFreeReviewer(requested)
+    ? ['structured_outputs', 'reasoning']
     : ['tools', 'response_format', 'structured_outputs', 'reasoning', 'reasoning_effort'];
   if (!required
     .every(parameter => parameters.has(parameter))) {
@@ -34,7 +36,7 @@ export function approvalReviewerFromCatalog(models: OpenRouterModel[], requested
   if (prompt === undefined || completion === undefined) {
     throw new Error('The Blue approval reviewer pricing could not be verified');
   }
-  if (requested === BLUE_APPROVAL_REVIEWER_MODEL
+  if (isFreeReviewer(requested)
     && (prompt !== 0 || completion !== 0
       || Object.values(model.pricing || {}).some(rate => verifiedPrice(rate) !== 0))) {
     throw new Error('The free approval reviewer no longer has verified zero pricing');
@@ -53,7 +55,7 @@ function verifiedPrice(value: unknown): number | undefined {
 
 /** is_free remains the coding route identity, not a whole-task billing flag. */
 export function runtimeTaskIsBillable(task: { is_free: boolean; reviewer_model?: string | null }): boolean {
-  return !task.is_free || Boolean(task.reviewer_model && task.reviewer_model !== BLUE_APPROVAL_REVIEWER_MODEL);
+  return !task.is_free || Boolean(task.reviewer_model && !isFreeReviewer(task.reviewer_model));
 }
 
 export function runtimeAllowedModelSet(codingModel: string, reviewerModel?: string | null): string[] {
