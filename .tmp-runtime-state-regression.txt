@@ -1,0 +1,250 @@
+TAP version 13
+# (node:12888) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/ASUS/Desktop/blue-portal/lib/blueRuntimeCrypto.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to C:\\Users\\ASUS\\Desktop\\blue-portal\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: runtime credentials use authenticated AES-256-GCM encryption and task-bound AAD
+ok 1 - runtime credentials use authenticated AES-256-GCM encryption and task-bound AAD
+  ---
+  duration_ms: 1.8764
+  type: 'test'
+  ...
+# Subtest: management credentials only call key and exact-model guardrail endpoints
+ok 2 - management credentials only call key and exact-model guardrail endpoints
+  ---
+  duration_ms: 18.62
+  type: 'test'
+  ...
+# Subtest: catalogue aliases resolve to observed permanent model routes
+ok 3 - catalogue aliases resolve to observed permanent model routes
+  ---
+  duration_ms: 0.7252
+  type: 'test'
+  ...
+# Subtest: guardrail creation gives every model policy a unique name and retries a name conflict
+ok 4 - guardrail creation gives every model policy a unique name and retries a name conflict
+  ---
+  duration_ms: 2.3291
+  type: 'test'
+  ...
+# Subtest: guardrail creation does not mask a non-conflict management error
+ok 5 - guardrail creation does not mask a non-conflict management error
+  ---
+  duration_ms: 0.4145
+  type: 'test'
+  ...
+# Subtest: guardrail name-conflict retry is bounded
+ok 6 - guardrail name-conflict retry is bounded
+  ---
+  duration_ms: 0.8082
+  type: 'test'
+  ...
+# Subtest: dated canonical billing IDs retain the live free route for guardrail provisioning
+ok 7 - dated canonical billing IDs retain the live free route for guardrail provisioning
+  ---
+  duration_ms: 0.6272
+  type: 'test'
+  ...
+# Subtest: paid and free routes keep separate identities, pricing and access in either catalogue order
+ok 8 - paid and free routes keep separate identities, pricing and access in either catalogue order
+  ---
+  duration_ms: 1.2198
+  type: 'test'
+  ...
+# Subtest: catalogue never invents a dated route for a moving-only alias or malformed row
+ok 9 - catalogue never invents a dated route for a moving-only alias or malformed row
+  ---
+  duration_ms: 0.3481
+  type: 'test'
+  ...
+# Subtest: variant aliases cannot cross a paid/free boundary or take another model canonical ID
+ok 10 - variant aliases cannot cross a paid/free boundary or take another model canonical ID
+  ---
+  duration_ms: 0.3916
+  type: 'test'
+  ...
+# Subtest: legacy proxy keeps canonical billing separate from the observed provider route
+ok 11 - legacy proxy keeps canonical billing separate from the observed provider route
+  ---
+  duration_ms: 6.3176
+  type: 'test'
+  ...
+# Subtest: child-key verification rejects a credential that can see another model
+ok 12 - child-key verification rejects a credential that can see another model
+  ---
+  duration_ms: 767.1468
+  type: 'test'
+  ...
+# Subtest: child-key verification accepts the one public alias of a canonical model
+ok 13 - child-key verification accepts the one public alias of a canonical model
+  ---
+  duration_ms: 0.447
+  type: 'test'
+  ...
+# Subtest: child-key verification rejects additional route variants sharing one canonical ID
+ok 14 - child-key verification rejects additional route variants sharing one canonical ID
+  ---
+  duration_ms: 776.1482
+  type: 'test'
+  ...
+# Subtest: Blue removes provider meta-routers and never treats variable pricing as free
+ok 15 - Blue removes provider meta-routers and never treats variable pricing as free
+  ---
+  duration_ms: 0.2873
+  type: 'test'
+  ...
+# Subtest: a paid permanent catalogue row wins over an earlier free alias
+ok 16 - a paid permanent catalogue row wins over an earlier free alias
+  ---
+  duration_ms: 0.1053
+  type: 'test'
+  ...
+# Subtest: runtime verifies exact child-key model access after assigning its guardrail
+ok 17 - runtime verifies exact child-key model access after assigning its guardrail
+  ---
+  duration_ms: 2.7706
+  type: 'test'
+  ...
+# Subtest: failed runtime admissions and settlements expose a redacted terminal reason
+ok 18 - failed runtime admissions and settlements expose a redacted terminal reason
+  ---
+  duration_ms: 2.7984
+  type: 'test'
+  ...
+# Subtest: runtime migration enforces idempotency, concurrency, encrypted replay, and safe legacy cleanup
+ok 19 - runtime migration enforces idempotency, concurrency, encrypted replay, and safe legacy cleanup
+  ---
+  duration_ms: 2.267
+  type: 'test'
+  ...
+# Subtest: an ambiguous last-credit extension can replay its ID without a second wallet charge
+ok 20 - an ambiguous last-credit extension can replay its ID without a second wallet charge
+  ---
+  duration_ms: 1.491
+  type: 'test'
+  ...
+# Subtest: runtime admission repair reuses orphan reservations without charging twice
+ok 21 - runtime admission repair reuses orphan reservations without charging twice
+  ---
+  duration_ms: 0.8739
+  type: 'test'
+  ...
+# Subtest: active direct tasks heartbeat and only stale tasks are reclaimed before admission
+ok 22 - active direct tasks heartbeat and only stale tasks are reclaimed before admission
+  ---
+  duration_ms: 2.4523
+  type: 'test'
+  ...
+# Subtest: legacy gateway Stop is durable, process-scoped, and checked before billing or upstream work
+ok 23 - legacy gateway Stop is durable, process-scoped, and checked before billing or upstream work
+  ---
+  duration_ms: 4.0022
+  type: 'test'
+  ...
+# Subtest: paid runtime usage waits for two separated authoritative observations before settlement
+ok 24 - paid runtime usage waits for two separated authoritative observations before settlement
+  ---
+  duration_ms: 0.4945
+  type: 'test'
+  ...
+# Subtest: zero reported paid usage remains reserved through the delayed-usage grace period
+ok 25 - zero reported paid usage remains reserved through the delayed-usage grace period
+  ---
+  duration_ms: 0.1357
+  type: 'test'
+  ...
+# Subtest: delayed settlement migration persists observations and excludes settling tasks from execution concurrency
+ok 26 - delayed settlement migration persists observations and excludes settling tasks from execution concurrency
+  ---
+  duration_ms: 1.3891
+  type: 'test'
+  ...
+# Subtest: runtime admission route rejects prompt and source payload fields
+ok 27 - runtime admission route rejects prompt and source payload fields
+  ---
+  duration_ms: 2.2391
+  type: 'test'
+  ...
+# Subtest: public Blue model metadata never exposes the internal transport
+ok 28 - public Blue model metadata never exposes the internal transport
+  ---
+  duration_ms: 0.2427
+  type: 'test'
+  ...
+# (node:27240) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/ASUS/Desktop/blue-portal/lib/paymentSecurity.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to C:\\Users\\ASUS\\Desktop\\blue-portal\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: PayU callbacks require the valid reverse signature and stored order fields
+ok 29 - PayU callbacks require the valid reverse signature and stored order fields
+  ---
+  duration_ms: 1.9091
+  type: 'test'
+  ...
+# Subtest: checkout redirects cannot leave the configured site origin
+ok 30 - checkout redirects cannot leave the configured site origin
+  ---
+  duration_ms: 0.2641
+  type: 'test'
+  ...
+# Subtest: scaling migrations implement atomic queueing, hashed keys, payment settlement and outbox claims
+ok 31 - scaling migrations implement atomic queueing, hashed keys, payment settlement and outbox claims
+  ---
+  duration_ms: 8.1939
+  type: 'test'
+  ...
+# Subtest: console keeps core Blue Pro identity available when optional account services fail
+ok 32 - console keeps core Blue Pro identity available when optional account services fail
+  ---
+  duration_ms: 3.5127
+  type: 'test'
+  ...
+# Subtest: public and console navigation expose complete mobile menus and Careers has no fake openings
+ok 33 - public and console navigation expose complete mobile menus and Careers has no fake openings
+  ---
+  duration_ms: 1.6903
+  type: 'test'
+  ...
+# Subtest: Meta Pixel loads with consent and tracks client-side page views
+ok 34 - Meta Pixel loads with consent and tracks client-side page views
+  ---
+  duration_ms: 2.0754
+  type: 'test'
+  ...
+# (node:20576) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/ASUS/Desktop/blue-portal/lib/usageAccounting.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to C:\\Users\\ASUS\\Desktop\\blue-portal\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: authoritative provider cost wins for paid models
+ok 35 - authoritative provider cost wins for paid models
+  ---
+  duration_ms: 1.2353
+  type: 'test'
+  ...
+# Subtest: catalogued free models always charge zero Blue Credits upstream cost
+ok 36 - catalogued free models always charge zero Blue Credits upstream cost
+  ---
+  duration_ms: 0.2046
+  type: 'test'
+  ...
+# Subtest: zero-cost reservations are explicitly supported and remain idempotent
+ok 37 - zero-cost reservations are explicitly supported and remain idempotent
+  ---
+  duration_ms: 5.2154
+  type: 'test'
+  ...
+# Subtest: new Blue usage settles one-for-one; a stale environment multiplier cannot charge the checkout fee twice
+ok 38 - new Blue usage settles one-for-one; a stale environment multiplier cannot charge the checkout fee twice
+  ---
+  duration_ms: 1.621
+  type: 'test'
+  ...
+1..38
+# tests 38
+# suites 0
+# pass 38
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2622.1716

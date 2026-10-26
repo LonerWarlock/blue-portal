@@ -446,17 +446,37 @@ export async function getBlueRuntimeTask(
 
   const model = resolveModel(await getOpenRouterModels(), task.model, task.is_free);
   if (!model) throw statusError(503, 'The selected Blue model is no longer available');
-  let active = await getActiveCredential(requestId);
+  // Provider setup runs concurrently with status polls. The initial snapshot
+  // can become terminal while a catalogue/credential read is in flight. Never
+  // provision a failed/queued/stopping snapshot or replace its original cause
+  // with an execution-slot error.
+  const withoutExecutionSlot = async (current: RuntimeTaskRow): Promise<BlueRuntimeAdmission | BlueRuntimeSettlement | undefined> => {
+    if (current.unprovisioned_release_pending) current = await recoverUnprovisionedTask(current);
+    if (isTerminal(current.state)) return existingSettlement(current, await walletBalance(account.userId));
+    if (current.state === 'stopping') throw statusError(409, 'This Blue runtime task is being settled');
+    if (current.state === 'queued') {
+      current.queue_position = await runtimeQueuePosition(current);
+      return admissionPayload(current, undefined, await walletBalance(account.userId), model);
+    }
+  };
+  task = await requireTask(account.userId, requestId);
+  const changed = await withoutExecutionSlot(task);
+  if (changed) return changed;
+  const active = await getActiveCredential(requestId);
   if (active?.state === 'active' && Date.parse(active.expires_at) - Date.now() <= BLUE_RUNTIME_ROTATION_WINDOW_MS) {
     await disableAndObserveCredential(active);
     await extendRuntimeExpiry(task.request_id);
-    active = undefined;
   }
-  if (!active || active.state !== 'active' || !active.encrypted_key) {
-    const credential = await provisionCredential(await requireTask(account.userId, requestId));
-    return admissionPayload(await requireTask(account.userId, requestId), credential, await walletBalance(account.userId), model);
-  }
-  return admissionPayload(task, decryptCredential(active), await walletBalance(account.userId), model);
+  task = await requireTask(account.userId, requestId);
+  const beforeProvision = await withoutExecutionSlot(task);
+  if (beforeProvision) return beforeProvision;
+  // activeOrProvision also observes an existing provisioning lease, so status
+  // polling cannot start a second managed-key request for the same task.
+  const credential = await activeOrProvision(task);
+  task = await requireTask(account.userId, requestId);
+  const afterProvision = await withoutExecutionSlot(task);
+  if (afterProvision) return afterProvision;
+  return admissionPayload(task, credential, await walletBalance(account.userId), model);
 }
 
 /**
