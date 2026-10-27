@@ -1,9 +1,10 @@
 "use client";
 
-import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Images, MapPin, Maximize2, X } from 'lucide-react';
 import type { CommunityEvent } from '@/lib/community';
+import { preloadNearbyPhotos } from '@/lib/communityImageLoader';
+import CommunityImage from './CommunityImage';
 import styles from './community.module.css';
 
 export default function EventAlbum({ event }: { event: CommunityEvent }) {
@@ -11,6 +12,14 @@ export default function EventAlbum({ event }: { event: CommunityEvent }) {
   const [selected, setSelected] = useState(0);
   const [open, setOpen] = useState(false);
   const photo = event.photos[selected];
+
+  useEffect(() => {
+    if (!open) return;
+    preloadNearbyPhotos([
+      event.photos[(selected + 1) % event.photos.length].src,
+      event.photos[(selected + event.photos.length - 1) % event.photos.length].src,
+    ]);
+  }, [open, selected, event.photos]);
 
   useEffect(() => {
     if (!open) return;
@@ -22,7 +31,7 @@ export default function EventAlbum({ event }: { event: CommunityEvent }) {
   useEffect(() => () => { dialog.current?.close(); }, []);
 
   function showPhoto(index: number) {
-    setSelected(index);
+    setSelected(Math.max(0, index));
     dialog.current?.showModal();
     setOpen(true);
   }
@@ -34,7 +43,7 @@ export default function EventAlbum({ event }: { event: CommunityEvent }) {
     <article id={event.id} className={styles.eventCard}>
       <button type="button" className={styles.eventCover} onClick={() => showPhoto(event.photos.findIndex(item => item.id === event.cover.id))}
         aria-label={`Open ${event.title} photo album`} aria-haspopup="dialog">
-        <Image src={event.cover.src} alt={event.cover.alt} fill unoptimized sizes="(max-width: 700px) 90vw, 50vw" />
+        <CommunityImage src={event.cover.src} thumbnail={event.cover.thumbnail} alt={event.cover.alt} sizes="(max-width: 700px) 90vw, 50vw" retryable={false} />
         <span className={styles.coverTag}>{event.category}</span>
         <span className={styles.expandPhoto}><Maximize2 size={17} aria-hidden="true" /></span>
       </button>
@@ -46,8 +55,8 @@ export default function EventAlbum({ event }: { event: CommunityEvent }) {
         <div className={styles.albumStrip} aria-label={`${event.title} photo previews`}>
           {event.photos.slice(0, 4).map((item, index) => <button key={item.id} type="button" onClick={() => showPhoto(index)}
             aria-label={`View photo ${index + 1} from ${event.title}`} aria-haspopup="dialog">
-            <Image src={item.thumbnail} alt="" fill unoptimized sizes="120px" />
-            {index === 3 && <span>+{event.photos.length - 3}</span>}
+            <CommunityImage src={item.thumbnail} alt="" sizes="120px" compact retryable={false} />
+            {index === 3 && <span className={styles.albumMore}>+{event.photos.length - 3}</span>}
           </button>)}
         </div>
         <button type="button" className={styles.albumLink} onClick={() => showPhoto(0)} aria-haspopup="dialog">
@@ -68,7 +77,7 @@ export default function EventAlbum({ event }: { event: CommunityEvent }) {
             <button type="button" onClick={close} className={styles.iconButton} aria-label="Close photo album" autoFocus><X size={20} aria-hidden="true" /></button>
           </div>
           <div className={styles.dialogImage}>
-            <Image key={photo.id} src={photo.src} alt={photo.alt} fill unoptimized sizes="90vw" />
+            <CommunityImage src={photo.src} thumbnail={photo.thumbnail} alt={photo.alt} sizes="90vw" priority />
           </div>
           <div className={styles.dialogNavigation}>
             <button type="button" className={styles.iconButton} onClick={() => change(-1)} aria-label="Previous album photo"><ArrowLeft size={18} aria-hidden="true" /></button>
@@ -79,7 +88,7 @@ export default function EventAlbum({ event }: { event: CommunityEvent }) {
           <div className={styles.dialogThumbnails} aria-label="Choose an album photo">
             {event.photos.map((item, index) => <button key={item.id} type="button" onClick={() => setSelected(index)}
               aria-label={`Show album photo ${index + 1}`} aria-pressed={selected === index}>
-              <Image src={item.thumbnail} alt="" fill unoptimized sizes="72px" />
+              <CommunityImage src={item.thumbnail} alt="" sizes="72px" compact retryable={false} />
             </button>)}
           </div>
         </div>}

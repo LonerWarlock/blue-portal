@@ -1,12 +1,12 @@
-import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowDown, ArrowRight, ArrowUpRight, BookOpen, CalendarDays, Code2, GraduationCap, MapPin, MessageCircle, Sparkles, Trophy, Users } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUpRight, BookOpen, CalendarDays, Code2, GraduationCap, Instagram, Linkedin, MapPin, MessageCircle, Sparkles, Trophy, Users, Youtube } from 'lucide-react';
 import PageLayout from '@/app/components/PageLayout';
 import JsonLd from '@/app/components/JsonLd';
 import { canonicalUrl } from '@/lib/seo';
 import { communityEvents, communityWinners, heroPhotos } from '@/lib/community';
 import PhotoStack from './PhotoStack';
 import EventAlbum from './EventAlbum';
+import CommunityImage from './CommunityImage';
 import styles from './community.module.css';
 
 const initiatives = [
@@ -21,6 +21,12 @@ const resources = [
   { icon: Users, title: 'Explore Blue Teams', href: '/teams' },
   { icon: GraduationCap, title: 'Student builder guide', href: '/guides/ai-coding-assistant-for-students' },
   { icon: MessageCircle, title: 'Contact & support', href: '/contact' },
+];
+
+const socials = [
+  { name: 'YouTube', icon: Youtube, href: 'https://www.youtube.com/@TeamImergene' },
+  { name: 'LinkedIn', icon: Linkedin, href: 'https://www.linkedin.com/company/imergene/' },
+  { name: 'Instagram', icon: Instagram, href: 'https://www.instagram.com/imergene.in/' },
 ];
 
 export default function CommunityPage() {
@@ -43,6 +49,8 @@ export default function CommunityPage() {
 
         <section className={styles.hero} aria-labelledby="community-title">
           <div className={styles.wrap}>
+            <div className={styles.heroGrid}>
+              <div className={styles.heroIntro}>
             <p className={styles.communityBadge}><span aria-hidden="true" /> The Blue community <span className={styles.badgeDivider}>/</span> By Imergene</p>
             <h1 id="community-title">Built with Blue.<br /><span>Better together.</span></h1>
             <p className={styles.heroDescription}>The people behind the projects. The ideas that bring us together.<br className={styles.desktopBreak} /> Join a community that learns, builds and celebrates together.</p>
@@ -50,7 +58,9 @@ export default function CommunityPage() {
               <a href="#events" className={styles.primary}>Explore the community <ArrowDown size={17} aria-hidden="true" /></a>
               <a href="#winners" className={styles.textLink}>Meet our winners <ArrowUpRight size={16} aria-hidden="true" /></a>
             </div>
+              </div>
             <PhotoStack photos={heroPhotos} />
+            </div>
             <nav className={styles.sectionNav} aria-label="Community sections">
               <a href="#events">Sessions & hackathons <ArrowDown size={13} aria-hidden="true" /></a>
               <a href="#winners">Our winners <ArrowDown size={13} aria-hidden="true" /></a>
@@ -64,18 +74,31 @@ export default function CommunityPage() {
             <div><p className={styles.label}>A community for builders</p><h2 id="initiatives-title">There&apos;s a place for you here.</h2></div>
             <p>Come curious. Leave with something new.</p>
           </div>
-          <div className={styles.initiatives}>
+          <div className={styles.initiativeLayout}>
+            <div className={styles.initiatives}>
             {initiatives.map(({ icon: Icon, ...item }) => <Link key={item.title} prefetch={false} href={item.href} className={styles.initiativeCard}>
               <span className={styles.initiativeIcon}><Icon size={22} strokeWidth={1.6} aria-hidden="true" /></span>
               <h3>{item.title}</h3><p>{item.description}</p>
               <span className={styles.cardAction}>{item.label}<ArrowRight size={16} aria-hidden="true" /></span>
             </Link>)}
           </div>
+            <aside className={styles.initiativeSidebar} aria-label="Community links and social accounts">
           <div className={styles.resourcePanel}>
-            <p className={styles.label}>Keep building</p>
+            <h3 className={styles.label}>Community links</h3>
             <nav aria-label="Community resources">{resources.map(({ icon: Icon, ...item }) => <Link key={item.href} href={item.href} prefetch={false}>
               <Icon size={16} aria-hidden="true" /><span>{item.title}</span><ArrowUpRight size={14} aria-hidden="true" />
             </Link>)}</nav>
+          </div>
+              <div className={styles.socialPanel}>
+                <h3 className={styles.label}>Socials</h3>
+                <nav className={styles.socialLinks} aria-label="Imergene social accounts">
+                  {socials.map(({ name, icon: Icon, href }) => <a key={name} href={href} target="_blank" rel="noopener noreferrer"
+                    aria-label={`Imergene on ${name} (opens in a new tab)`} title={name} className={styles.socialLink}>
+                    <Icon size={22} strokeWidth={1.7} aria-hidden="true" />
+                  </a>)}
+                </nav>
+              </div>
+            </aside>
           </div>
         </section>
 
@@ -96,7 +119,7 @@ export default function CommunityPage() {
             <div className={styles.winners}>
               {communityWinners.map(winner => <article id={winner.id} key={winner.id} className={styles.winnerCard}>
                 <div className={styles.winnerPhoto}>
-                  <Image src={winner.photo.src} alt={winner.photo.alt} fill unoptimized sizes="(max-width: 760px) 90vw, 60vw" />
+                  <CommunityImage src={winner.photo.src} thumbnail={winner.photo.thumbnail} alt={winner.photo.alt} sizes="(max-width: 760px) 90vw, 60vw" />
                   <span className={styles.winnerRibbon}><Trophy size={16} aria-hidden="true" />{winner.award}</span>
                 </div>
                 <div className={styles.winnerBody}>

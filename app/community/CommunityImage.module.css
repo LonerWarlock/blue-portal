@@ -1,0 +1,16 @@
+.frame { position: absolute; inset: 0; display: block; overflow: hidden; }
+.image { transition: opacity 260ms ease; }
+.frame[data-enhanced="true"][data-image-state="loading"] .image,
+.frame[data-enhanced="true"][data-image-state="error"] .image { opacity: 0; }
+.skeleton { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; flex-direction: column; gap: 12px; background: var(--paper-alt); color: var(--ink-muted); font-size: 11px; pointer-events: none; }
+.frame[data-enhanced="true"][data-image-state="loading"] .skeleton { display: flex; }
+.skeleton::before { content: ''; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 25%, rgb(var(--brand-rgb) / .045) 48%, transparent 72%); transform: translateX(-100%); animation: shimmer 1.7s ease-in-out infinite; }
+.spinner { width: 19px; height: 19px; border: 1.5px solid var(--line-strong); border-top-color: var(--brand); border-radius: 50%; animation: spin 900ms linear infinite; }
+.compact .spinner { width: 14px; height: 14px; }
+.error { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; position: absolute; inset: 0; background: var(--paper-alt); color: var(--ink-muted); font-size: 11px; padding: 9px; }
+.error button, .retryFull { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 7px 12px; background: var(--surface); color: var(--brand); border: 1px solid var(--line); border-radius: 999px; font-size: 11px; }
+.retryFull { position: absolute; bottom: 10px; right: 10px; }
+.frame button:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .frame *, .frame *::before { animation: none !important; transition: none !important; } }
