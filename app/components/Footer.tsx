@@ -13,6 +13,7 @@ const footerLinks = {
     { label: "Blue Teams", href: "/teams" },
   ],
   Resources: [
+    { label: "Community", href: "/community" },
     { label: "Documentation", href: "/docs" },
     { label: "Student coding guide", href: "/guides/ai-coding-assistant-for-students" },
     { label: "AI agent teams guide", href: "/guides/ai-agent-teams" },

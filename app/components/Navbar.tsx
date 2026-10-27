@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { href: "/pricing", label: "Pricing" },
   { href: "/teams", label: "Teams" },
   { href: "/docs", label: "Docs" },
+  { href: "/community", label: "Community" },
 ];
 
 export default function Navbar({ signedIn }: { signedIn?: boolean } = {}) {
@@ -41,7 +42,7 @@ export default function Navbar({ signedIn }: { signedIn?: boolean } = {}) {
         <button
           type="button"
           aria-label="Close navigation menu"
-          className="fixed inset-0 z-40 bg-terminal/20 backdrop-blur-[1px] lg:hidden"
+          className="fixed inset-0 z-40 bg-terminal/20 backdrop-blur-[1px] xl:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
@@ -56,7 +57,7 @@ export default function Navbar({ signedIn }: { signedIn?: boolean } = {}) {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden lg:flex items-center space-x-1" aria-label="Primary navigation">
+        <nav className="hidden xl:flex items-center space-x-1" aria-label="Primary navigation">
           {NAV_LINKS.map((link) => {
             const active = isActive(link.href);
             return (
@@ -80,7 +81,7 @@ export default function Navbar({ signedIn }: { signedIn?: boolean } = {}) {
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
 
-          <div className="hidden items-center gap-3 lg:flex">
+          <div className="hidden items-center gap-3 xl:flex">
             {showAccountLinks ? (
               <>
               <Link prefetch={false}
@@ -120,7 +121,7 @@ export default function Navbar({ signedIn }: { signedIn?: boolean } = {}) {
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-navigation"
             onClick={() => setMobileMenuOpen(open => !open)}
-            className="flex h-11 w-11 items-center justify-center rounded-md border border-line bg-paper-alt text-ink transition hover:bg-paper-sunken lg:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-md border border-line bg-paper-alt text-ink transition hover:bg-paper-sunken xl:hidden"
           >
             {mobileMenuOpen
               ? <X aria-hidden="true" className="h-4 w-4" />
@@ -129,7 +130,7 @@ export default function Navbar({ signedIn }: { signedIn?: boolean } = {}) {
         </div>
       </div>
       {mobileMenuOpen && (
-        <div id="mobile-navigation" className="absolute left-0 right-0 top-full border-b border-line bg-paper shadow-elevated lg:hidden">
+        <div id="mobile-navigation" className="absolute left-0 right-0 top-full border-b border-line bg-paper shadow-elevated xl:hidden">
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
             <nav className="grid gap-1" aria-label="Mobile navigation">
               {NAV_LINKS.map(link => (
