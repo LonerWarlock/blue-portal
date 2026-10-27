@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { checkRateLimit, rateLimitHeaders } from '@/lib/trafficControl';
+import { checkRateLimit, rateLimitHeaders, type RateLimitResult } from '@/lib/trafficControl';
 import { DESKTOP_ACTIVITY_MAX_BYTES, validateDesktopActivity } from '@/lib/desktopActivity';
 
 export const dynamic = 'force-dynamic';
@@ -8,6 +8,20 @@ export const runtime = 'nodejs';
 const PRIVATE = {'Cache-Control': 'private, no-store'};
 function unavailable() {
   return NextResponse.json({error: 'Activity reporting is temporarily unavailable.'}, {status: 503, headers: PRIVATE});
+}
+
+/** Both limiters are shared across instances; never fall back to an unbounded local map. */
+async function activityRateLimit(userId: string): Promise<RateLimitResult> {
+  const redis = await checkRateLimit('desktop:activity:user', userId, {limit: 120, windowSeconds: 60});
+  if (redis.configured) return redis;
+  const {data, error} = await supabaseAdmin!.rpc('limit_desktop_activity', {user_id_param: userId});
+  if (error || !data || typeof data.allowed !== 'boolean'
+    || !Number.isInteger(data.remaining) || data.remaining < 0 || data.remaining > 120
+    || !Number.isInteger(data.retry_after_seconds) || data.retry_after_seconds < 0 || data.retry_after_seconds > 60
+    || (data.allowed && (data.retry_after_seconds !== 0 || data.remaining > 119))
+    || (!data.allowed && (data.remaining !== 0 || data.retry_after_seconds < 1))) return redis;
+  return {configured: true, allowed: data.allowed, limit: 120, remaining: data.remaining,
+    retryAfterSeconds: data.retry_after_seconds};
 }
 
 /** Read a bounded stream, rather than trusting Content-Length or buffering arbitrary JSON. */
@@ -39,8 +53,9 @@ export async function POST(request: Request) {
     const {data: auth, error: authError} = await supabaseAdmin.auth.getUser(match[1]);
     if (authError || !auth?.user?.id) return NextResponse.json({error: 'Sign in again.'}, {status: 401, headers: PRIVATE});
 
-    // Unlike interactive site routes, telemetry must fail closed when the distributed limiter is unavailable.
-    const limit = await checkRateLimit('desktop:activity:user', auth.user.id, {limit: 120, windowSeconds: 60});
+    // Missing Redis must not disable reporting. The database provides the same
+    // per-account limit; if both stores are unavailable, keep the client outbox.
+    const limit = await activityRateLimit(auth.user.id);
     if (!limit.configured) return unavailable();
     if (!limit.allowed) return NextResponse.json({error: 'Please retry activity reporting later.'},
       {status: 429, headers: {...PRIVATE, ...rateLimitHeaders(limit)}});
