@@ -66,20 +66,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Checkout session is no longer active' }, { status: 409 });
     }
 
-    // 2. Query available wallet balance securely on the server to prevent fraud
-    const { data: wallet, error: walletError } = await supabaseAdmin
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', session.user_id)
-      .single();
-
-    if (walletError || !wallet) {
-      return NextResponse.json({ error: 'Could not fetch wallet balance' }, { status: 500 });
-    }
-
-    const userBalance = Number(wallet.balance || 0);
-    if (appliedImr > userBalance) {
-      return NextResponse.json({ error: `Insufficient IMR balance. You only have ${userBalance} IMR available.` }, { status: 400 });
+    // IMR is an optional discount. A full-price payment must not depend on
+    // a rewards wallet existing (new accounts may not have one yet).
+    if (appliedImr > 0) {
+      const { data: wallet, error: walletError } = await supabaseAdmin
+        .from('wallets')
+        .select('balance')
+        .eq('user_id', session.user_id)
+        .maybeSingle();
+      const userBalance = wallet ? Number(wallet.balance) : 0;
+      if (walletError || !Number.isFinite(userBalance) || userBalance < 0) {
+        return NextResponse.json({ error: 'Could not verify your IMR discount. Try again or continue without redeeming IMR.' }, { status: 500 });
+      }
+      if (appliedImr > userBalance) {
+        return NextResponse.json({ error: `Insufficient IMR balance. You only have ${userBalance} IMR available.` }, { status: 400 });
+      }
     }
 
     // Prices come from the server catalogue, never client-supplied amounts.

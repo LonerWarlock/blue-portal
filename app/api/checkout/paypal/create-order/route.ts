@@ -62,14 +62,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Checkout session is no longer active' }, { status: 409 });
     }
 
-    const { data: wallet, error: walletError } = await supabaseAdmin
-      .from('wallets').select('balance').eq('user_id', session.user_id).single();
-    const balance = Number(wallet?.balance);
-    if (walletError || !wallet || !Number.isFinite(balance)) {
-      return NextResponse.json({ error: 'Could not fetch wallet balance' }, { status: 500 });
-    }
-    if (appliedImr > balance) {
-      return NextResponse.json({ error: 'Insufficient IMR balance' }, { status: 400 });
+    // Only IMR redemption needs a rewards wallet. Full-price payments also
+    // work for new accounts that do not have a wallet row yet.
+    if (appliedImr > 0) {
+      const { data: wallet, error: walletError } = await supabaseAdmin
+        .from('wallets').select('balance').eq('user_id', session.user_id).maybeSingle();
+      const balance = wallet ? Number(wallet.balance) : 0;
+      if (walletError || !Number.isFinite(balance) || balance < 0) {
+        return NextResponse.json({ error: 'Could not verify your IMR discount. Try again or continue without redeeming IMR.' }, { status: 500 });
+      }
+      if (appliedImr > balance) {
+        return NextResponse.json({ error: 'Insufficient IMR balance' }, { status: 400 });
+      }
     }
 
     // The selected cycle and its amount come exclusively from the stored session/catalogue.
