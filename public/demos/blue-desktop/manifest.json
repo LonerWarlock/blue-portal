@@ -9,5 +9,9 @@
   "network": false,
   "aiCalls": false,
   "accountConnection": false,
-  "filesystemAccess": false
+  "filesystemAccess": false,
+  "branding": {
+    "logo": "/images/blue-symbol.png",
+    "logoSha256": "d76b5b7d209a7395f05e4340d122319acaaae30178e3cd5e729f878ce4bdc920"
+  }
 }
