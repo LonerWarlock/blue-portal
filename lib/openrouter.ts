@@ -262,6 +262,21 @@ export function isPaidImageModel(model: OpenRouterModel): boolean {
     && pricing.some(value => Number(value) > 0) && !isProviderRouterModel(model.id);
 }
 
+/** Multimodal image LLMs expose a token budget on chat; pure image models use the Image API.
+ * The image key's hard allowance remains authoritative. Keep pricing headroom
+ * for prompt tokens and endpoint variation; this is not a per-image price quote.
+ */
+export function imageGenerationRequestPolicy(model: OpenRouterModel, allowance = 1): { generationApi: 'chat' | 'images'; maxOutputTokens?: number } {
+  const outputs = model.architecture?.output_modalities;
+  if (Array.isArray(outputs) && outputs.includes('text') && outputs.includes('image')
+    && (model.supported_parameters || []).includes('max_tokens')) {
+    const rate = Math.max(price(model.pricing?.image_output), price(model.pricing?.image_token), price(model.pricing?.completion));
+    const maximum = rate > 0 ? Math.floor(Math.max(0, allowance) * 0.7 / rate) : 8192;
+    return { generationApi: 'chat', maxOutputTokens: Math.max(0, Math.min(8192, maximum)) };
+  }
+  return { generationApi: 'images' };
+}
+
 export function imageGenerationModels(models: OpenRouterModel[]): OpenRouterModel[] {
   return models.filter(isPaidImageModel);
 }

@@ -27,6 +27,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { loadBlueTeamsCreditEntitlement } from '@/lib/blueTeamsCreditAccess';
 import { approvalReviewerFromCatalog, normalizeApprovalReviewer, reviewedRuntimeReplayAllowance, runtimeAllowedModelSet, runtimeTaskIsBillable } from '@/lib/approvalReviewer';
 
+export const BLUE_RUNTIME_IMAGE_ALLOWANCE = 1;
 export const BLUE_RUNTIME_NORMAL_ALLOWANCE = 0.20;
 export const BLUE_RUNTIME_UI_MAX_ALLOWANCE = 0.35;
 export const BLUE_RUNTIME_EXTENSION_ALLOWANCE = 0.20;
@@ -273,7 +274,7 @@ export async function admitBlueRuntimeTask(
   }
 
   const publicInfo = publicModel(model);
-  const modeDefault = input.purpose === 'image' ? 1 : input.mode === 'ui_max'
+  const modeDefault = input.purpose === 'image' ? BLUE_RUNTIME_IMAGE_ALLOWANCE : input.mode === 'ui_max'
     ? BLUE_RUNTIME_UI_MAX_ALLOWANCE
     : BLUE_RUNTIME_NORMAL_ALLOWANCE;
   const requested = finitePositive(input.requestedCreditCeiling)
