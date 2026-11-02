@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import accountCatalogue from './openrouterAccountModels.cjs';
 
 const OPENROUTER_MANAGEMENT_BASE = 'https://openrouter.ai/api/v1';
 
@@ -220,30 +221,16 @@ export async function assertManagedKeyCanUseModelSet(
   let lastError: Error | undefined;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/models/user', {
-        headers: { Authorization: `Bearer ${key}` },
-        cache: 'no-store',
-        signal: AbortSignal.timeout(8_000)
-      });
-      if (response.ok) {
-        const payload = await response.json() as { data?: OpenRouterKeyModel[] };
-        const availableModels = new Set((payload.data || []).map(candidate =>
-          // Route variants can share a canonical slug. Count public routes so
-          // access to both a paid and a free variant cannot look like one model.
-          String(candidate.id || candidate.canonical_slug || '').trim()
-        ).filter(Boolean));
-        const available = Array.from(availableModels);
-        const hasSelectedModel = acceptedGroups.every(group => available.some(candidate => group.has(candidate)));
-        const exactGroups = acceptedGroups.every(group => available.filter(candidate => group.has(candidate)).length === 1)
-          && available.every(candidate => acceptedGroups.filter(group => group.has(candidate)).length === 1);
-        if (availableModels.size === canonicalModels.length && hasSelectedModel && exactGroups) return;
-        lastError = new Error(hasSelectedModel
-          ? 'The temporary provider credential is not restricted to the selected model'
-          : 'The temporary provider credential cannot access the selected model');
-      } else {
-        lastError = new Error(`OpenRouter credential verification failed (${response.status})`);
-        if (response.status < 500 && response.status !== 429) break;
-      }
+      const rows = await accountCatalogue.accountModelRows(key) as OpenRouterKeyModel[];
+      const availableModels = new Set(rows.map(candidate => String(candidate.id || candidate.canonical_slug || '').trim()).filter(Boolean));
+      const available = Array.from(availableModels);
+      const hasSelectedModel = acceptedGroups.every(group => available.some(candidate => group.has(candidate)));
+      const exactGroups = acceptedGroups.every(group => available.filter(candidate => group.has(candidate)).length === 1)
+        && available.every(candidate => acceptedGroups.filter(group => group.has(candidate)).length === 1);
+      if (availableModels.size === canonicalModels.length && hasSelectedModel && exactGroups) return;
+      lastError = new Error(hasSelectedModel
+        ? 'The temporary provider credential is not restricted to the selected model'
+        : 'The temporary provider credential cannot access the selected model');
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('OpenRouter credential verification failed');
     }

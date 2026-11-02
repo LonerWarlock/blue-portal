@@ -1,10 +1,10 @@
 import { unstable_cache } from 'next/cache.js';
 import reviewerModels from './approvalReviewerModels.cjs';
+import accountCatalogue from './openrouterAccountModels.cjs';
 
 // Unlike the public catalogue, /models/user is filtered by the account's
 // provider preferences, privacy policy, and guardrails. Blue must never offer
 // a model its own OpenRouter workspace cannot actually route.
-const OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models/user';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const STALE_FALLBACK_TTL_MS = 24 * 60 * 60 * 1000;
 const PROVIDER_TIMEOUT_MS = 8 * 1000;
@@ -74,19 +74,12 @@ const getSharedOpenRouterModels = unstable_cache(
     const apiKey = openRouterApiKey();
     if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured');
 
-    const response = await fetch(OPENROUTER_MODELS_URL, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS)
-    });
-    if (!response.ok) throw new Error(`OpenRouter models request failed (${response.status})`);
-
-    const payload = await response.json() as { data?: OpenRouterModel[] };
-    const models = normalizeOpenRouterModels(Array.isArray(payload.data) ? payload.data : []);
+    const rows = await accountCatalogue.accountModelRows(apiKey) as OpenRouterModel[];
+    const models = normalizeOpenRouterModels(rows);
     if (models.length === 0) throw new Error('OpenRouter returned an empty model catalog');
     return models;
   },
-  ['blue-openrouter-model-catalog-v7'],
+  ['blue-openrouter-model-catalog-v8-images'],
   { revalidate: 300, tags: ['openrouter-model-catalog'] }
 );
 
