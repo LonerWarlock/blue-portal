@@ -24,6 +24,8 @@ export interface OpenRouterModel {
     completion?: string;
     request?: string;
     image?: string;
+    image_output?: string;
+    image_token?: string;
     web_search?: string;
     internal_reasoning?: string;
     input_cache_read?: string;
@@ -84,7 +86,7 @@ const getSharedOpenRouterModels = unstable_cache(
     if (models.length === 0) throw new Error('OpenRouter returned an empty model catalog');
     return models;
   },
-  ['blue-openrouter-model-catalog-v6'],
+  ['blue-openrouter-model-catalog-v7'],
   { revalidate: 300, tags: ['openrouter-model-catalog'] }
 );
 
@@ -139,8 +141,8 @@ export function normalizeOpenRouterModels(models: OpenRouterModel[]): OpenRouter
     if (modelVariant(rawId) === ':batch') continue;
     // Keep the exact structured-only reviewer available to runtime admission.
     // modelsForAccess still requires tools, so this cannot widen coding access.
-    if (!Array.isArray(raw.supported_parameters)
-      || (!raw.supported_parameters.includes('tools') && rawId !== reviewerModels.free)) continue;
+    if ((!Array.isArray(raw.supported_parameters) || !raw.supported_parameters.includes('tools'))
+      && rawId !== reviewerModels.free && !isPaidImageModel(raw)) continue;
     const canonical = canonicalModelId(raw);
     if (!canonical) continue;
     if (isProviderRouterModel(canonical)) continue;
@@ -251,6 +253,19 @@ function publicBlueDescription(value: unknown): string {
   return description || 'Available through Blue.';
 }
 
+/** Image output, not vision input, determines this separate PAYG capability. */
+export function isPaidImageModel(model: OpenRouterModel): boolean {
+  const outputs = model.architecture?.output_modalities;
+  const pricing = Object.values(model.pricing || {});
+  return Array.isArray(outputs) && outputs.includes('image') && pricing.length > 0
+    && pricing.every(value => Number.isFinite(Number(value)) && Number(value) >= 0)
+    && pricing.some(value => Number(value) > 0) && !isProviderRouterModel(model.id);
+}
+
+export function imageGenerationModels(models: OpenRouterModel[]): OpenRouterModel[] {
+  return models.filter(isPaidImageModel);
+}
+
 export function modelsForAccess(models: OpenRouterModel[], accessTier: string): OpenRouterModel[] {
   const concrete = models.filter(model =>
     !isProviderRouterModel(canonicalModelId(model)) &&
@@ -271,6 +286,8 @@ function isExplicitlyFree(model: OpenRouterModel): boolean {
     pricing.completion,
     pricing.request,
     pricing.image,
+    pricing.image_output,
+    pricing.image_token,
     pricing.web_search,
     pricing.internal_reasoning,
     pricing.input_cache_read,

@@ -39,6 +39,7 @@ export async function POST(request: Request) {
     const admission = await admitBlueRuntimeTask(account, {
       requestId: String(body.request_id || ''),
       model: String(body.model || ''),
+      purpose: body.purpose as 'image' | undefined,
       feature: body.feature as 'project' | 'teams' | undefined,
       approvalReviewerModel: body.approval_reviewer_model,
       mode: body.mode === 'ui_max' ? 'ui_max' : 'normal',

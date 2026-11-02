@@ -15,7 +15,7 @@ import {
   getManagedKey,
   updateManagedKey
 } from '@/lib/openrouterManagement';
-import { getOpenRouterModels, modelsForAccess, price, providerModelId, publicModel, resolveModel } from '@/lib/openrouter';
+import { getOpenRouterModels, imageGenerationModels, modelsForAccess, price, providerModelId, publicModel, resolveModel } from '@/lib/openrouter';
 import {
   decideRuntimeSettlement,
   DEFAULT_USAGE_OBSERVATION_INTERVAL_MS,
@@ -121,6 +121,7 @@ interface RuntimeCredentialRow {
 }
 
 export interface BlueRuntimeAdmissionInput {
+  purpose?: 'image';
   feature?: 'project' | 'teams';
   requestId: string;
   model: string;
@@ -260,7 +261,7 @@ export async function admitBlueRuntimeTask(
       throw statusError(503, 'The Blue approval reviewer is temporarily unavailable');
     }
   }
-  const availableModels = modelsForAccess(catalogue, refreshedAccount.accessTier);
+  const availableModels = input.purpose === 'image' ? imageGenerationModels(catalogue) : modelsForAccess(catalogue, refreshedAccount.accessTier);
   const model = resolveModel(availableModels, input.model);
   if (!model) {
     throw statusError(400, refreshedAccount.accessTier === 'trial'
@@ -272,7 +273,7 @@ export async function admitBlueRuntimeTask(
   }
 
   const publicInfo = publicModel(model);
-  const modeDefault = input.mode === 'ui_max'
+  const modeDefault = input.purpose === 'image' ? 1 : input.mode === 'ui_max'
     ? BLUE_RUNTIME_UI_MAX_ALLOWANCE
     : BLUE_RUNTIME_NORMAL_ALLOWANCE;
   const requested = finitePositive(input.requestedCreditCeiling)
@@ -287,6 +288,7 @@ export async function admitBlueRuntimeTask(
   const deviceHash = sha256(input.deviceId);
   const payloadHash = sha256(stableJson({
     requestId: input.requestId,
+    ...(input.purpose === 'image' ? { purpose: 'image' } : {}),
     model: model.id,
     ...(input.feature === 'teams' ? {feature:'teams'} : {}),
     ...(reviewerModel ? { approvalReviewerModel: reviewerModel } : {}),
@@ -1439,6 +1441,8 @@ async function isRuntimeModelBlocked(model: string): Promise<boolean> {
 }
 
 function validateAdmissionInput(input: BlueRuntimeAdmissionInput): void {
+  if (input.purpose !== undefined && input.purpose !== 'image') throw statusError(400, 'Invalid Blue runtime purpose');
+  if (input.purpose === 'image' && input.approvalReviewerModel !== undefined) throw statusError(400, 'Image generation cannot attach a coding reviewer');
   if (input.feature !== undefined && input.feature !== 'project' && input.feature !== 'teams') throw statusError(400,'Invalid Blue runtime feature');
   try { normalizeApprovalReviewer(input.approvalReviewerModel); }
   catch (error) { throw statusError(400, safeMessage(error)); }
