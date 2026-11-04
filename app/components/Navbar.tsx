@@ -10,6 +10,7 @@ import { useAuth } from "../contexts/AuthContext";
 import ThemeToggle from "./ThemeToggle";
 
 const NAV_LINKS = [
+  { href: "/desktop", label: "Desktop" },
   { href: "/product/agents", label: "Coding agents" },
   { href: "/pricing", label: "Pricing" },
   { href: "/teams", label: "Teams" },

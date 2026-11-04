@@ -4,13 +4,14 @@ import type { Metadata } from 'next';
 // the canonical origin, including when this module runs in a local build.
 export const SITE_URL = 'https://blue.imergene.in';
 export const SITE_NAME = 'Blue by Imergene';
-export const HOME_TITLE = 'Blue by Imergene | AI Coding Assistant & Agent Teams';
-export const HOME_DESCRIPTION = 'Code, research and coordinate AI agent teams in Blue Desktop for Windows. Also available as a VS Code coding assistant. App subscription access and AI model usage are separate.';
+export const HOME_TITLE = 'Blue Desktop by Imergene | AI Coding Assistant & Agent Teams';
+export const HOME_DESCRIPTION = 'Blue Desktop by Imergene is an AI coding assistant and agent-team workspace for Windows. Build projects, coordinate specialists, or use Blue in VS Code.';
+export const DESKTOP_DESCRIPTION = 'Download Blue Desktop for Windows. Code, debug, coordinate custom AI agents, and generate images with supported models in one workspace by Imergene.';
 export const STUDENT_GUIDE_PATH = '/guides/ai-coding-assistant-for-students';
 export const TEAM_GUIDE_PATH = '/guides/ai-agent-teams';
 
 export const INDEXABLE_PATHS = [
-  '/', '/pricing', '/teams', '/docs', '/product/agents', STUDENT_GUIDE_PATH, TEAM_GUIDE_PATH,
+  '/', '/desktop', '/pricing', '/teams', '/docs', '/product/agents', STUDENT_GUIDE_PATH, TEAM_GUIDE_PATH,
   '/community', '/about', '/contact', '/privacy', '/terms', '/refund',
 ] as const;
 
@@ -41,7 +42,7 @@ export function privatePageMetadata(title: string): Metadata {
 export const SITE_SCHEMA = {
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'IMERGENE', alternateName: 'Imergene', description: 'Imergene develops and operates Blue Desktop for Windows, with AI coding, project teams and browser workflows, and the Blue Coding Assistant VS Code extension.', url: SITE_URL, logo: canonicalUrl('/images/blue-symbol.png') },
+    { '@type': 'Organization', '@id': `${SITE_URL}/#organization`, name: 'IMERGENE', alternateName: 'Imergene', description: 'Imergene develops and operates Blue Desktop for Windows, with AI coding, project teams and browser workflows, and the Blue Coding Assistant VS Code extension.', url: SITE_URL, logo: canonicalUrl('/images/blue-symbol.png'), sameAs: ['https://www.linkedin.com/company/imergene/', 'https://www.youtube.com/@TeamImergene', 'https://www.instagram.com/imergene.in/'] },
     { '@type': 'WebSite', '@id': `${SITE_URL}/#website`, name: SITE_NAME, alternateName: ['Blue', 'Blue Desktop', 'blue.imergene.in'], description: HOME_DESCRIPTION, url: SITE_URL, inLanguage: 'en', publisher: { '@id': `${SITE_URL}/#organization` }, about: { '@id': `${SITE_URL}/#blue-desktop` } },
   ],
 };
@@ -49,8 +50,11 @@ export const SITE_SCHEMA = {
 export const DESKTOP_APP_SCHEMA = {
   '@context': 'https://schema.org', '@type': 'SoftwareApplication',
   '@id': `${SITE_URL}/#blue-desktop`, name: 'Blue Desktop',
-  url: SITE_URL, applicationCategory: 'DeveloperApplication', operatingSystem: 'Windows',
-  description: HOME_DESCRIPTION,
+  alternateName: ['Blue Desktop by Imergene', 'Blue by Imergene'],
+  url: canonicalUrl('/desktop'), applicationCategory: 'DeveloperApplication', operatingSystem: 'Windows',
+  description: DESKTOP_DESCRIPTION,
+  mainEntityOfPage: { '@id': `${SITE_URL}/desktop#webpage` },
+  sameAs: ['https://apps.microsoft.com/detail/9NHV6GFJ64C8'],
   publisher: { '@id': `${SITE_URL}/#organization` },
   creator: { '@id': `${SITE_URL}/#organization` },
   downloadUrl: 'https://apps.microsoft.com/detail/9NHV6GFJ64C8',

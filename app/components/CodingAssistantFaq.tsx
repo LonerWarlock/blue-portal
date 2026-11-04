@@ -35,7 +35,7 @@ export default function CodingAssistantFaq() {
     },
     {
       question: "Where can I install Blue?",
-      answer: <div className="space-y-4"><p><DesktopDownloadLink className={link}>Download Blue Desktop for Windows</DesktopDownloadLink> through Microsoft, or install Blue Coding Assistant in VS Code. If the VS Code command-line tool is available, use this command:</p><VSCodeInstallSnippet className="!mx-0" /><p>Then sign in, choose a model provider, and open your project folder. See the <Link href="/docs" className={link}>setup documentation</Link>.</p></div>,
+      answer: <div className="space-y-4"><p><DesktopDownloadLink className={link}>Download Blue Desktop for Windows</DesktopDownloadLink> through Microsoft, or install Blue Coding Assistant in VS Code. If the VS Code command-line tool is available, use this command:</p><VSCodeInstallSnippet className="!mx-0" /><p>Then sign in, choose a model provider, and open your project folder. Explore <Link href="/desktop" className={link}>Blue Desktop for Windows</Link> or read the <Link href="/docs" className={link}>setup documentation</Link>.</p></div>,
     },
     {
       question: "Is Blue free, and are model requests included?",

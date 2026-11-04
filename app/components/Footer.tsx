@@ -8,6 +8,7 @@ import { useCookieConsent } from "../contexts/CookieConsentContext";
 
 const footerLinks = {
   Product: [
+    { label: "Blue Desktop for Windows", href: "/desktop" },
     { label: "AI coding agent", href: "/product/agents" },
     { label: "Pricing", href: "/pricing" },
     { label: "Blue Teams", href: "/teams" },
