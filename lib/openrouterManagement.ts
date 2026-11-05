@@ -219,7 +219,8 @@ export async function assertManagedKeyCanUseModelSet(
     .filter(value => value && !value.startsWith('~') && !value.toLowerCase().startsWith('openrouter/')
       && (value.match(/:[^/:]+$/)?.[0] || '') === (model.match(/:[^/:]+$/)?.[0] || ''))));
   let lastError: Error | undefined;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    let scopeUnverified = false;
     try {
       const rows = await accountCatalogue.accountModelRows(key) as OpenRouterKeyModel[];
       const availableModels = new Set(rows.map(candidate => String(candidate.id || candidate.canonical_slug || '').trim()).filter(Boolean));
@@ -228,13 +229,17 @@ export async function assertManagedKeyCanUseModelSet(
       const exactGroups = acceptedGroups.every(group => available.filter(candidate => group.has(candidate)).length === 1)
         && available.every(candidate => acceptedGroups.filter(group => group.has(candidate)).length === 1);
       if (availableModels.size === canonicalModels.length && hasSelectedModel && exactGroups) return;
+      scopeUnverified = hasSelectedModel;
       lastError = new Error(hasSelectedModel
         ? 'The temporary provider credential is not restricted to the selected model'
         : 'The temporary provider credential cannot access the selected model');
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('OpenRouter credential verification failed');
     }
-    if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 250));
+    // A newly assigned key can briefly show a broader catalogue. Recheck the
+    // same key once more without changing its policy or admitting the task.
+    if (attempt === 4 || (attempt === 3 && !scopeUnverified)) break;
+    await new Promise(resolve => setTimeout(resolve, attempt === 3 ? 1_250 : attempt * 250));
   }
   throw lastError || new Error('The temporary provider credential cannot access the selected model');
 }
