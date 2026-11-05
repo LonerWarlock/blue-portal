@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { get as httpsGet } from 'node:https';
 import accountCatalogue from './openrouterAccountModels.cjs';
 
 const OPENROUTER_MANAGEMENT_BASE = 'https://openrouter.ai/api/v1';
+const MODEL_SCOPE_RECHECK_DELAYS_MS = [250, 500, 1_250, 2_000, 3_000, 4_000, 5_000];
+const MODEL_SCOPE_VERIFICATION_WINDOW_MS = 20_000;
 
 export interface OpenRouterManagedKey {
   hash: string;
@@ -255,8 +256,7 @@ export async function assertManagedKeyCanUseModel(
 
 export async function assertManagedKeyCanUseModelSet(
   key: string,
-  models: { model: string; aliases?: string[] }[],
-  scopeTrace?: string[]
+  models: { model: string; aliases?: string[] }[]
 ): Promise<void> {
   const canonicalModels = exactModelSet(models.map(value => value.model));
   const acceptedGroups = canonicalModels.map(model => new Set([model, ...models
@@ -264,66 +264,34 @@ export async function assertManagedKeyCanUseModelSet(
     .map(value => String(value || '').trim())
     .filter(value => value && !value.startsWith('~') && !value.toLowerCase().startsWith('openrouter/')
       && (value.match(/:[^/:]+$/)?.[0] || '') === (model.match(/:[^/:]+$/)?.[0] || ''))));
+  const verificationDeadline = Date.now() + MODEL_SCOPE_VERIFICATION_WINDOW_MS;
   let lastError: Error | undefined;
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+  for (let attempt = 0; attempt <= MODEL_SCOPE_RECHECK_DELAYS_MS.length; attempt += 1) {
     let scopeUnverified = false;
     try {
-      let viewSizes: number[] = [];
-      const rows = await accountCatalogue.accountModelRows(key, fetch, scopeTrace && (sizes => { viewSizes = sizes; })) as OpenRouterKeyModel[];
+      const rows = await accountCatalogue.accountModelRows(key) as OpenRouterKeyModel[];
       const availableModels = new Set(rows.map(candidate => String(candidate.id || candidate.canonical_slug || '').trim()).filter(Boolean));
       const available = Array.from(availableModels);
       const hasSelectedModel = acceptedGroups.every(group => available.some(candidate => group.has(candidate)));
       const exactGroups = acceptedGroups.every(group => available.filter(candidate => group.has(candidate)).length === 1)
         && available.every(candidate => acceptedGroups.filter(group => group.has(candidate)).length === 1);
       if (availableModels.size === canonicalModels.length && hasSelectedModel && exactGroups) return;
-      if (scopeTrace) {
-        const extra = available.find(candidate => !acceptedGroups.some(group => group.has(candidate)));
-        scopeTrace.push('views=' + viewSizes.join('/') + ',union=' + available.length + ',match=' + Number(hasSelectedModel)
-          + (extra && attempt === 1 ? ',extra=' + extra.replace(/[^a-z0-9_.:/-]/gi, '').slice(0, 52) : ''));
-      }
       scopeUnverified = hasSelectedModel;
       lastError = new Error(hasSelectedModel
         ? 'The temporary provider credential is not restricted to the selected model'
         : 'The temporary provider credential cannot access the selected model');
     } catch (error) {
-      scopeTrace?.push('view-http=' + (Number((error as { status?: number })?.status) || 0));
       lastError = error instanceof Error ? error : new Error('OpenRouter credential verification failed');
     }
-    // A newly assigned key can briefly show a broader catalogue. Recheck the
-    // same key once more without changing its policy or admitting the task.
-    if (attempt === 4 || (attempt === 3 && !scopeUnverified)) break;
-    await new Promise(resolve => setTimeout(resolve, attempt === 3 ? 1_250 : attempt * 250));
-  }
-  if (scopeTrace?.length) {
-    const uri = 'https://openrouter.ai/api/v1/models/user?output_modalities=all';
-    const headers = { Authorization: 'Bearer ' + key, 'Cache-Control': 'no-cache' };
-    const summarize = (status: number, payload: { data?: OpenRouterKeyModel[] }) => {
-      const ids = Array.isArray(payload.data) ? payload.data.map(row => row.id) : [];
-      return status + '/' + ids.length + '/' + ids.filter(id => id && acceptedGroups.some(group => group.has(id))).length;
-    };
-    const readAll = async () => {
-      const response = await fetch(uri, { headers, cache: 'no-store', signal: AbortSignal.timeout(5000) });
-      return summarize(response.status, await response.json());
-    };
-    const readDirect = () => new Promise<string>((resolve, reject) => {
-      const request = httpsGet(uri, { headers, signal: AbortSignal.timeout(5000) }, response => {
-        let body = '';
-        response.setEncoding('utf8');
-        response.on('error', reject);
-        response.on('data', chunk => {
-          body += chunk;
-          if (body.length > 5_000_000) request.destroy(new Error('Diagnostic catalogue response exceeded limit'));
-        });
-        response.on('end', () => {
-          try { resolve(summarize(response.statusCode || 0, JSON.parse(body))); } catch (error) { reject(error); }
-        });
-      });
-      request.on('error', reject);
-    });
-    const report = (results: PromiseSettledResult<string>[]) => results.map(x => x.status === 'fulfilled' ? x.value : 'error').join(',');
-    scopeTrace.push('all/direct=' + report(await Promise.allSettled([readAll(), readDirect()])));
-    await new Promise(resolve => setTimeout(resolve, 8_000));
-    scopeTrace.push('all/direct+8s=' + report(await Promise.allSettled([readAll(), readDirect()])));
+    // Policy assignment can be confirmed while the effective model catalogue
+    // is still stale. Observed live: the same assigned key showed 419 models
+    // for about 12 seconds before exposing only its two allowed models.
+    // Keep that key private and recheck it; never widen its policy, reserve
+    // another hold, or return it before the exact model set is confirmed.
+    const delay = MODEL_SCOPE_RECHECK_DELAYS_MS[attempt];
+    if (delay === undefined || (attempt >= 2 && !scopeUnverified)
+      || Date.now() + delay >= verificationDeadline) break;
+    await new Promise(resolve => setTimeout(resolve, delay));
   }
   throw lastError || new Error('The temporary provider credential cannot access the selected model');
 }

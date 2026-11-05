@@ -1031,7 +1031,6 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
   const placeholder = inserted as RuntimeCredentialRow;
   let keyHash = '';
   let policy: string | null = null;
-  const scopeTrace: string[] | undefined = task.request_id === 'blue-scope-probe-1793870178655-pi6iu5atzm' ? [] : undefined;
   try {
     const providerModel = resolveModel(await getOpenRouterModels(), task.model, task.is_free);
     if (!providerModel) throw new Error('The selected Blue model is no longer available');
@@ -1068,7 +1067,7 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     }).eq('id', placeholder.id).eq('state', 'provisioning').select('id').maybeSingle();
     if (policyError || !policyMetadata?.id) throw policyError || new Error('Model policy setup lost its provisioning lease');
     await assertRuntimeModelPolicyAssigned(policy, keyHash);
-    await assertManagedKeyCanUseModelSet(created.key, modelAccess, scopeTrace);
+    await assertManagedKeyCanUseModelSet(created.key, modelAccess);
 
     const encrypted = encryptRuntimeSecret(created.key, credentialAad(task.request_id, placeholder.id));
     const now = new Date().toISOString();
@@ -1121,8 +1120,7 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     if (failedCredentialError) {
       throw statusError(503, `Could not persist the failed initial credential yet: ${failedCredentialError.message}`);
     }
-    const reason = safeMessage(error);
-    await failUnprovisionedTask(task, scopeTrace?.length ? reason + ' | scope_observation=' + scopeTrace.join(';') : reason);
+    await failUnprovisionedTask(task, safeMessage(error));
     throw statusError(502, `Blue could not provision a provider credential: ${safeMessage(error)}`);
   }
 }
