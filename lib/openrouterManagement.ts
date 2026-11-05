@@ -132,6 +132,50 @@ export async function deleteManagedKey(hash: string): Promise<void> {
   }
 }
 
+const MODEL_POLICY_PATH = '/guardrails/policies/model-availability';
+export const RUNTIME_MODEL_POLICY_PREFIX = 'model-policy:';
+
+/** Create the exact allowlist and attach its single temporary key in one provider operation. */
+export async function createAssignedRuntimeModelPolicy(models: string[], keyHash: string): Promise<string> {
+  const allowedModels = exactModelSet(models);
+  const { data } = await managementRequest<{ data: { id: string } }>(MODEL_POLICY_PATH, {
+    method: 'POST',
+    body: JSON.stringify({
+      name: 'Blue runtime ' + randomUUID(),
+      workspace_id: openRouterWorkspaceId(),
+      policy_type: 'model_availability',
+      config: { allowed_models: allowedModels },
+      api_key_hashes: [keyHash]
+    })
+  }, 1);
+  if (!/^[0-9a-f-]{36}$/i.test(data?.id || '')) throw new Error('OpenRouter did not return a model policy ID');
+  return RUNTIME_MODEL_POLICY_PREFIX + data.id;
+}
+
+export async function assertRuntimeModelPolicyAssigned(reference: string, keyHash: string): Promise<void> {
+  const policyId = reference.slice(RUNTIME_MODEL_POLICY_PREFIX.length);
+  const query = new URLSearchParams({ workspace_id: openRouterWorkspaceId(), policy_type: 'model_availability' });
+  const path = '/guardrails/policies/assignments/api-keys/' + encodeURIComponent(keyHash) + '?' + query;
+  for (const delay of [0, 350, 900]) {
+    if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+    const { data } = await managementRequest<{ data: { policy_ids?: string[]; opted_out?: boolean } }>(path);
+    if (data?.policy_ids?.length === 1 && data.policy_ids[0] === policyId && data.opted_out === false) return;
+  }
+  throw new Error('OpenRouter did not confirm the exact model policy for the temporary key');
+}
+
+export async function deleteRuntimeModelPolicy(reference: string | null): Promise<void> {
+  // Unprefixed IDs are legacy, shared guardrails. A single task cannot delete one.
+  if (!reference?.startsWith(RUNTIME_MODEL_POLICY_PREFIX)) return;
+  const id = reference.slice(RUNTIME_MODEL_POLICY_PREFIX.length);
+  const path = MODEL_POLICY_PATH + '/' + encodeURIComponent(id) + '?workspace_id=' + encodeURIComponent(openRouterWorkspaceId());
+  try {
+    await managementRequest(path, { method: 'DELETE' });
+  } catch (error) {
+    if (Number((error as { status?: number })?.status) !== 404) throw error;
+  }
+}
+
 export async function createModelGuardrail(model: string): Promise<string> {
   return createModelSetGuardrail([model]);
 }

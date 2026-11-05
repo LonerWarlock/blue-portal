@@ -4,15 +4,13 @@ import { decryptRuntimeSecret, encryptRuntimeSecret } from '@/lib/blueRuntimeCry
 import {
   assertManagedKeyCanUseModel,
   assertManagedKeyCanUseModelSet,
-  assignKeyGuardrail,
+  assertRuntimeModelPolicyAssigned,
+  createAssignedRuntimeModelPolicy,
   createManagedKey,
-  createModelGuardrail,
-  createModelSetGuardrail,
-  deleteGuardrail,
   deleteManagedKey,
-  exactModelGuardrailMatches,
-  exactModelSetGuardrailMatches,
+  deleteRuntimeModelPolicy,
   getManagedKey,
+  RUNTIME_MODEL_POLICY_PREFIX,
   updateManagedKey
 } from '@/lib/openrouterManagement';
 import { getOpenRouterModels, imageGenerationModels, modelsForAccess, price, providerModelId, publicModel, resolveModel } from '@/lib/openrouter';
@@ -954,6 +952,7 @@ async function deleteSettledCredential(credential: RuntimeCredentialRow): Promis
   if (!credential.key_hash || credential.state === 'deleted') return;
   try {
     await deleteManagedKey(credential.key_hash);
+    await deleteRuntimeModelPolicy(credential.guardrail_id);
     await supabaseAdmin!.from('blue_runtime_credentials').update({
       state: 'deleted', deleted_at: new Date().toISOString(), updated_at: new Date().toISOString()
     }).eq('id', credential.id);
@@ -966,7 +965,7 @@ async function cleanupDisabledCredentials(limit: number): Promise<number> {
   const { data: credentials, error } = await supabaseAdmin!
     .from('blue_runtime_credentials')
     .select('*')
-    .eq('state', 'disabled')
+    .or('state.eq.disabled,and(state.eq.failed,guardrail_id.like.' + RUNTIME_MODEL_POLICY_PREFIX + '*)')
     .order('updated_at', { ascending: true })
     .limit(Math.max(1, Math.min(250, limit)));
   if (error || !credentials?.length) return 0;
@@ -1032,6 +1031,7 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
   }
   const placeholder = inserted as RuntimeCredentialRow;
   let keyHash = '';
+  let policy: string | null = null;
   try {
     const providerModel = resolveModel(await getOpenRouterModels(), task.model, task.is_free);
     if (!providerModel) throw new Error('The selected Blue model is no longer available');
@@ -1041,8 +1041,6 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
       ? approvalReviewerFromCatalog(await getOpenRouterModels(), task.reviewer_model) : undefined;
     const reviewerRoute = reviewer ? providerModelId(reviewer) : undefined;
     const allowedModels = runtimeAllowedModelSet(providerRoute, reviewerRoute);
-    let guardrailId = task.reviewer_model
-      ? await ensureModelSetGuardrail(allowedModels) : await ensureModelGuardrail(providerRoute);
     const created = await createManagedKey({
       name: `Blue ${task.request_id}`.slice(0, 200),
       // This is a task-scoped credential, not an unrestricted copy of our
@@ -1055,22 +1053,16 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     if (!keyHash || !created.key) throw new Error('OpenRouter did not return a complete child credential');
     const { data: metadata, error: metadataError } = await supabaseAdmin!.from('blue_runtime_credentials').update({
       key_hash: keyHash,
-      guardrail_id: guardrailId,
       provider_usage_start: Math.max(0, Number(created.data.usage || 0)),
       updated_at: new Date().toISOString()
     }).eq('id', placeholder.id).eq('state', 'provisioning').select('id').maybeSingle();
     if (metadataError || !metadata?.id) throw metadataError || new Error('Credential metadata update lost its provisioning lease');
-    await assignKeyGuardrail(guardrailId, keyHash, async missingId => {
-      const replacementId = task.reviewer_model
-        ? await ensureModelSetGuardrail(allowedModels, missingId)
-        : await ensureModelGuardrail(providerRoute, undefined, missingId);
-      const { data: repaired, error: repairError } = await supabaseAdmin!.from('blue_runtime_credentials').update({
-        guardrail_id: replacementId, updated_at: new Date().toISOString()
-      }).eq('id', placeholder.id).eq('state', 'provisioning').eq('guardrail_id', missingId).select('id').maybeSingle();
-      if (repairError || !repaired?.id) throw repairError || new Error('Guardrail repair lost its provisioning lease');
-      guardrailId = replacementId;
-      return replacementId;
-    });
+    policy = await createAssignedRuntimeModelPolicy(allowedModels, keyHash);
+    const { data: policyMetadata, error: policyError } = await supabaseAdmin!.from('blue_runtime_credentials').update({
+      guardrail_id: policy, updated_at: new Date().toISOString()
+    }).eq('id', placeholder.id).eq('state', 'provisioning').select('id').maybeSingle();
+    if (policyError || !policyMetadata?.id) throw policyError || new Error('Model policy setup lost its provisioning lease');
+    await assertRuntimeModelPolicyAssigned(policy, keyHash);
     if (reviewer) {
       await assertManagedKeyCanUseModelSet(created.key, allowedModels.map(route => ({
         model: route,
@@ -1117,10 +1109,15 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
   } catch (error) {
     if (keyHash) {
       try { await updateManagedKey(keyHash, { disabled: true }); } catch {}
-      try { await deleteManagedKey(keyHash); } catch {}
+      try {
+        await deleteManagedKey(keyHash);
+        await deleteRuntimeModelPolicy(policy);
+        policy = null;
+      } catch { /* Terminal cleanup retries any remaining policy. */ }
     }
     const { error: failedCredentialError } = await supabaseAdmin!.from('blue_runtime_credentials').update({
-      state: 'failed', encrypted_key: null, encryption_iv: null, encryption_tag: null,
+      state: 'failed', key_hash: keyHash || null, guardrail_id: policy,
+      encrypted_key: null, encryption_iv: null, encryption_tag: null,
       encryption_version: null, updated_at: new Date().toISOString()
     }).eq('id', placeholder.id);
     if (failedCredentialError) {
@@ -1129,81 +1126,6 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     await failUnprovisionedTask(task, safeMessage(error));
     throw statusError(502, `Blue could not provision a provider credential: ${safeMessage(error)}`);
   }
-}
-
-async function ensureModelSetGuardrail(models: string[], missingId?: string): Promise<string> {
-  // A distinct mapping prevents widening a single-model policy protecting old keys.
-  return ensureModelGuardrail(`approval-model-set:${sha256(JSON.stringify(models))}`, models, missingId);
-}
-
-async function ensureModelGuardrail(model: string, models?: string[], missingId?: string): Promise<string> {
-  const matches = (id: string) => models
-    ? exactModelSetGuardrailMatches(id, models) : exactModelGuardrailMatches(id, model);
-  const create = () => models ? createModelSetGuardrail(models) : createModelGuardrail(model);
-  const { data: existing, error: lookupError } = await supabaseAdmin!
-    .from('blue_model_guardrails')
-    .select('guardrail_id')
-    .eq('model', model)
-    .maybeSingle();
-  if (lookupError) throw lookupError;
-  if (existing?.guardrail_id) {
-    const existingId = String(existing.guardrail_id);
-    if (existingId !== missingId && await matches(existingId)) return existingId;
-
-    // Never rewrite a guardrail that can still be assigned to another live
-    // task. Create a replacement, then compare-and-swap only the DB mapping.
-    const replacementId = await create();
-    const { data: replaced, error: replaceError } = await supabaseAdmin!
-      .from('blue_model_guardrails')
-      .update({ guardrail_id: replacementId, updated_at: new Date().toISOString() })
-      .eq('model', model)
-      .eq('guardrail_id', existingId)
-      .select('guardrail_id')
-      .maybeSingle();
-    if (replaceError) {
-      try { await deleteGuardrail(replacementId); } catch {}
-      throw replaceError;
-    }
-    if (replaced?.guardrail_id === replacementId) return replacementId;
-
-    const { data: winner, error: winnerError } = await supabaseAdmin!
-      .from('blue_model_guardrails')
-      .select('guardrail_id')
-      .eq('model', model)
-      .single();
-    try { await deleteGuardrail(replacementId); } catch {}
-    if (winnerError || !winner?.guardrail_id) {
-      throw winnerError || new Error('Model guardrail replacement race was not resolved');
-    }
-    const winnerId = String(winner.guardrail_id);
-    if (!await matches(winnerId)) {
-      throw new Error('Model guardrail replacement did not produce an exact-model policy');
-    }
-    return winnerId;
-  }
-
-  const createdId = await create();
-  const { error } = await supabaseAdmin!.from('blue_model_guardrails').insert({
-    model,
-    guardrail_id: createdId
-  });
-  if (!error) return createdId;
-  if (!/duplicate|unique/i.test(error.message || '')) {
-    try { await deleteGuardrail(createdId); } catch {}
-    throw error;
-  }
-  const { data: winner, error: winnerError } = await supabaseAdmin!
-    .from('blue_model_guardrails')
-    .select('guardrail_id')
-    .eq('model', model)
-    .single();
-  try { await deleteGuardrail(createdId); } catch {}
-  if (winnerError || !winner?.guardrail_id) throw winnerError || new Error('Model guardrail race was not resolved');
-  const winnerId = String(winner.guardrail_id);
-  if (!await matches(winnerId)) {
-    throw new Error('Model guardrail race produced an invalid exact-model policy');
-  }
-  return winnerId;
 }
 
 async function remainingProviderAllowanceForTask(task: RuntimeTaskRow): Promise<number> {
