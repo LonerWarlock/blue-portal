@@ -254,16 +254,25 @@ function requireCanonicalModelSlug(value: string): string {
   return model;
 }
 
-export async function assignKeyGuardrail(guardrailId: string, keyHash: string): Promise<void> {
-  const result = await managementRequest<{ assigned_count: number }>(
-    `/guardrails/${encodeURIComponent(guardrailId)}/assignments/keys`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ key_hashes: [keyHash] })
+export async function assignKeyGuardrail(guardrailId: string, keyHash: string,
+  repairMissing?: (missingId: string) => Promise<string>): Promise<void> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const result = await managementRequest<{ assigned_count: number }>(
+        `/guardrails/${encodeURIComponent(guardrailId)}/assignments/keys`,
+        { method: 'POST', body: JSON.stringify({ key_hashes: [keyHash] }) }
+      );
+      if (result.assigned_count !== 1) throw new Error('OpenRouter did not confirm the temporary key guardrail assignment');
+      return;
+    } catch (error) {
+      // Only an identified missing policy may be repaired. Never substitute
+      // an unrestricted credential, retry unknown writes, or mask auth errors.
+      if (attempt || !repairMissing || Number((error as { status?: number })?.status) !== 404
+        || !/guardrail.{0,60}(?:not found|does not exist)/i.test(String((error as Error)?.message || ''))) throw error;
+      const replacement = await repairMissing(guardrailId);
+      if (!replacement || replacement === guardrailId) throw new Error('Blue could not replace the missing model guardrail');
+      guardrailId = replacement;
     }
-  );
-  if (result.assigned_count !== 1) {
-    throw new Error('OpenRouter did not confirm the temporary key guardrail assignment');
   }
 }
 

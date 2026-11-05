@@ -1041,7 +1041,7 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
       ? approvalReviewerFromCatalog(await getOpenRouterModels(), task.reviewer_model) : undefined;
     const reviewerRoute = reviewer ? providerModelId(reviewer) : undefined;
     const allowedModels = runtimeAllowedModelSet(providerRoute, reviewerRoute);
-    const guardrailId = task.reviewer_model
+    let guardrailId = task.reviewer_model
       ? await ensureModelSetGuardrail(allowedModels) : await ensureModelGuardrail(providerRoute);
     const created = await createManagedKey({
       name: `Blue ${task.request_id}`.slice(0, 200),
@@ -1060,7 +1060,17 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
       updated_at: new Date().toISOString()
     }).eq('id', placeholder.id).eq('state', 'provisioning').select('id').maybeSingle();
     if (metadataError || !metadata?.id) throw metadataError || new Error('Credential metadata update lost its provisioning lease');
-    await assignKeyGuardrail(guardrailId, keyHash);
+    await assignKeyGuardrail(guardrailId, keyHash, async missingId => {
+      const replacementId = task.reviewer_model
+        ? await ensureModelSetGuardrail(allowedModels, missingId)
+        : await ensureModelGuardrail(providerRoute, undefined, missingId);
+      const { data: repaired, error: repairError } = await supabaseAdmin!.from('blue_runtime_credentials').update({
+        guardrail_id: replacementId, updated_at: new Date().toISOString()
+      }).eq('id', placeholder.id).eq('state', 'provisioning').eq('guardrail_id', missingId).select('id').maybeSingle();
+      if (repairError || !repaired?.id) throw repairError || new Error('Guardrail repair lost its provisioning lease');
+      guardrailId = replacementId;
+      return replacementId;
+    });
     if (reviewer) {
       await assertManagedKeyCanUseModelSet(created.key, allowedModels.map(route => ({
         model: route,
@@ -1121,12 +1131,12 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
   }
 }
 
-async function ensureModelSetGuardrail(models: string[]): Promise<string> {
+async function ensureModelSetGuardrail(models: string[], missingId?: string): Promise<string> {
   // A distinct mapping prevents widening a single-model policy protecting old keys.
-  return ensureModelGuardrail(`approval-model-set:${sha256(JSON.stringify(models))}`, models);
+  return ensureModelGuardrail(`approval-model-set:${sha256(JSON.stringify(models))}`, models, missingId);
 }
 
-async function ensureModelGuardrail(model: string, models?: string[]): Promise<string> {
+async function ensureModelGuardrail(model: string, models?: string[], missingId?: string): Promise<string> {
   const matches = (id: string) => models
     ? exactModelSetGuardrailMatches(id, models) : exactModelGuardrailMatches(id, model);
   const create = () => models ? createModelSetGuardrail(models) : createModelGuardrail(model);
@@ -1138,7 +1148,7 @@ async function ensureModelGuardrail(model: string, models?: string[]): Promise<s
   if (lookupError) throw lookupError;
   if (existing?.guardrail_id) {
     const existingId = String(existing.guardrail_id);
-    if (await matches(existingId)) return existingId;
+    if (existingId !== missingId && await matches(existingId)) return existingId;
 
     // Never rewrite a guardrail that can still be assigned to another live
     // task. Create a replacement, then compare-and-swap only the DB mapping.
