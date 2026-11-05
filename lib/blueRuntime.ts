@@ -2,7 +2,6 @@ import { createHash } from 'crypto';
 import { BluePaygAccount, settleUsage, statusError } from '@/lib/bluePayg';
 import { decryptRuntimeSecret, encryptRuntimeSecret } from '@/lib/blueRuntimeCrypto';
 import {
-  assertManagedKeyCanUseModel,
   assertManagedKeyCanUseModelSet,
   assertRuntimeModelPolicyAssigned,
   createAssignedRuntimeModelPolicy,
@@ -1040,7 +1039,12 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
     const reviewer = task.reviewer_model
       ? approvalReviewerFromCatalog(await getOpenRouterModels(), task.reviewer_model) : undefined;
     const reviewerRoute = reviewer ? providerModelId(reviewer) : undefined;
-    const allowedModels = runtimeAllowedModelSet(providerRoute, reviewerRoute);
+    // The policy matches canonical IDs. OpenRouter can accept an inference
+    // alias in the policy payload without restricting the key to that model.
+    const modelAccess = [
+      { model: providerModel.id, aliases: [providerRoute] },
+      ...(reviewer && reviewerRoute ? [{ model: reviewer.id, aliases: [reviewerRoute] }] : [])
+    ];
     const created = await createManagedKey({
       name: `Blue ${task.request_id}`.slice(0, 200),
       // This is a task-scoped credential, not an unrestricted copy of our
@@ -1057,20 +1061,13 @@ async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCre
       updated_at: new Date().toISOString()
     }).eq('id', placeholder.id).eq('state', 'provisioning').select('id').maybeSingle();
     if (metadataError || !metadata?.id) throw metadataError || new Error('Credential metadata update lost its provisioning lease');
-    policy = await createAssignedRuntimeModelPolicy(allowedModels, keyHash);
+    policy = await createAssignedRuntimeModelPolicy(modelAccess.map(({ model }) => model), keyHash);
     const { data: policyMetadata, error: policyError } = await supabaseAdmin!.from('blue_runtime_credentials').update({
       guardrail_id: policy, updated_at: new Date().toISOString()
     }).eq('id', placeholder.id).eq('state', 'provisioning').select('id').maybeSingle();
     if (policyError || !policyMetadata?.id) throw policyError || new Error('Model policy setup lost its provisioning lease');
     await assertRuntimeModelPolicyAssigned(policy, keyHash);
-    if (reviewer) {
-      await assertManagedKeyCanUseModelSet(created.key, allowedModels.map(route => ({
-        model: route,
-        aliases: route === providerRoute ? [providerModel.id] : [reviewer.id]
-      })));
-    } else {
-      await assertManagedKeyCanUseModel(created.key, providerRoute, [providerModel.id]);
-    }
+    await assertManagedKeyCanUseModelSet(created.key, modelAccess);
 
     const encrypted = encryptRuntimeSecret(created.key, credentialAad(task.request_id, placeholder.id));
     const now = new Date().toISOString();
