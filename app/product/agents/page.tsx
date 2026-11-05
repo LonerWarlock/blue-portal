@@ -119,7 +119,7 @@ export default function AgentsPage() {
               <h2 id="coding-agent-setup" className="text-2xl font-display font-bold tracking-tight text-ink">Start using Blue&apos;s coding agent</h2>
               <ol className="mt-5 list-decimal space-y-3 pl-6 text-base leading-8 text-ink-muted">
                 <li><DesktopDownloadLink className={link}>Download Blue Desktop for Windows</DesktopDownloadLink>, or install the <a href="https://marketplace.visualstudio.com/items?itemName=om-mali.blue-coding-assistant" className={link} target="_blank" rel="noopener noreferrer">Blue Coding Assistant VS Code extension</a>.</li>
-                <li>Sign in to Blue and choose a supported model connection. Follow the <Link href="/docs" className={link}>setup documentation</Link> for Blue models, OpenRouter BYOK or supported OpenCode account/key routes.</li>
+                <li>Sign in to Blue and choose a supported model connection. Follow the <Link href="/docs" className={link}>setup documentation</Link> for Blue models, OpenRouter BYOK or OpenCode account sign-in.</li>
                 <li>Open the actual project folder, describe a bounded outcome and state what must not change. Keep version control or a backup.</li>
                 <li>Follow the activity, respond to required approvals, then inspect the diff and check results. Ask for the precise blocker if work could not be verified.</li>
               </ol>

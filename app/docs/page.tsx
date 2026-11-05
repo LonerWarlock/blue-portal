@@ -71,7 +71,7 @@ export default function DocsPage() {
                   <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-7 text-ink-muted">
                     <li><DesktopDownloadLink className="font-medium text-brand hover:underline">Download Blue Desktop for Windows</DesktopDownloadLink> using Microsoft&apos;s official installer, then open the downloaded file to install it.</li>
                     <li>Sign in using the email code sent to your Blue account.</li>
-                    <li>In Setup Wizard, choose OpenRouter BYOK and paste your own API key, connect OpenCode using account sign-in or a supported Zen API key, or choose Blue models if your account has eligible Blue Pro credits.</li>
+                    <li>In Setup Wizard, choose OpenRouter BYOK and paste your own OpenRouter API key, use Sign in with OpenCode to connect your account, or choose Blue models to use your eligible Blue Credits balance.</li>
                     <li>Select a model, add a project folder if you want file changes, and send your first prompt.</li>
                   </ol>
                 </div>
@@ -169,32 +169,19 @@ export default function DocsPage() {
                 does not remove limits imposed on your own BYOK account.
               </p>
               <div id="opencode" className={`${card} mt-5 scroll-mt-28`}>
-                <h3 className={heading}>OpenCode connections and engine</h3>
+                <h3 className={heading}>OpenCode account sign-in</h3>
                 <p className={copy}>
-                  In Blue Desktop, connecting an OpenCode Zen API key (BYOK) or
-                  signing in with OpenCode uses the bundled OpenCode coding-agent
-                  runtime for project tasks. Blue provides its own interface,
-                  project management, and approval flow; the selected model
-                  provider generates the model responses.
+                  Choose Sign in with OpenCode in Setup Wizard, then complete
+                  the sign-in in your browser. OpenCode connections use account
+                  sign-in only; pasted OpenCode or Zen API keys are no longer
+                  supported. Use an OpenRouter key with OpenRouter BYOK instead
+                  if you prefer to connect using an API key.
                 </p>
                 <p className={copy}>
-                  OpenCode is the open-source coding agent. OpenCode Zen is a
-                  model gateway, not a model or Blue&apos;s own engine. Available
-                  models, free access, charges, and rate limits depend on your
-                  connected account and provider. Using the runtime does not
-                  guarantee access to every model. These BYOK/account model
-                  requests do not spend Blue Credits.
-                </p>
-                <p className={copy}>
-                  Blue is an independent product by Imergene, not an official
-                  OpenCode product. Learn more in the{" "}
-                  <a href="https://opencode.ai/docs/" className="font-medium text-brand hover:underline" target="_blank" rel="noreferrer">
-                    OpenCode documentation
-                  </a>{" "}
-                  and the{" "}
-                  <a href="https://opencode.ai/docs/zen/" className="font-medium text-brand hover:underline" target="_blank" rel="noreferrer">
-                    OpenCode Zen documentation
-                  </a>.
+                  Available models, charges and rate limits depend on your
+                  connected OpenCode account. These model requests do not spend
+                  Blue Credits. For Desktop Team mode, choose Blue models and
+                  use Blue Credits.
                 </p>
               </div>
             </section>
