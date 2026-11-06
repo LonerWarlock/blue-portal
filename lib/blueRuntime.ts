@@ -245,7 +245,8 @@ export function blueRuntimeCapacityConfig(): BlueRuntimeCapacityConfig {
 
 export async function admitBlueRuntimeTask(
   account: BluePaygAccount,
-  input: BlueRuntimeAdmissionInput
+  input: BlueRuntimeAdmissionInput,
+  options: { deferCredential?: boolean } = {}
 ): Promise<BlueRuntimeAdmission> {
   assertConfigured();
   validateAdmissionInput(input);
@@ -393,6 +394,11 @@ export async function admitBlueRuntimeTask(
   if (active?.state === 'provisioning') {
     return admissionPayload(task, undefined, remaining, model);
   }
+  // New clients persist admission first and let the authenticated task GET
+  // perform provider provisioning under its existing DB lease. This is durable
+  // across serverless invocations; no detached background promise is used.
+  // Older clients keep their original inline-admission behavior.
+  if (options.deferCredential) return admissionPayload(task, undefined, remaining, model);
   const credential = await provisionCredential(task);
   return admissionPayload(task, credential, remaining, model);
 }

@@ -5,6 +5,7 @@ import { checkRateLimit, rateLimitHeaders } from '@/lib/trafficControl';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 const FORBIDDEN_CONTENT_FIELDS = ['messages', 'prompt', 'source', 'tools', 'history', 'memory', 'content', 'tool_output'];
 
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
       clientVersion: String(body.client_version || ''),
       deviceId,
       runtimeProtocolVersion: Number(body.runtime_protocol_version || 0) || undefined
-    });
+    }, { deferCredential: request.headers.get('x-blue-deferred-admission') === '1' });
     return NextResponse.json(admission, {
       status: admission.state === 'active' && admission.credential ? 200 : 202,
       headers: noStoreHeaders(admission.retry_after_ms)

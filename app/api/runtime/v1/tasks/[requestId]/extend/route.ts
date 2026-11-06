@@ -4,6 +4,7 @@ import { extendBlueRuntimeTask, publicBlueRuntimeError } from '@/lib/blueRuntime
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function POST(request: Request, context: { params: { requestId: string } }) {
   try {
