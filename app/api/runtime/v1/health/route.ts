@@ -15,6 +15,8 @@ export async function GET() {
     direct_stream_ready: false,
     proxy_stream_ready: ready,
     inference_transport: 'blue-task-ticket',
+    primary_proxy_base_url: process.env.BLUE_RUNTIME_PROXY_BASE_URL,
+    proxy_fallback_enabled: String(process.env.BLUE_RUNTIME_PROXY_FALLBACK_ENABLED ?? 'true').toLowerCase() !== 'false',
     legacy_stream_proxy_enabled: String(process.env.ENABLE_LEGACY_AI_PROXY || 'false').toLowerCase() === 'true',
     admission: {
       global_concurrency_limit: capacity.globalConcurrency,

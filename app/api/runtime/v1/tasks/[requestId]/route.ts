@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { authenticateBlueKey, getBearerToken } from '@/lib/bluePayg';
 import { completeBlueRuntimeTask, getBlueRuntimeTask, publicBlueRuntimeError } from '@/lib/blueRuntime';
-import { checkRateLimit, rateLimitHeaders } from '@/lib/trafficControl';
+import { rateLimitHeaders } from '@/lib/trafficControl';
+import { checkBlueControlRateLimit } from '@/lib/blueControlRateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,11 +11,7 @@ export const maxDuration = 60;
 export async function GET(request: Request, context: { params: { requestId: string } }) {
   try {
     const account = await authenticateBlueKey(getBearerToken(request));
-    const pollingLimit = await checkRateLimit(
-      'runtime:status',
-      `${account.userId}:${context.params.requestId}`,
-      { limit: 30, windowSeconds: 60 }
-    );
+    const pollingLimit = await checkBlueControlRateLimit(account.userId, 'status', context.params.requestId);
     if (!pollingLimit.allowed) {
       return NextResponse.json({
         error: pollingLimit.configured ? 'Task status is being polled too quickly.' : 'Task status is temporarily unavailable.',

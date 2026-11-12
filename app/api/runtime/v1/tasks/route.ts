@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { authenticateBlueKey, getBearerToken, statusError } from '@/lib/bluePayg';
 import { admitBlueRuntimeTask, assertBlueRuntimeAdmissionEnabled, publicBlueRuntimeError } from '@/lib/blueRuntime';
-import { checkRateLimit, rateLimitHeaders } from '@/lib/trafficControl';
+import { rateLimitHeaders } from '@/lib/trafficControl';
+import { checkBlueControlRateLimit } from '@/lib/blueControlRateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,11 +16,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'New Blue tasks are temporarily paused.' }, { status: 503 });
     }
     const account = await authenticateBlueKey(getBearerToken(request));
-    const admissionLimit = await checkRateLimit(
-      `runtime:admit:${account.accessTier}`,
-      account.userId,
-      { limit: account.accessTier === 'trial' ? 20 : 60, windowSeconds: 60 }
-    );
+    const admissionLimit = await checkBlueControlRateLimit(account.userId,
+      account.accessTier === 'trial' ? 'admit:trial' : 'admit:paid');
     if (!admissionLimit.allowed) {
       return NextResponse.json({
         error: admissionLimit.configured ? 'Too many Blue task requests. Retry shortly.' : 'Blue admission is temporarily unavailable.',

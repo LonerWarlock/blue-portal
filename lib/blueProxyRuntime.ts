@@ -1,9 +1,10 @@
-import { issueTaskTicket, proxyBaseUrl } from './blueTaskTicket.mjs';
+import { issueTaskTicket } from './blueTaskTicket.mjs';
 import { releaseProxyHold } from './blueProxyRedis.mjs';
 import { supabaseAdmin } from './supabaseAdmin';
+import { configuredProxyBase, selectProxyBase } from './blueProxyEndpoints.mjs';
 
 export function assertProxyConfigured(): void {
-  proxyBaseUrl(process.env.BLUE_RUNTIME_PROXY_BASE_URL);
+  configuredProxyBase(process.env);
   if (!process.env.OPENROUTER_API_KEY || (process.env.BLUE_TASK_TICKET_SECRET || '').length < 32
     || !process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
     throw Object.assign(new Error('Blue task proxy is not configured.'), { status: 503 });
@@ -17,7 +18,7 @@ export async function mintBlueTaskCredential(task: { user_id: string; request_id
     user_id_param: task.user_id, request_id_param: task.request_id, models_param: models
   });
   if (error) throw Object.assign(new Error('Blue could not authorize this saved task.'), { status: 409 });
-  const baseUrl = proxyBaseUrl(process.env.BLUE_RUNTIME_PROXY_BASE_URL);
+  const baseUrl = await selectProxyBase(process.env);
   const ticket = await issueTaskTicket({ userId: task.user_id, taskId: task.request_id, deviceHash: task.device_hash, models, baseUrl }, process.env.BLUE_TASK_TICKET_SECRET);
   return { ...ticket, kind: 'blue-task-ticket' as const, base_url: baseUrl, model: models[0],
     ...(models[1] ? { approval_reviewer_model: models[1] } : {}) };
@@ -60,7 +61,17 @@ export async function reconcileProxyCalls(limit = 100): Promise<void> {
         // This metadata is visible to operators; no prompt or output is stored.
         continue;
       }
-      await releaseProxyHold(process.env, call.request_id, call.id).catch(() => {});
     } catch { /* A later cron invocation safely retries the same call. */ }
+  }
+  // Acknowledge each successful cleanup once. Do not sweep/rewrite all historical
+  // holds every minute: the index includes only unacknowledged settled calls.
+  const { data: cleanup, error: cleanupError } = await supabaseAdmin!.from('blue_proxy_calls')
+    .select('id,request_id,user_id').in('state', ['settled','released']).is('redis_released_at', null).limit(limit);
+  if (cleanupError) throw Object.assign(new Error('Blue could not read settled credit cleanup.'), { status: 503 });
+  for (const call of cleanup || []) {
+    try {
+      await releaseProxyHold(process.env, call.request_id, call.id, call.user_id);
+      await supabaseAdmin!.rpc('confirm_blue_proxy_redis_release', { call_id_param: call.id });
+    } catch { /* An interrupted cleanup is idempotent and remains in the outbox. */ }
   }
 }

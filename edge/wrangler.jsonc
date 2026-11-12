@@ -2,7 +2,8 @@
   "name": "blue-inference-proxy",
   "main": "blue-proxy-worker.mjs",
   "compatibility_date": "2026-11-12",
-  "workers_dev": false,
+  "workers_dev": true,
+  "preview_urls": false,
   "observability": { "enabled": false },
-  "limits": { "cpu_ms": 30000 }
+  "vars": { "BLUE_PROXY_MAX_TURN_MS": "900000" }
 }

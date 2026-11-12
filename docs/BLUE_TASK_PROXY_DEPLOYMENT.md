@@ -48,21 +48,24 @@ The supplied screenshot has `OPENROUTER_WORKSPACE_ID`, which is an identifier,
 not another API key. Keep it and `OPENROUTER_MANAGEMENT_API_KEY` during legacy
 credential cleanup. New task authorization does not use the management API.
 
-## Vercel and optional Cloudflare
+## Cloudflare primary and Vercel fallback
+
+Follow `docs/CLOUDFLARE_WORKER_DEPLOYMENT.md` for the ready-to-deploy workers.dev
+configuration, six-secret upload, and Vercel endpoint switch. The website stays
+on Vercel. Portal selects a ready Worker first and issues a separate Vercel ticket
+only before inference dispatch. Ambiguous paid POSTs are never replayed.
 
 The Vercel proxy uses Node serverless execution with a 300-second maximum so
 buffered image/JSON requests can wait for their model. Streaming requests return
 an early SSE comment and periodic keepalives while the upstream model responds.
 The per-turn safety timeout is 270 seconds; a task can contain many turns.
 
-`edge/blue-proxy-worker.mjs` is the actual edge deployment entry. It imports the
-same proxy modules, uses Web APIs only and supplies Cloudflare's `waitUntil` for
-cleanup. Set up `models.blue.imergene.in`, update `edge/wrangler.jsonc` with that
-route, install Wrangler in your deployment environment, and configure the same
-secrets there. Vercel environment variables do not automatically reach Workers.
-Set the same proxy base URL and ticket secret in Portal and the Worker. The
-clients explicitly trust this hostname and the selected Portal origin. Deploying
-the Worker, DNS and credentials is a separate operator action.
+`edge/blue-proxy-worker.mjs` imports the same Web-API-only modules and supplies
+Cloudflare's `waitUntil` for cleanup. Its base URL comes from its assigned request
+host; Vercel's base URL setting points at that Worker. Vercel variables do not
+automatically reach Workers. Ticket signing and all backing-service credentials
+must match. The Worker has a 15-minute per-turn wall-time limit. The Vercel fallback
+retains its 270-second per-turn bound. No DNS change is required for workers.dev.
 
 ## Credit accounting
 
