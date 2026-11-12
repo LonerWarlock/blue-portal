@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'crypto';
+import { supabaseAdmin } from './supabaseAdmin';
 
 export interface RateLimitPolicy {
   limit: number;
@@ -12,13 +13,6 @@ export interface RateLimitResult {
   remaining: number;
   retryAfterSeconds: number;
 }
-
-const RATE_LIMIT_SCRIPT = [
-  "local current = redis.call('INCR', KEYS[1])",
-  "if current == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end",
-  "local ttl = redis.call('TTL', KEYS[1])",
-  "return {current, ttl}"
-].join('; ');
 
 export function requestIp(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
@@ -37,59 +31,26 @@ export async function checkRateLimit(
   identity: string,
   policy: RateLimitPolicy
 ): Promise<RateLimitResult> {
-  const url = String(process.env.UPSTASH_REDIS_REST_URL || '').replace(/\/+$/, '');
-  const token = String(process.env.UPSTASH_REDIS_REST_TOKEN || '');
-  const production = process.env.NODE_ENV === 'production';
+  // Website/login/payment/contact guards use Postgres only. Upstash belongs
+  // exclusively to prepaid proxy admission/settlement, never page loading.
   const unavailable: RateLimitResult = {
-    allowed: true,
-    configured: false,
-    limit: policy.limit,
-    remaining: policy.limit,
-    retryAfterSeconds: 30
+    allowed: false, configured: false, limit: policy.limit, remaining: 0, retryAfterSeconds: 30
   };
-
-  if (!url || !token) return unavailable;
-
+  if (!supabaseAdmin || !Number.isSafeInteger(policy.limit) || policy.limit < 1 || policy.limit > 10000
+    || !Number.isSafeInteger(policy.windowSeconds) || policy.windowSeconds < 1 || policy.windowSeconds > 86400) return unavailable;
   const safeScope = String(scope || 'unknown').replace(/[^a-z0-9:_-]/gi, '_').slice(0, 80);
-  const safeIdentity = privateRateLimitIdentity(identity).slice(0, 40);
-  const bucket = Math.floor(Date.now() / (policy.windowSeconds * 1000));
-  const key = ['blue', 'rate', safeScope, String(bucket), safeIdentity].join(':');
-
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + token,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify([
-        'EVAL',
-        RATE_LIMIT_SCRIPT,
-        '1',
-        key,
-        String(policy.windowSeconds)
-      ]),
-      cache: 'no-store',
-      signal: AbortSignal.timeout(3_000)
+    const {data, error} = await supabaseAdmin.rpc('limit_blue_website_request', {
+      scope_param: safeScope, identity_hash_param: privateRateLimitIdentity(identity),
+      limit_param: policy.limit, window_seconds_param: policy.windowSeconds
     });
-    if (!response.ok) return unavailable;
-
-    const payload = await response.json() as { result?: unknown };
-    const result = Array.isArray(payload.result) ? payload.result : [];
-    const count = Number(result[0]);
-    const ttl = Math.max(1, Number(result[1]) || policy.windowSeconds);
-    if (!Number.isFinite(count)) return unavailable;
-
-    return {
-      allowed: count <= policy.limit,
-      configured: true,
-      limit: policy.limit,
-      remaining: Math.max(0, policy.limit - count),
-      retryAfterSeconds: count <= policy.limit ? 0 : ttl
-    };
-  } catch {
-    return unavailable;
-  }
+    if (error || !data || typeof data.allowed !== 'boolean' || !Number.isInteger(data.remaining)
+      || data.remaining < 0 || data.remaining >= policy.limit || !Number.isInteger(data.retry_after_seconds)
+      || data.retry_after_seconds < 0 || data.retry_after_seconds > policy.windowSeconds
+      || (data.allowed ? data.retry_after_seconds !== 0 : data.remaining !== 0 || data.retry_after_seconds < 1)) return unavailable;
+    return {allowed: data.allowed, configured: true, limit: policy.limit,
+      remaining: data.remaining, retryAfterSeconds: data.retry_after_seconds};
+  } catch { return unavailable; }
 }
 
 export function rateLimitHeaders(result: RateLimitResult): HeadersInit {

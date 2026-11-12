@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const net = require('node:net');
+const http = require('node:http');
 const path = require('node:path');
 
 async function main() {
@@ -44,9 +45,19 @@ async function main() {
   });
   await new Promise(resolve => smtp.listen(0, '127.0.0.1', resolve));
 
+  // Local synthetic Postgres RPC boundary; never contact production Supabase.
+  const database = http.createServer((request,response) => {
+    assert.equal(request.url, '/rest/v1/rpc/limit_blue_website_request');
+    response.writeHead(200, {'Content-Type':'application/json'});
+    response.end(JSON.stringify({allowed:true,remaining:4,retry_after_seconds:0}));
+  });
+  await new Promise(resolve=>database.listen(0,'127.0.0.1',resolve));
   const port = 35891;
   const env = {
     ...process.env,
+    NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:' + database.address().port,
+    SUPABASE_SERVICE_ROLE_KEY: 'synthetic-contact-test-only',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'synthetic-contact-test-only',
     SMTP_HOST: '127.0.0.1',
     SMTP_PORT: String(smtp.address().port),
     SMTP_USER: 'sender@example.test',
@@ -115,6 +126,7 @@ async function main() {
   } finally {
     next.kill();
     smtp.close();
+    database.close();
   }
 }
 
