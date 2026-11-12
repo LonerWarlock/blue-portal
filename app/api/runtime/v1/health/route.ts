@@ -6,10 +6,15 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const capacity = blueRuntimeCapacityConfig();
+  const ready = Boolean(process.env.OPENROUTER_API_KEY && process.env.BLUE_RUNTIME_PROXY_BASE_URL
+    && (process.env.BLUE_TASK_TICKET_SECRET || '').length >= 32
+    && process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
   return NextResponse.json({
     version: 'v1',
     runtime_protocol_version: BLUE_RUNTIME_PROTOCOL_VERSION,
-    direct_stream_ready: true,
+    direct_stream_ready: false,
+    proxy_stream_ready: ready,
+    inference_transport: 'blue-task-ticket',
     legacy_stream_proxy_enabled: String(process.env.ENABLE_LEGACY_AI_PROXY || 'false').toLowerCase() === 'true',
     admission: {
       global_concurrency_limit: capacity.globalConcurrency,
@@ -18,7 +23,7 @@ export async function GET() {
       heartbeat_interval_seconds: 30
     },
     min_extension_version: '0.6.0',
-    maintenance_state: 'operational'
+    maintenance_state: ready ? 'operational' : 'maintenance'
   }, {
     status: 200,
     headers: {

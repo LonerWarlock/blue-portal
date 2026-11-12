@@ -1,11 +1,7 @@
 import { createHash } from 'crypto';
 import { BluePaygAccount, settleUsage, statusError } from '@/lib/bluePayg';
-import { decryptRuntimeSecret, encryptRuntimeSecret } from '@/lib/blueRuntimeCrypto';
+import { assertProxyConfigured, finishProxyTask, mintBlueTaskCredential, reconcileProxyCalls } from '@/lib/blueProxyRuntime';
 import {
-  assertManagedKeyCanUseModelSet,
-  assertRuntimeModelPolicyAssigned,
-  createAssignedRuntimeModelPolicy,
-  createManagedKey,
   deleteManagedKey,
   deleteRuntimeModelPolicy,
   getManagedKey,
@@ -31,7 +27,7 @@ export const BLUE_RUNTIME_EXTENSION_ALLOWANCE = 0.20;
 export const BLUE_RUNTIME_CREDENTIAL_MINUTES = 60;
 export const BLUE_RUNTIME_ROTATION_WINDOW_MS = 5 * 60 * 1000;
 export const BLUE_RUNTIME_HEARTBEAT_STALE_MS = 2 * 60 * 1000;
-export const BLUE_RUNTIME_PROTOCOL_VERSION = 1;
+export const BLUE_RUNTIME_PROTOCOL_VERSION = 2;
 export const BLUE_RUNTIME_DEFAULT_GLOBAL_CONCURRENCY = 100;
 export const BLUE_RUNTIME_DEFAULT_QUEUE_LIMIT = 500;
 export const BLUE_RUNTIME_DEFAULT_QUEUE_TIMEOUT_SECONDS = 120;
@@ -39,7 +35,7 @@ export const BLUE_RUNTIME_DEFAULT_RETRY_AFTER_MS = 2_500;
 
 const MIN_PAID_ALLOWANCE = 0.01;
 const FREE_PROVIDER_CEILING = 0.001;
-const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
 const USAGE_SETTLEMENT_GRACE_MS = positiveDuration(
   process.env.BLUE_RUNTIME_USAGE_SETTLEMENT_GRACE_MS,
   DEFAULT_USAGE_SETTLEMENT_GRACE_MS
@@ -58,6 +54,7 @@ type RuntimeTaskState = 'queued' | 'provisioning' | 'active' | 'stopping'
   | 'completed' | 'cancelled' | 'failed' | 'expired';
 
 interface RuntimeTaskRow {
+  runtime_transport?: 'legacy' | 'ticket';
   feature?: 'project' | 'teams';
   credit_multiplier?: number | string;
   request_id: string;
@@ -134,7 +131,8 @@ export interface BlueRuntimeAdmissionInput {
 export interface BlueRuntimeCredential {
   token: string;
   expires_at: string;
-  base_url: typeof OPENROUTER_BASE_URL;
+  kind: 'blue-task-ticket';
+  base_url: string;
   model: string;
   approval_reviewer_model?: string;
 }
@@ -344,7 +342,7 @@ export async function admitBlueRuntimeTask(
   } catch {
     // Non-blocking fallback for pre-admission cleanup
   }
-  const { data, error } = await supabaseAdmin!.rpc('admit_blue_runtime_task_v4', {
+  const { data, error } = await supabaseAdmin!.rpc('admit_blue_runtime_task_v5', {
     user_id_param: refreshedAccount.userId,
     request_id_param: input.requestId,
     device_hash_param: deviceHash,
@@ -352,6 +350,7 @@ export async function admitBlueRuntimeTask(
     model_param: model.id,
     reviewer_model_param: reviewerModel || null,
     feature_param: input.feature || 'project',
+    purpose_param: input.purpose === 'image' ? 'image' : 'text',
     mode_param: input.mode,
     is_free_param: publicInfo.isFree,
     access_tier_param: refreshedAccount.accessTier,
@@ -386,19 +385,7 @@ export async function admitBlueRuntimeTask(
     return admissionPayload(task, undefined, remaining, model);
   }
 
-  const active = await getActiveCredential(task.request_id);
-  if (active && active.encrypted_key && Date.parse(active.expires_at) - Date.now() > BLUE_RUNTIME_ROTATION_WINDOW_MS) {
-    return admissionPayload(task, decryptCredential(active), remaining, model);
-  }
-
-  if (active?.state === 'provisioning') {
-    return admissionPayload(task, undefined, remaining, model);
-  }
-  // New clients persist admission first and let the authenticated task GET
-  // perform provider provisioning under its existing DB lease. This is durable
-  // across serverless invocations; no detached background promise is used.
-  // Older clients keep their original inline-admission behavior.
-  if (options.deferCredential) return admissionPayload(task, undefined, remaining, model);
+  // Admission now issues only a Blue ticket. No provider management API call.
   const credential = await provisionCredential(task);
   return admissionPayload(task, credential, remaining, model);
 }
@@ -437,6 +424,10 @@ export async function getBlueRuntimeTask(
   if (task.unprovisioned_release_pending) task = await recoverUnprovisionedTask(task);
   if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(account.userId));
   if (task.state === 'stopping') throw statusError(409, 'This Blue runtime task is being settled');
+  if (task.runtime_transport === 'ticket' && Date.parse(task.expires_at) - Date.now() < 15 * 60_000) {
+    await extendRuntimeExpiry(task.request_id);
+    task = await requireTask(account.userId, requestId);
+  }
 
   if (task.state === 'queued') {
     await promoteBlueRuntimeQueue();
@@ -468,17 +459,7 @@ export async function getBlueRuntimeTask(
   task = await requireTask(account.userId, requestId);
   const changed = await withoutExecutionSlot(task);
   if (changed) return changed;
-  const active = await getActiveCredential(requestId);
-  if (active?.state === 'active' && Date.parse(active.expires_at) - Date.now() <= BLUE_RUNTIME_ROTATION_WINDOW_MS) {
-    await disableAndObserveCredential(active);
-    await extendRuntimeExpiry(task.request_id);
-  }
-  task = await requireTask(account.userId, requestId);
-  const beforeProvision = await withoutExecutionSlot(task);
-  if (beforeProvision) return beforeProvision;
-  // activeOrProvision also observes an existing provisioning lease, so status
-  // polling cannot start a second managed-key request for the same task.
-  const credential = await activeOrProvision(task);
+  const credential = await provisionCredential(task);
   task = await requireTask(account.userId, requestId);
   const afterProvision = await withoutExecutionSlot(task);
   if (afterProvision) return afterProvision;
@@ -570,33 +551,10 @@ export async function extendBlueRuntimeTask(
   });
   if (error) throw mapDatabaseError(error.message);
 
-  try {
-    let active = await getActiveCredential(requestId);
-    if (!active || active.state !== 'active' || !active.key_hash || !active.encrypted_key) {
-      active = undefined;
-    } else {
-      const updatedTask = await requireTask(account.userId, requestId);
-      const providerLimit = await absoluteLimitForActiveCredential(updatedTask, active);
-      await updateManagedKey(active.key_hash, { limit: providerLimit });
-      const { error: updateError } = await supabaseAdmin!
-        .from('blue_runtime_credentials')
-        .update({ provider_limit: providerLimit, updated_at: new Date().toISOString() })
-        .eq('id', active.id)
-        .eq('state', 'active');
-      if (updateError) throw updateError;
-      active.provider_limit = providerLimit;
-    }
-    const updatedTask = await requireTask(account.userId, requestId);
-    const model = resolveModel(await getOpenRouterModels(), updatedTask.model, updatedTask.is_free);
-    if (!model) throw new Error('The selected model is no longer available');
-    const credential = active ? decryptCredential(active) : await provisionCredential(updatedTask);
-    return admissionPayload(updatedTask, credential, Number(data?.remaining || 0), model);
-  } catch (error) {
-    // A management timeout is ambiguous: OpenRouter may already have raised
-    // the absolute key limit. Keep the bounded reservation and let a retry with
-    // the same extension ID set the same absolute limit idempotently.
-    throw statusError(503, `Blue could not confirm the provider allowance extension yet: ${safeMessage(error)}`);
-  }
+  const updatedTask = await requireTask(account.userId, requestId);
+  const model = resolveModel(await getOpenRouterModels(), updatedTask.model, updatedTask.is_free);
+  if (!model) throw statusError(503, 'The selected model is no longer available');
+  return admissionPayload(updatedTask, await provisionCredential(updatedTask), Number(data?.remaining || 0), model);
 }
 
 export async function completeBlueRuntimeTask(
@@ -650,6 +608,7 @@ export async function reconcileBlueRuntimeTasks(options: {
 } = {}): Promise<{ inspected: number; settled: number; pending: number; failed: number }> {
   if (!supabaseAdmin) return { inspected: 0, settled: 0, pending: 0, failed: 0 };
   const limit = Math.max(1, Math.min(250, options.limit || 100));
+  await reconcileProxyCalls(limit);
   let initialReleaseQuery = supabaseAdmin
     .from('blue_runtime_tasks')
     .select('*')
@@ -746,6 +705,18 @@ async function settleRuntimeTask(
   let task = await requireTask(initialTask.user_id, initialTask.request_id);
   if (task.unprovisioned_release_pending) task = await recoverUnprovisionedTask(task);
   if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(task.user_id));
+
+  if (task.runtime_transport === 'ticket') {
+    const pending = await finishProxyTask(task, outcome);
+    task = await requireTask(task.user_id, task.request_id);
+    if (!pending) {
+      await promoteBlueRuntimeQueue();
+      return existingSettlement(task, await walletBalance(task.user_id));
+    }
+    return { runtime_protocol_version: BLUE_RUNTIME_PROTOCOL_VERSION, request_id: task.request_id, state: 'stopping',
+      settlement_pending: true, reserved_blue_credits: Number(task.reserved_blue_credits),
+      remaining_blue_credits: await walletBalance(task.user_id), provisional_provider_cost: Number(task.provider_cost), retry_after_seconds: 5 };
+  }
 
   const now = new Date();
   const requestedAt = task.settlement_requested_at || now.toISOString();
@@ -992,143 +963,16 @@ async function cleanupDisabledCredentials(limit: number): Promise<number> {
   return deleted;
 }
 
-async function activeOrProvision(task: RuntimeTaskRow): Promise<BlueRuntimeCredential | undefined> {
-  const active = await getActiveCredential(task.request_id);
-  if (active?.state === 'active' && active.encrypted_key) return decryptCredential(active);
-  if (active?.state === 'provisioning') return undefined;
+async function activeOrProvision(task: RuntimeTaskRow): Promise<BlueRuntimeCredential> {
   return provisionCredential(task);
 }
 
-async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCredential | undefined> {
-  if (task.unprovisioned_release_pending) {
-    await recoverUnprovisionedTask(task);
-    throw statusError(502, 'The initial Blue credential failed; its temporary hold was released');
-  }
-  if (task.state !== 'provisioning' && task.state !== 'active') {
-    throw statusError(409, 'This Blue runtime has not received an execution slot');
-  }
-  if (task.feature === 'teams') {
-    const access = await loadBlueTeamsCreditEntitlement(supabaseAdmin!,task.user_id);
-    if (!access.available) throw statusError(503,'Blue could not verify Teams credit access.');
-    if (access.status !== 'active') throw statusError(403,'Blue Teams requires a purchase of at least 25 Blue Credits and remaining credits.');
-  }
-  const remainingProviderAllowance = await remainingProviderAllowanceForTask(task);
-  if (runtimeTaskIsBillable(task) && remainingProviderAllowance <= 0) {
-    throw statusError(402, 'This Blue task has reached its reserved provider allowance');
-  }
-  const expiresAt = credentialExpiry();
-  const providerLimit = !runtimeTaskIsBillable(task)
-    ? Math.max(0.000001, remainingProviderAllowance)
-    : roundProvider(remainingProviderAllowance);
-  const { data: inserted, error: insertError } = await supabaseAdmin!
-    .from('blue_runtime_credentials')
-    .insert({
-      request_id: task.request_id,
-      provider_limit: providerLimit,
-      expires_at: expiresAt,
-      state: 'provisioning'
-    })
-    .select('*')
-    .single();
-  if (insertError) {
-    if (/duplicate|unique/i.test(insertError.message || '')) return undefined;
-    throw statusError(500, `Could not provision Blue runtime metadata: ${insertError.message}`);
-  }
-  const placeholder = inserted as RuntimeCredentialRow;
-  let keyHash = '';
-  let policy: string | null = null;
-  try {
-    const providerModel = resolveModel(await getOpenRouterModels(), task.model, task.is_free);
-    if (!providerModel) throw new Error('The selected Blue model is no longer available');
-    const providerRoute = providerModelId(providerModel);
-    if (!providerRoute) throw new Error('The selected Blue model has no valid provider route');
-    const reviewer = task.reviewer_model
-      ? approvalReviewerFromCatalog(await getOpenRouterModels(), task.reviewer_model) : undefined;
-    const reviewerRoute = reviewer ? providerModelId(reviewer) : undefined;
-    // The policy matches canonical IDs. OpenRouter can accept an inference
-    // alias in the policy payload without restricting the key to that model.
-    const modelAccess = [
-      { model: providerModel.id, aliases: [providerRoute] },
-      ...(reviewer && reviewerRoute ? [{ model: reviewer.id, aliases: [reviewerRoute] }] : [])
-    ];
-    const created = await createManagedKey({
-      name: `Blue ${task.request_id}`.slice(0, 200),
-      // This is a task-scoped credential, not an unrestricted copy of our
-      // OpenRouter balance. The client can safely extend the *same* task at a
-      // provider boundary; the initial credential must still be bounded.
-      limit: providerLimit,
-      expiresAt
-    });
-    keyHash = created.data.hash;
-    if (!keyHash || !created.key) throw new Error('OpenRouter did not return a complete child credential');
-    const { data: metadata, error: metadataError } = await supabaseAdmin!.from('blue_runtime_credentials').update({
-      key_hash: keyHash,
-      provider_usage_start: Math.max(0, Number(created.data.usage || 0)),
-      updated_at: new Date().toISOString()
-    }).eq('id', placeholder.id).eq('state', 'provisioning').select('id').maybeSingle();
-    if (metadataError || !metadata?.id) throw metadataError || new Error('Credential metadata update lost its provisioning lease');
-    policy = await createAssignedRuntimeModelPolicy(modelAccess.map(({ model }) => model), keyHash);
-    const { data: policyMetadata, error: policyError } = await supabaseAdmin!.from('blue_runtime_credentials').update({
-      guardrail_id: policy, updated_at: new Date().toISOString()
-    }).eq('id', placeholder.id).eq('state', 'provisioning').select('id').maybeSingle();
-    if (policyError || !policyMetadata?.id) throw policyError || new Error('Model policy setup lost its provisioning lease');
-    await assertRuntimeModelPolicyAssigned(policy, keyHash);
-    await assertManagedKeyCanUseModelSet(created.key, modelAccess);
-
-    const encrypted = encryptRuntimeSecret(created.key, credentialAad(task.request_id, placeholder.id));
-    const now = new Date().toISOString();
-    const { data: extendedReservation, error: reservationError } = await supabaseAdmin!
-      .from('billing_reservations')
-      .update({ expires_at: new Date(Date.parse(expiresAt) + 10 * 60 * 1000).toISOString() })
-      .eq('request_id', task.request_id)
-      .eq('status', 'pending')
-      .select('request_id')
-      .maybeSingle();
-    if (reservationError || !extendedReservation?.request_id) {
-      throw reservationError || new Error('Runtime reservation is no longer pending');
-    }
-    const { data: activated, error: activateError } = await supabaseAdmin!.from('blue_runtime_credentials').update({
-      encrypted_key: encrypted.encryptedKey,
-      encryption_iv: encrypted.iv,
-      encryption_tag: encrypted.tag,
-      encryption_version: encrypted.version,
-      state: 'active',
-      updated_at: now
-    }).eq('id', placeholder.id).eq('state', 'provisioning').select('id').maybeSingle();
-    if (activateError || !activated?.id) throw activateError || new Error('Credential activation lost its provisioning lease');
-    const { data: activatedTask, error: taskError } = await supabaseAdmin!.from('blue_runtime_tasks').update({
-      state: 'active', expires_at: expiresAt, updated_at: now, last_heartbeat_at: now
-    }).eq('request_id', task.request_id).in('state', ['provisioning', 'active'])
-      .eq('unprovisioned_release_pending', false)
-      .select('request_id').maybeSingle();
-    if (taskError || !activatedTask?.request_id) throw taskError || new Error('Runtime task activation lost its execution lease');
-    return {
-      token: created.key,
-      expires_at: expiresAt,
-      base_url: OPENROUTER_BASE_URL,
-      model: providerRoute,
-      ...(reviewerRoute ? { approval_reviewer_model: reviewerRoute } : {})
-    };
-  } catch (error) {
-    if (keyHash) {
-      try { await updateManagedKey(keyHash, { disabled: true }); } catch {}
-      try {
-        await deleteManagedKey(keyHash);
-        await deleteRuntimeModelPolicy(policy);
-        policy = null;
-      } catch { /* Terminal cleanup retries any remaining policy. */ }
-    }
-    const { error: failedCredentialError } = await supabaseAdmin!.from('blue_runtime_credentials').update({
-      state: 'failed', key_hash: keyHash || null, guardrail_id: policy,
-      encrypted_key: null, encryption_iv: null, encryption_tag: null,
-      encryption_version: null, updated_at: new Date().toISOString()
-    }).eq('id', placeholder.id);
-    if (failedCredentialError) {
-      throw statusError(503, `Could not persist the failed initial credential yet: ${failedCredentialError.message}`);
-    }
-    await failUnprovisionedTask(task, safeMessage(error));
-    throw statusError(502, `Blue could not provision a provider credential: ${safeMessage(error)}`);
-  }
+async function provisionCredential(task: RuntimeTaskRow): Promise<BlueRuntimeCredential> {
+  const catalogue = await getOpenRouterModels();
+  const model = resolveModel(catalogue, task.model, task.is_free);
+  if (!model) throw statusError(503, 'The selected Blue model is no longer available');
+  const reviewer = task.reviewer_model ? approvalReviewerFromCatalog(catalogue, task.reviewer_model) : undefined;
+  return mintBlueTaskCredential(task, [providerModelId(model) || model.id, ...(reviewer ? [providerModelId(reviewer)!] : [])]);
 }
 
 async function remainingProviderAllowanceForTask(task: RuntimeTaskRow): Promise<number> {
@@ -1232,22 +1076,6 @@ async function getActiveCredential(requestId: string): Promise<RuntimeCredential
   return data as RuntimeCredentialRow | undefined;
 }
 
-function decryptCredential(row: RuntimeCredentialRow): BlueRuntimeCredential {
-  if (!row.encrypted_key || !row.encryption_iv || !row.encryption_tag || row.encryption_version !== 'v1') {
-    throw statusError(503, 'Blue runtime credential is still provisioning');
-  }
-  return {
-    token: decryptRuntimeSecret({
-      encryptedKey: row.encrypted_key,
-      iv: row.encryption_iv,
-      tag: row.encryption_tag,
-      version: row.encryption_version
-    }, credentialAad(row.request_id, row.id)),
-    expires_at: row.expires_at,
-    base_url: OPENROUTER_BASE_URL,
-    model: ''
-  };
-}
 
 async function admissionPayload(
   task: RuntimeTaskRow,
@@ -1388,8 +1216,7 @@ function validateAdmissionInput(input: BlueRuntimeAdmissionInput): void {
   if (!input.clientVersion || input.clientVersion.length > 64) throw statusError(400, 'A valid Blue client version is required');
   if (!input.deviceId || input.deviceId.length < 16 || input.deviceId.length > 256) throw statusError(400, 'A valid Blue device binding is required');
   if (
-    input.runtimeProtocolVersion !== undefined
-    && input.runtimeProtocolVersion !== BLUE_RUNTIME_PROTOCOL_VERSION
+    input.runtimeProtocolVersion !== BLUE_RUNTIME_PROTOCOL_VERSION
   ) {
     throw statusError(
       426,
@@ -1400,9 +1227,7 @@ function validateAdmissionInput(input: BlueRuntimeAdmissionInput): void {
 
 function assertConfigured(): void {
   if (!supabaseAdmin) throw statusError(500, 'Supabase admin is not configured');
-  if (!process.env.OPENROUTER_MANAGEMENT_API_KEY) throw statusError(500, 'Blue model runtime is not configured');
-  if (!process.env.OPENROUTER_WORKSPACE_ID) throw statusError(500, 'Blue model workspace is not configured');
-  if (!process.env.BLUE_RUNTIME_TOKEN_ENCRYPTION_KEY) throw statusError(500, 'Blue runtime token encryption is not configured');
+  assertProxyConfigured();
 }
 
 export function publicBlueRuntimeError(error: unknown, fallback = 'Blue runtime request failed'): string {
