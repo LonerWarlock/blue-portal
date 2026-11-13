@@ -17,7 +17,8 @@
     "test:analytics": "node --experimental-strip-types --test lib/optionalAnalytics.test.mjs",
     "test:public-rendering": "node --experimental-strip-types --test lib/optionalAnalytics.test.mjs lib/authLazyLoading.test.mjs lib/seo.test.mjs lib/seoRedirects.test.cjs lib/chunk-recovery.test.cjs lib/desktop-store-release.test.mjs",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:credit-checkout": "node --experimental-strip-types --test lib/blueCreditPricing.test.mjs lib/blueCreditPaymentRoutes.test.mjs lib/blueTeamsCredits.test.mjs tests/blue-credit-checkout-ui.test.cjs tests/blue-credit-paypal-dom.test.cjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -42,6 +43,7 @@
     "@types/react": "19.2.17",
     "@types/three": "0.180.0",
     "autoprefixer": "^10.4.19",
+    "jsdom": "26.1.0",
     "playwright": "1.63.0",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",

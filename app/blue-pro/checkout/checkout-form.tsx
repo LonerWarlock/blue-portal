@@ -20,6 +20,9 @@ export function CheckoutForm() {
   const [customUsdAmount, setCustomUsdAmount] = useState("32.50");
   const [currency, setCurrency] = useState<"INR" | "USD">("INR");
   const [paypalLoaded, setPaypalLoaded] = useState(false);
+  const [paypalStatus, setPaypalStatus] = useState<"idle" | "loading" | "ready" | "failed">("idle");
+  const [paypalAttempt, setPaypalAttempt] = useState(0);
+  const paypalContainerRef = useRef<HTMLDivElement | null>(null);
   const txnidRef = useRef<string>('');
   const paypalScriptRef = useRef<HTMLScriptElement | null>(null);
 
@@ -46,8 +49,8 @@ export function CheckoutForm() {
   const normalizeMinimum = () => {
     if (!customValue.trim() || Number(customValue) <= 0) setCustomValue("1");
   };
-  const checkoutRef = useRef({ activePack, purchaseSelection, configError });
-  checkoutRef.current = { activePack, purchaseSelection, configError };
+  const checkoutRef = useRef({ activePack, purchaseSelection, configError, currency });
+  checkoutRef.current = { activePack, purchaseSelection, configError, currency };
   const formatCredits = (value: number) => value.toLocaleString("en-IN", { maximumFractionDigits: 10 });
   const formatPrice = (value: number) => currency === "INR" ? `₹${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `$${value.toFixed(2)}`;
   const loadPacks = async () => {
@@ -82,54 +85,75 @@ export function CheckoutForm() {
 
   useEffect(() => {
     if (activePack && currency === "USD" && !paypalLoaded && !paypalScriptRef.current) {
+      setPaypalStatus("loading");
       const script = document.createElement("script");
       script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD`;
       script.async = true;
       paypalScriptRef.current = script;
       script.onload = () => setPaypalLoaded(true);
-      script.onerror = () => { paypalScriptRef.current = null; setError("PayPal could not load. Please try again."); };
+      script.onerror = () => { paypalScriptRef.current = null; setPaypalStatus("failed"); setError("PayPal could not load. Please try again."); };
       document.body.appendChild(script);
     }
-  }, [currency, paypalLoaded, Boolean(activePack)]);
+  }, [currency, paypalLoaded, Boolean(activePack), paypalAttempt]);
 
   useEffect(() => {
-    const container = document.getElementById("paypal-button-container-bluepro");
-    if (container) container.innerHTML = "";
-    if (activePack && currency === "USD" && paypalLoaded && (window as any).paypal) {
-
-      const buttons = (window as any).paypal.Buttons({
-        style: { layout: "vertical", color: "blue", shape: "rect", label: "paypal", height: 45 },
-        createOrder: async () => {
-          const currentCheckout = checkoutRef.current;
-          if (!currentCheckout.activePack || currentCheckout.configError) throw new Error("Enter a valid purchase amount first.");
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) throw new Error("Not authenticated");
-
-          const res = await fetch("/api/blue-pro/paypal/create-order", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify({ returnUrl: `${window.location.origin}/console`, ...currentCheckout.purchaseSelection })
-          });
-          const data = await res.json();
-          if (!res.ok || data.error) throw new Error(data.error || "Failed to create PayPal order");
-          txnidRef.current = data.txnid || '';
-          return data.orderId;
-        },
-        onApprove: async (data: { orderID: string }) => {
-          window.location.href = `/api/blue-pro/paypal/capture?token=${data.orderID}&txnid=${txnidRef.current}`;
-        },
-        onError: (err: any) => {
-          setError(err.message || "PayPal payment failed");
-          setLoading(false);
-        },
-      });
-      void Promise.resolve(buttons.render("#paypal-button-container-bluepro")).catch(() => setError("PayPal could not load. Please try again."));
-      return () => { void Promise.resolve(buttons.close?.()).catch(() => {}); };
-    }
-  }, [currency, paypalLoaded, Boolean(activePack)]);
+    if (!activePack || currency !== "USD" || !paypalLoaded || !paypalContainerRef.current) return;
+    let active = true;
+    let buttons: any;
+    // React owns the empty outer element; this render alone owns the SDK child.
+    // Late SDK cleanup can only remove its own detached child, never newer controls.
+    const container = document.createElement("div");
+    paypalContainerRef.current.replaceChildren(container);
+    setPaypalStatus("loading");
+    setError("");
+    const closeButtons = () => {
+      try { void Promise.resolve(buttons?.close?.()).catch(() => {}); } catch { /* Already closed. */ }
+    };
+    const renderButtons = async () => {
+      try {
+        if (!(window as any).paypal) throw new Error("PayPal SDK is unavailable.");
+        buttons = (window as any).paypal.Buttons({
+          style: { layout: "vertical", color: "blue", shape: "rect", label: "paypal", height: 45 },
+          createOrder: async () => {
+            const currentCheckout = checkoutRef.current;
+            if (!active || currentCheckout.currency !== "USD") throw new Error("Checkout has changed. Please try again.");
+            if (!currentCheckout.activePack || currentCheckout.configError) throw new Error("Enter a valid purchase amount first.");
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error("Not authenticated");
+            if (!active) throw new Error("Checkout has changed. Please try again.");
+            const res = await fetch("/api/blue-pro/paypal/create-order", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+              body: JSON.stringify({ returnUrl: `${window.location.origin}/console`, ...currentCheckout.purchaseSelection })
+            });
+            const data = await res.json();
+            if (!res.ok || data.error) throw new Error(data.error || "Failed to create PayPal order");
+            if (!active) throw new Error("Checkout has changed. Please try again.");
+            txnidRef.current = data.txnid || '';
+            return data.orderId;
+          },
+          onApprove: async (data: { orderID: string }) => {
+            if (!active) return;
+            window.location.href = `/api/blue-pro/paypal/capture?token=${data.orderID}&txnid=${txnidRef.current}`;
+          },
+          onError: (err: any) => {
+            if (!active) return;
+            setError(err.message || "PayPal payment failed");
+            setLoading(false);
+          },
+        });
+        await buttons.render(container);
+        if (active) setPaypalStatus("ready"); else closeButtons();
+      } catch {
+        if (!active) return;
+        closeButtons();
+        setPaypalStatus("failed");
+        setError("PayPal could not load. Please try again.");
+      }
+    };
+    void renderButtons();
+    return () => { active = false; closeButtons(); container.remove(); };
+  }, [currency, paypalLoaded, Boolean(activePack), paypalAttempt]);
 
   const handlePayment = async () => {
     if (!activePack || configError) return;
@@ -321,13 +345,16 @@ export function CheckoutForm() {
                       )}
                     </button>
                   ) : (
-                    <div id="paypal-button-container-bluepro" className="min-h-[50px]">
-                      {!activePack ? <p className="text-xs text-ink-muted">Enter a valid amount to continue with PayPal.</p> : !paypalLoaded && (
+                    <div className="min-h-[50px]">
+                      {!activePack ? <p className="text-xs text-ink-muted">Enter a valid amount to continue with PayPal.</p> : (paypalStatus === "idle" || paypalStatus === "loading") && (
                         <div className="w-full px-6 py-3 rounded-lg bg-paper-sunken flex items-center justify-center gap-2 text-sm text-ink-muted">
                           <i className="fa-solid fa-spinner animate-spin"></i>
                           Loading PayPal...
                         </div>
                       )}
+                      <div id="paypal-button-container-bluepro" ref={paypalContainerRef} />
+                      {activePack && paypalStatus === "failed" && <button type="button" className="w-full px-6 py-3 rounded-lg bg-paper-sunken text-sm text-ink-muted"
+                        onClick={() => { setError(""); setPaypalStatus("loading"); setPaypalAttempt(attempt => attempt + 1); }}>Try loading PayPal again</button>}
                     </div>
                   )}
 

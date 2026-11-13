@@ -23,10 +23,10 @@ function harness({search='?pack=custom&credits=25',config=catalog,authenticated=
  const react={useState(initial){const i=cursor++;hooks[i]||={value:typeof initial==='function'?initial():initial};return[hooks[i].value,v=>{hooks[i].value=typeof v==='function'?v(hooks[i].value):v;dirty=true;}];},useRef(initial){const i=cursor++;hooks[i]||={value:{current:initial}};return hooks[i].value;},useEffect(fn,deps){const i=cursor++;if(!hooks[i]||deps.some((d,j)=>!Object.is(d,hooks[i].deps[j])))effects.push({i,fn,deps});}};
  const jsx=(type,props)=>({type,props}),browser={location:{search,origin:'https://example.invalid',href:''}};
  if(paypal)browser.paypal={Buttons:options=>{paypalButtons.push(options);return{render(){}};}};
- const paypalContainer={innerHTML:''};
- const document={body:{appendChild(node){scripts.push(node);}},createElement(tag){return{tag,appendChild(){},submit(){}};},getElementById(id){return paypal&&id==='paypal-button-container-bluepro'?paypalContainer:null;}};
+ const paypalContainer={replaceChildren(node){this.child=node;}};
+ const document={body:{appendChild(node){scripts.push(node);}},createElement(tag){return{tag,appendChild(){},submit(){},remove(){}};},getElementById(id){return paypal&&id==='paypal-button-container-bluepro'?paypalContainer:null;}};
  const Form=evaluate('app/blue-pro/checkout/checkout-form.tsx',{react,'react/jsx-runtime':{jsx,jsxs:jsx},'next/navigation':{useRouter:()=>({push:x=>navigation.push(x)})},'@/lib/supabase':{supabase:{auth:{getSession:async()=>({data:{session:authenticated?{access_token:'synthetic',user:{id:'buyer',email:'buyer@example.invalid'}}:null}})}}},'@/app/components/CurrencySelector':{CurrencySelector},'@/lib/creditCheckoutDisplay':display},{window:browser,document,process:{env:{}},sessionStorage:{setItem:(...a)=>stored.push(a)},fetch:async(...args)=>{requests.push(args);return{ok:true,json:async()=>args[0]==='/api/blue-pro/pack-config'?({packs:config}):({orderId:'ORDER',txnid:'synthetic-tx'})};}}).CheckoutForm;
- function render(){cursor=0;dirty=false;effects.length=0;tree=Form();for(const {i,fn,deps} of effects.splice(0)){hooks[i]={deps,cleanup:fn()};}}
+ function render(){cursor=0;dirty=false;effects.length=0;tree=Form();walk(tree,n=>{if(n.props?.id==='paypal-button-container-bluepro'&&n.props.ref)n.props.ref.current=paypalContainer;});for(const {i,fn,deps} of effects.splice(0)){hooks[i]?.cleanup?.();hooks[i]={deps,cleanup:fn()};}}
  function walk(node,fn){if(!node||typeof node!=='object')return;if(Array.isArray(node)){node.forEach(n=>walk(n,fn));return;}fn(node);walk(node.props?.children,fn);}
  function text(node){if(node==null||typeof node==='boolean')return'';if(typeof node!=='object')return String(node);if(Array.isArray(node))return node.map(text).join('');return text(node.props?.children);}
  function find(fn){let result;walk(tree,n=>{if(fn(n))result=n;});return result;}
@@ -108,6 +108,6 @@ test('USD field accepts a new amount and sends it through the PayPal SDK order c
  const rendered=h.paypalButtons.length;await editAmount(h,'26');assert.equal(h.paypalButtons.length,rendered,'editing a valid amount reuses the rendered PayPal controls');
  await h.paypalButtons.at(-1).createOrder();assert.equal(JSON.parse(h.requests.at(-1)[1].body).customUsdAmount,26);
  const previous=h.paypalButtons.at(-1);await editAmount(h,'');const requestCount=h.requests.length;
- await assert.rejects(previous.createOrder(),/valid purchase amount/);assert.equal(h.requests.length,requestCount);
+ await assert.rejects(previous.createOrder(),/valid purchase amount|changed/);assert.equal(h.requests.length,requestCount);
  await editAmount(h,'0');assert.equal(customAmountInput(h).props.value,'0');customAmountInput(h).props.onBlur();await h.flush();assert.equal(customAmountInput(h).props.value,'1');
 });

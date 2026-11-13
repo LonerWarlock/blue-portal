@@ -23,3 +23,5 @@ The migration increases purchase-quantity precision to match the wallet. Existin
 ## Checks
 
 Pricing, signed payment quotes, custom rupee amounts, tampered inputs, old payment callbacks, fractional settlement, duplicate settlement, Teams eligibility and the existing subscription suite are covered by isolated tests. No real payment is submitted by these checks.
+
+Run `npm run test:credit-checkout` for the full credit checkout regression suite. The React DOM test mounts the real checkout with synthetic auth and PayPal controls; it checks SDK loading, input edits, repeated currency changes, delayed SDK cleanup, blocked stale callbacks and retry after render failure. No live payment is made.
