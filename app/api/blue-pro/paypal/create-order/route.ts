@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { createPaypalOrder } from '@/lib/paypal';
-import { getPackConfig, getCustomPackConfig, APPROX_USD_TO_INR } from '@/lib/exchangeRate';
+import { getCreditPurchasePack, APPROX_USD_TO_INR } from '@/lib/exchangeRate';
+import { BLUE_CREDIT_PRICING_VERSION, BLUE_CREDIT_PRICE_INR } from '@/lib/blueCreditPricing';
 import { paymentSiteOrigin } from '@/lib/paymentOrigin';
 import { safeInternalUrl } from '@/lib/paymentSecurity';
 
@@ -14,10 +15,8 @@ export async function POST(request: Request) {
     const { data, error } = await supabaseAdmin.auth.getUser(authorization.slice(7).trim());
     if (error || !data.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await request.json() as { returnUrl?: string; packId?: string; customCredits?: number };
-    const pack = body.packId === 'custom'
-      ? getCustomPackConfig(body.customCredits ?? 10)
-      : getPackConfig(body.packId);
+    const body = await request.json() as { returnUrl?: string; packId?: string; customCredits?: number; customInrAmount?: number };
+    const pack = getCreditPurchasePack(body, false);
 
     const { data: account } = await supabaseAdmin.auth.admin.getUserById(data.user.id);
     const email = account.user?.email || '';
@@ -51,7 +50,9 @@ export async function POST(request: Request) {
         provider_txnid: txnid,
         status: 'pending',
         metadata: {
-          pricing_version: 'blue-credit-1to1-platform-30-v1',
+          pricing_version: BLUE_CREDIT_PRICING_VERSION,
+          credit_unit_price_inr: BLUE_CREDIT_PRICE_INR,
+          model_usage_usd: pack.credits,
           base_price_usd: pack.basePriceUSD, base_price_inr: pack.basePriceINR,
           platform_fee_usd: pack.platformFeeUSD, platform_fee_inr: pack.platformFeeINR,
           platform_fee_percent: pack.platformFeePercent,

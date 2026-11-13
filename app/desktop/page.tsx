@@ -72,7 +72,7 @@ export default function DesktopPage() {
         <h2 id="desktop-costs" className="font-display text-2xl font-semibold tracking-tight text-ink">Choose how you use Blue.</h2>
         <div className="mt-5 grid gap-6 text-sm leading-7 text-ink-muted md:grid-cols-2">
           <p><strong className="text-ink">Project work:</strong> app-feature access and AI usage are separate. With your own provider key, model charges and limits belong to that provider. Blue Models uses your Blue Credit balance.</p>
-          <p><strong className="text-ink">Blue Teams:</strong> purchase at least 25 Blue Credits to activate Team mode while your wallet has credits. A 30% platform fee is added at checkout. Lead-agent and specialist model usage shares the same wallet.</p>
+          <p><strong className="text-ink">Blue Teams:</strong> purchase at least 25 Blue Credits to activate Team mode while your wallet has credits. 1 Blue Credit costs ₹115. Lead-agent and specialist model usage shares the same wallet.</p>
         </div>
         <Link href="/pricing" className={`${link} mt-5 inline-flex min-h-10 items-center text-sm`}>Compare current plans and model-usage costs</Link>
       </section>

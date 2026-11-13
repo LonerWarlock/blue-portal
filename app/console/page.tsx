@@ -605,7 +605,7 @@ export default function ConsolePage() {
                 ) : !isProPayg && (
                   <Link prefetch={false} href="/blue-pro" className="mt-3 inline-flex items-center gap-1.5 text-[10px] text-brand hover:text-brand transition">
                     <i className="fa-solid fa-bolt"></i>
-                    Try Blue Pro from ₹130 including the 30% platform fee — no expiry
+                    Try Blue Pro at ₹115 per credit — no expiry
                   </Link>
                 )}
               </div>
@@ -618,7 +618,7 @@ export default function ConsolePage() {
                     </div>
                     <h4 className="text-sm font-bold text-ink tracking-tight">Add Blue Credits to continue</h4>
                     <p className="text-xs text-ink-muted max-w-sm mt-1.5 leading-relaxed">
-                      Buy Blue Credits with a 30% platform fee at checkout. A purchase of at least 25 credits unlocks Teams.
+                      Buy Blue Credits at ₹115 per credit. A purchase of at least 25 credits unlocks Teams.
                     </p>
                     <Link prefetch={false} href="/blue-pro/checkout?pack=starter" className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-bold text-white">
                       <i className="fa-solid fa-cart-plus"></i>

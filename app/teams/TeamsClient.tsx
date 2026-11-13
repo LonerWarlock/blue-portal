@@ -67,9 +67,9 @@ export default function TeamsClient() {
               <p className={styles.tier}>Blue Teams with Blue Credits</p>
               <p className={styles.audience}>A qualifying purchase adds usable model credits. It is not an activation fee.</p>
               <div className={styles.price}><span>25</span><small>Blue Credits to unlock Teams</small></div>
-              <p className={styles.usdPrice}>$25.00 in credits + $7.50 platform fee = $32.50 USD. INR total is shown at checkout.</p>
+              <p className={styles.usdPrice}>₹2,875 for 25 credits. ₹115 per credit.</p>
               <ul className={styles.features}>
-                {['1 Blue Credit covers $1 of actual OpenRouter model usage', '30% platform fee charged at purchase; no additional usage markup', 'Main agent and specialists use Blue Models', 'Up to 10 project teams and 8 agents per team', 'Unused credits carry forward; top-ups add to the same wallet'].map(feature => <li key={feature}><Check size={15} aria-hidden="true" /><span>{feature}</span></li>)}
+                {['1 Blue Credit covers $1 of actual OpenRouter model usage', 'Flat ₹115 per credit; usage charged at actual model cost', 'Main agent and specialists use Blue Models', 'Up to 10 project teams and 8 agents per team', 'Unused credits carry forward; top-ups add to the same wallet'].map(feature => <li key={feature}><Check size={15} aria-hidden="true" /><span>{feature}</span></li>)}
               </ul>
               <Link href={hasAccess ? '/blue-pro/checkout' : activationCheckout} className={styles.primaryButton}>{hasAccess ? 'Add Blue Credits' : 'Buy 25 Blue Credits'} <ArrowUpRight size={16} aria-hidden="true" /></Link>
             </div>

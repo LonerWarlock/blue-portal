@@ -117,8 +117,8 @@ export default function PricingClient() {
                   </div>
                   <p className={styles.priceContext}>{billingCycle === 'monthly' ? '30 days of access · paid upfront' : `₹${(bluePlan.priceInr / bluePlan.months).toLocaleString('en-IN', { maximumFractionDigits: 2 })}/month equivalent · ${bluePlan.days} days`}</p>
                 </div> : <>
-                  <div className={styles.priceLine}><span className={styles.price}><span className={styles.currency}>₹</span>{plan.id === 'lite' ? '0' : '130'}</span><span className={styles.period}>{plan.id === 'lite' ? '/forever' : '/trial'}</span></div>
-                  <p className={styles.priceContext}>{plan.id === 'lite' ? 'No payment needed' : '1 credit + 30% platform fee · no expiry'}</p>
+                  <div className={styles.priceLine}><span className={styles.price}><span className={styles.currency}>₹</span>{plan.id === 'lite' ? '0' : '115'}</span><span className={styles.period}>{plan.id === 'lite' ? '/forever' : '/Credit'}</span></div>
+                  <p className={styles.priceContext}>{plan.id === 'lite' ? 'No payment needed' : 'Pay as you go · no expiry'}</p>
                 </>}
               </div>
 

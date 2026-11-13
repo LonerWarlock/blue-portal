@@ -1,6 +1,6 @@
-/** Runtime usage is passed through one-for-one. The 30% platform fee is collected at checkout. */
+/** Runtime usage is passed through one-for-one, independent of the credit purchase price. */
 export const DEFAULT_BLUE_CREDIT_MULTIPLIER = 1;
-export const BLUE_PLATFORM_FEE_PERCENT = 30;
+export const BLUE_PLATFORM_FEE_PERCENT = 0;
 export const BLUE_TEAMS_ACTIVATION_CREDITS = 25;
 
 // Keep the exported function for installed callers, but an old environment

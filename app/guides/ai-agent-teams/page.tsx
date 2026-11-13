@@ -37,7 +37,7 @@ const faqs = [
   },
   {
     question: "Does Blue Teams include unlimited model usage?",
-    answer: "No. Teams uses Blue Models and your Blue Credits. A purchase of at least 25 credits activates Teams while your wallet has credits. 1 credit covers $1 of actual OpenRouter usage, and a 30% platform fee is charged at checkout. More agents or longer tasks can increase usage.",
+    answer: "No. Teams uses Blue Models and your Blue Credits. A purchase of at least 25 credits activates Teams while your wallet has credits. 1 credit costs ₹115 and covers $1 of actual OpenRouter usage. More agents or longer tasks can increase usage.",
   },
   {
     question: "Will agents send messages or publish changes without permission?",
@@ -192,7 +192,7 @@ export default function AiAgentTeamsGuide() {
                 credits do not expire or reset monthly. If the balance reaches zero, Teams pauses and another purchase of at least 25 credits reactivates it.
               </p>
               <p className={copy}>
-                1 Blue Credit covers $1 of actual OpenRouter usage. A 30% platform fee is added at checkout, without another platform markup during usage.
+                1 Blue Credit costs ₹115 and covers $1 of actual OpenRouter usage. The checkout total uses this flat rate, without an additional fee.
                 See <Link href="/teams" className={link}>Blue Teams credit access</Link> and <Link href="/blue-pro/checkout?pack=custom&amp;credits=25" className={link}>current checkout totals</Link> before purchasing.
                 Longer tasks and additional agents can increase usage. Start with one bounded task before scaling up.
               </p>
