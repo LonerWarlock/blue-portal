@@ -13,7 +13,8 @@ The migration increases purchase-quantity precision to match the wallet. Existin
 - INR credit purchase: credits × ₹115, with no additional checkout fee.
 - Custom INR purchase: amount paid ÷ 115, stored at Postgres numeric(18,10) precision. INR amounts support two decimal places.
 - Whole credit quantities: 1–100; custom INR payments: ₹1–₹11,500.
-- Existing international checkout remains $1.30 per credit as one flat total.
+- International checkout is $1.30 per credit as one flat total. Custom USD payments from $1–$130 receive amount paid ÷ 1.30 credits at numeric(18,10) precision.
+- Custom inputs allow clearing and retyping. Empty or zero values reset to the minimum on blur; invalid amounts cannot initiate payment.
 - 1 Blue Credit still covers $1.00 of actual OpenRouter model usage in Postgres and the proxy holds. No purchase markup is added during usage.
 - Team activation still requires at least 25 credits in one verified purchase (₹2,875). A payment below ₹2,875 does not round up into eligibility.
 - The ₹149 app-access subscription includes 0 Blue Credits and is unchanged.

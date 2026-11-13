@@ -1,5 +1,5 @@
 import { configuredBlueCreditMultiplier } from '@/lib/blueCreditPolicy';
-import { BLUE_CREDIT_PRICE_INR, BLUE_CREDIT_PRICE_USD, quoteBlueCredits, quoteBlueCreditsFromInr, type BlueCreditQuote } from '@/lib/blueCreditPricing';
+import { BLUE_CREDIT_PRICE_INR, BLUE_CREDIT_PRICE_USD, quoteBlueCredits, quoteBlueCreditsFromInr, quoteBlueCreditsFromUsd, type BlueCreditQuote } from '@/lib/blueCreditPricing';
 
 export const APPROX_USD_TO_INR = 100;
 export const PAYPAL_SUBSCRIPTION_PRICE_USD = 1.99;
@@ -31,10 +31,17 @@ export function getPackConfig(packId = 'starter'): BlueCreditPack {
 export function getPackCatalog(): BlueCreditPack[] { return [getPackConfig('starter'), getPackConfig('standard')]; }
 export function getCustomPackConfig(credits: number): BlueCreditPack { return pack('custom', quoteBlueCredits(credits), 'full'); }
 export function getCustomInrPackConfig(amount: number): BlueCreditPack { return pack('custom', quoteBlueCreditsFromInr(amount), 'full'); }
-export function getCreditPurchasePack(input: { packId?: string; customCredits?: number; customInrAmount?: number }, allowInr: boolean): BlueCreditPack {
+export function getCustomUsdPackConfig(amount: number): BlueCreditPack { return pack('custom', quoteBlueCreditsFromUsd(amount), 'full'); }
+export function getCreditPurchasePack(input: { packId?: string; customCredits?: number; customInrAmount?: number; customUsdAmount?: number }, currency: 'INR' | 'USD'): BlueCreditPack {
+  const choices = [input.customCredits, input.customInrAmount, input.customUsdAmount].filter(value => value !== undefined).length;
+  if (choices > 1 || (input.packId !== 'custom' && choices > 0)) throw new RangeError('Choose either a credit quantity or an amount in the checkout currency.');
   if (input.customInrAmount !== undefined) {
-    if (!allowInr || input.packId !== 'custom' || input.customCredits !== undefined) throw new RangeError('Choose either a credit quantity or an INR amount.');
+    if (currency !== 'INR') throw new RangeError('INR amounts require INR checkout.');
     return getCustomInrPackConfig(input.customInrAmount);
+  }
+  if (input.customUsdAmount !== undefined) {
+    if (currency !== 'USD') throw new RangeError('USD amounts require USD checkout.');
+    return getCustomUsdPackConfig(input.customUsdAmount);
   }
   return input.packId === 'custom' ? getCustomPackConfig(input.customCredits === undefined ? 25 : input.customCredits) : getPackConfig(input.packId);
 }

@@ -15,8 +15,8 @@ export async function POST(request: Request) {
     const { data, error } = await supabaseAdmin.auth.getUser(authorization.slice(7).trim());
     if (error || !data.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await request.json() as { returnUrl?: string; packId?: string; customCredits?: number; customInrAmount?: number };
-    const pack = getCreditPurchasePack(body, false);
+    const body = await request.json() as { returnUrl?: string; packId?: string; customCredits?: number; customInrAmount?: number; customUsdAmount?: number };
+    const pack = getCreditPurchasePack(body, 'USD');
 
     const { data: account } = await supabaseAdmin.auth.admin.getUserById(data.user.id);
     const email = account.user?.email || '';

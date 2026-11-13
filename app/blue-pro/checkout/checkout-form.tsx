@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CurrencySelector } from "@/app/components/CurrencySelector";
-import { customCreditPackDisplay, customInrPackDisplay, initialCreditCheckoutSelection, validCreditPackDisplay, type CreditPackDisplay } from "@/lib/creditCheckoutDisplay";
+import { customCreditPackDisplay, customInrPackDisplay, customUsdPackDisplay, initialCreditCheckoutSelection, validCreditPackDisplay, type CreditPackDisplay } from "@/lib/creditCheckoutDisplay";
 
 type CreditPack = CreditPackDisplay;
 
@@ -14,22 +14,40 @@ export function CheckoutForm() {
   const [error, setError] = useState("");
   const [packs, setPacks] = useState<CreditPack[]>([]);
   const [selectedPackId, setSelectedPackId] = useState<CreditPack["id"]>("starter");
-  const [customCredits, setCustomCredits] = useState(25);
-  const [customInput, setCustomInput] = useState<"credits" | "inr">("credits");
-  const [customInrAmount, setCustomInrAmount] = useState(2875);
+  const [customCredits, setCustomCredits] = useState("25");
+  const [customInput, setCustomInput] = useState<"credits" | "amount">("credits");
+  const [customInrAmount, setCustomInrAmount] = useState("2875");
+  const [customUsdAmount, setCustomUsdAmount] = useState("32.50");
   const [currency, setCurrency] = useState<"INR" | "USD">("INR");
   const [paypalLoaded, setPaypalLoaded] = useState(false);
   const txnidRef = useRef<string>('');
+  const paypalScriptRef = useRef<HTMLScriptElement | null>(null);
 
   const [configError, setConfigError] = useState("");
   const pack = packs.find(item => item.id === selectedPackId);
-  const customByInr = currency === "INR" && customInput === "inr";
+  const customByAmount = customInput === "amount";
+  const customAmount = currency === "INR" ? customInrAmount : customUsdAmount;
+  const customValue = customByAmount ? customAmount : customCredits;
+  const customLimit = customByAmount ? (currency === "INR" ? 11500 : 130) : 100;
+  const referencePack = packs.find(item => item.id === "starter");
   const activePack = selectedPackId === "custom"
-    ? (customByInr ? customInrPackDisplay(packs.find(item => item.id === "starter"), customInrAmount)
-      : customCreditPackDisplay(packs.find(item => item.id === "starter"), customCredits)) : pack;
+    ? (customByAmount ? (currency === "INR" ? customInrPackDisplay(referencePack, Number(customInrAmount))
+      : customUsdPackDisplay(referencePack, Number(customUsdAmount)))
+      : customCreditPackDisplay(referencePack, Number(customCredits))) : pack;
   const purchaseSelection = selectedPackId === "custom"
-    ? (customByInr ? { packId: selectedPackId, customInrAmount } : { packId: selectedPackId, customCredits })
-    : { packId: selectedPackId };
+    ? (customByAmount ? (currency === "INR" ? { packId: selectedPackId, customInrAmount: Number(customInrAmount) }
+      : { packId: selectedPackId, customUsdAmount: Number(customUsdAmount) })
+      : { packId: selectedPackId, customCredits: Number(customCredits) }) : { packId: selectedPackId };
+  const setCustomValue = (value: string) => {
+    if (!customByAmount) setCustomCredits(value);
+    else if (currency === "INR") setCustomInrAmount(value);
+    else setCustomUsdAmount(value);
+  };
+  const normalizeMinimum = () => {
+    if (!customValue.trim() || Number(customValue) <= 0) setCustomValue("1");
+  };
+  const checkoutRef = useRef({ activePack, purchaseSelection, configError });
+  checkoutRef.current = { activePack, purchaseSelection, configError };
   const formatCredits = (value: number) => value.toLocaleString("en-IN", { maximumFractionDigits: 10 });
   const formatPrice = (value: number) => currency === "INR" ? `₹${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `$${value.toFixed(2)}`;
   const loadPacks = async () => {
@@ -49,7 +67,7 @@ export function CheckoutForm() {
 
   useEffect(() => {
     const selected = initialCreditCheckoutSelection(window.location.search);
-    setSelectedPackId(selected.packId); setCustomCredits(selected.customCredits);
+    setSelectedPackId(selected.packId); setCustomCredits(String(selected.customCredits));
     supabase.auth.getSession().then(({ data: { session } }: any) => {
       if (!session) {
         sessionStorage.setItem("redirectAfterLogin", `/blue-pro/checkout${window.location.search}`);
@@ -63,24 +81,27 @@ export function CheckoutForm() {
   }, []);
 
   useEffect(() => {
-    if (activePack && currency === "USD" && !paypalLoaded) {
+    if (activePack && currency === "USD" && !paypalLoaded && !paypalScriptRef.current) {
       const script = document.createElement("script");
       script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD`;
       script.async = true;
+      paypalScriptRef.current = script;
       script.onload = () => setPaypalLoaded(true);
-      script.onerror = () => console.error("Failed to load PayPal SDK");
+      script.onerror = () => { paypalScriptRef.current = null; setError("PayPal could not load. Please try again."); };
       document.body.appendChild(script);
     }
   }, [currency, paypalLoaded, Boolean(activePack)]);
 
   useEffect(() => {
+    const container = document.getElementById("paypal-button-container-bluepro");
+    if (container) container.innerHTML = "";
     if (activePack && currency === "USD" && paypalLoaded && (window as any).paypal) {
-      const container = document.getElementById("paypal-button-container-bluepro");
-      if (container) container.innerHTML = "";
 
-      (window as any).paypal.Buttons({
+      const buttons = (window as any).paypal.Buttons({
         style: { layout: "vertical", color: "blue", shape: "rect", label: "paypal", height: 45 },
         createOrder: async () => {
+          const currentCheckout = checkoutRef.current;
+          if (!currentCheckout.activePack || currentCheckout.configError) throw new Error("Enter a valid purchase amount first.");
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) throw new Error("Not authenticated");
 
@@ -90,7 +111,7 @@ export function CheckoutForm() {
               "Content-Type": "application/json",
               Authorization: `Bearer ${session.access_token}`
             },
-            body: JSON.stringify({ returnUrl: `${window.location.origin}/console`, ...purchaseSelection })
+            body: JSON.stringify({ returnUrl: `${window.location.origin}/console`, ...currentCheckout.purchaseSelection })
           });
           const data = await res.json();
           if (!res.ok || data.error) throw new Error(data.error || "Failed to create PayPal order");
@@ -104,9 +125,11 @@ export function CheckoutForm() {
           setError(err.message || "PayPal payment failed");
           setLoading(false);
         },
-      }).render("#paypal-button-container-bluepro");
+      });
+      void Promise.resolve(buttons.render("#paypal-button-container-bluepro")).catch(() => setError("PayPal could not load. Please try again."));
+      return () => { void Promise.resolve(buttons.close?.()).catch(() => {}); };
     }
-  }, [currency, paypalLoaded, selectedPackId, customCredits, customInput, customInrAmount, Boolean(activePack)]);
+  }, [currency, paypalLoaded, Boolean(activePack)]);
 
   const handlePayment = async () => {
     if (!activePack || configError) return;
@@ -167,7 +190,7 @@ export function CheckoutForm() {
     }
   };
 
-  if (!activePack) return <main className="min-h-screen bg-paper flex items-center justify-center p-6"><section className="max-w-md rounded-lg border border-line p-6 bg-paper-alt" aria-live="polite">
+  if (!packs.length || configError) return <main className="min-h-screen bg-paper flex items-center justify-center p-6"><section className="max-w-md rounded-lg border border-line p-6 bg-paper-alt" aria-live="polite">
     <h1 className="text-xl font-bold text-ink">Blue Credit checkout</h1>
     <p className="mt-3 text-sm text-ink-muted">{configError || "Loading current credit prices…"}</p>
     {configError && <button type="button" className="btn btn-primary mt-4" onClick={() => void loadPacks()}>Retry prices</button>}
@@ -183,7 +206,7 @@ export function CheckoutForm() {
                 Complete Your Purchase
               </span>
             </h1>
-            <p className="mt-2 text-ink-muted">{formatCredits(activePack.credits)} Blue Credits will be added to your wallet.</p>
+            <p className="mt-2 text-ink-muted">{activePack ? `${formatCredits(activePack.credits)} Blue Credits will be added to your wallet.` : "Enter a valid amount to see your credits."}</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 max-w-4xl mx-auto">
@@ -232,30 +255,26 @@ export function CheckoutForm() {
                           : "border-line bg-paper-alt hover:border-line-strong"}`}
                       >
                         <span className="block text-sm font-semibold text-ink">Blue Credits Custom</span>
-                        <span className="mt-1 block text-xs text-ink-muted">{customByInr ? formatPrice(customInrAmount) : `${customCredits} Blue Credits`}</span>
-                        <span className="mt-2 block text-[10px] leading-relaxed text-ink-faint">Choose 1–100 credits, or enter an INR amount.</span>
+                        <span className="mt-1 block text-xs text-ink-muted">{customByAmount ? (customAmount ? `${currency === "INR" ? "₹" : "$"}${customAmount}` : "Enter an amount") : `${customCredits || "—"} Blue Credits`}</span>
+                        <span className="mt-2 block text-[10px] leading-relaxed text-ink-faint">Choose 1–100 credits, or enter an amount.</span>
                       </button>
                     </div>
                     {selectedPackId === "custom" && (
                       <div className="mt-3 space-y-3">
-                        {currency === "INR" && <div className="flex gap-2" role="group" aria-label="Custom purchase amount">
-                          <button type="button" aria-pressed={!customByInr} onClick={() => setCustomInput("credits")} className={`rounded-lg border px-3 py-2 text-xs ${!customByInr ? "border-brand text-brand" : "border-line text-ink-muted"}`}>By credits</button>
-                          <button type="button" aria-pressed={customByInr} onClick={() => setCustomInput("inr")} className={`rounded-lg border px-3 py-2 text-xs ${customByInr ? "border-brand text-brand" : "border-line text-ink-muted"}`}>By INR amount</button>
-                        </div>}
+                        <div className="flex gap-2" role="group" aria-label="Custom purchase amount">
+                          <button type="button" aria-pressed={!customByAmount} onClick={() => setCustomInput("credits")} className={`rounded-lg border px-3 py-2 text-xs ${!customByAmount ? "border-brand text-brand" : "border-line text-ink-muted"}`}>By credits</button>
+                          <button type="button" aria-pressed={customByAmount} onClick={() => setCustomInput("amount")} className={`rounded-lg border px-3 py-2 text-xs ${customByAmount ? "border-brand text-brand" : "border-line text-ink-muted"}`}>By {currency} amount</button>
+                        </div>
                         <div className="flex flex-wrap items-center gap-3">
-                          <label htmlFor="custom-blue-credit-amount" className="text-xs text-ink-muted whitespace-nowrap">{customByInr ? "Amount (INR):" : "Blue Credits:"}</label>
-                          <input id="custom-blue-credit-amount" type="number" min={1} max={customByInr ? 11500 : 100} step={customByInr ? 0.01 : 1}
-                            value={customByInr ? customInrAmount : customCredits}
-                            onChange={e => {
-                              const value = Number(e.target.value);
-                              if (!Number.isFinite(value)) return;
-                              if (customByInr) setCustomInrAmount(Math.round(Math.max(1, Math.min(11500, value)) * 100) / 100);
-                              else setCustomCredits(Math.max(1, Math.min(100, Math.floor(value))));
-                            }}
+                          <label htmlFor="custom-blue-credit-amount" className="text-xs text-ink-muted whitespace-nowrap">{customByAmount ? `Amount (${currency}):` : "Blue Credits:"}</label>
+                          <input id="custom-blue-credit-amount" type="number" min={1} max={customLimit} step={customByAmount ? 0.01 : 1}
+                            value={customValue} onChange={e => setCustomValue(e.target.value)} onBlur={normalizeMinimum}
+                            aria-invalid={!activePack} aria-describedby={!activePack ? "custom-blue-credit-error" : undefined}
                             className="w-32 px-3 py-2 rounded-lg bg-paper-alt border border-line text-ink text-sm text-center focus:outline-none focus:border-brand transition" />
                           <span className="text-xs text-ink-faint">{currency === "INR" ? "1 Blue Credit = ₹115" : "$1.30 / Credit"}</span>
                         </div>
-                        {customByInr && activePack && <p className="text-xs text-ink-muted">₹{customInrAmount.toLocaleString("en-IN")} ÷ 115 = {formatCredits(activePack.credits)} Blue Credits</p>}
+                        {!activePack && <p id="custom-blue-credit-error" className="text-xs text-ink-muted">{customByAmount ? `Enter an amount from ${currency === "INR" ? "₹1 to ₹11,500" : "$1 to $130"}, with up to two decimal places.` : "Enter 1–100 whole credits."}</p>}
+                        {customByAmount && activePack && <p className="text-xs text-ink-muted">{formatPrice(Number(customAmount))} ÷ {currency === "INR" ? "115" : "1.30"} = {formatCredits(activePack.credits)} Blue Credits</p>}
                       </div>
                     )}
                   </div>
@@ -293,17 +312,17 @@ export function CheckoutForm() {
                   )}
 
                   {currency === "INR" ? (
-                    <button type="button" onClick={handlePayment} disabled={loading}
+                    <button type="button" onClick={handlePayment} disabled={loading || !activePack}
                       className="w-full px-6 py-3 rounded-lg bg-brand font-bold text-white shadow-lg shadow-sm transition text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                       {loading ? (
                         <><i className="fa-solid fa-spinner animate-spin"></i> Redirecting to PayU...</>
                       ) : (
-                        <><i className="fa-solid fa-lock"></i> Pay {formatPrice(activePack.priceINR)} - Add {formatCredits(activePack.credits)} Blue Credits</>
+                        <><i className="fa-solid fa-lock"></i> {activePack ? `Pay ${formatPrice(activePack.priceINR)} - Add ${formatCredits(activePack.credits)} Blue Credits` : "Enter a valid amount"}</>
                       )}
                     </button>
                   ) : (
                     <div id="paypal-button-container-bluepro" className="min-h-[50px]">
-                      {!paypalLoaded && (
+                      {!activePack ? <p className="text-xs text-ink-muted">Enter a valid amount to continue with PayPal.</p> : !paypalLoaded && (
                         <div className="w-full px-6 py-3 rounded-lg bg-paper-sunken flex items-center justify-center gap-2 text-sm text-ink-muted">
                           <i className="fa-solid fa-spinner animate-spin"></i>
                           Loading PayPal...
@@ -336,7 +355,7 @@ export function CheckoutForm() {
                 <div className="py-4 space-y-3 border-b border-line">
                   <div className="flex justify-between text-sm">
                     <span className="text-ink-muted">Pack</span>
-                    <span className="text-ink font-semibold">{formatCredits(activePack.credits)} Blue Credits</span>
+                    <span className="text-ink font-semibold">{activePack ? `${formatCredits(activePack.credits)} Blue Credits` : "—"}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-ink-muted">Rate per credit</span>
@@ -347,10 +366,10 @@ export function CheckoutForm() {
                 </div>
 
                 <div className="py-4 space-y-3 border-b border-line">
-                  <div className="flex justify-between text-base"><span className="text-ink font-bold">Total payable</span><span className="text-ink font-bold">{formatPrice(currency === "INR" ? activePack.priceINR : activePack.priceUSD)}</span></div>
+                  <div className="flex justify-between text-base"><span className="text-ink font-bold">Total payable</span><span className="text-ink font-bold">{activePack ? formatPrice(currency === "INR" ? activePack.priceINR : activePack.priceUSD) : "—"}</span></div>
                 </div>
                 <div className="pt-4 space-y-2">
-                  <p className="text-xs text-ink-muted">{activePack.credits >= 25 ? "This purchase qualifies to activate or reactivate Blue Teams." : "Teams activation and reactivation need at least 25 credits in one purchase. Smaller packs can extend access that is already active."}</p>
+                  <p className="text-xs text-ink-muted">{activePack && (activePack.credits >= 25 ? "This purchase qualifies to activate or reactivate Blue Teams." : "Teams activation and reactivation need at least 25 credits in one purchase. Smaller packs can extend access that is already active.")}</p>
                   <p className="text-xs text-ink-muted">1 Blue Credit covers $1 of actual OpenRouter model usage. The displayed price is the final total.</p>
                   <p className="text-[10px] text-ink-faint leading-relaxed">
                     Blue Credits are service-usage units used to access Blue&apos;s AI coding models.

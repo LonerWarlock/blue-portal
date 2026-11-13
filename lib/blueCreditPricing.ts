@@ -23,3 +23,13 @@ export function quoteBlueCreditsFromInr(amount: number): BlueCreditQuote {
   const credits = roundCredits(priceINR / BLUE_CREDIT_PRICE_INR);
   return { credits, priceINR, priceUSD: roundMoney(credits * BLUE_CREDIT_PRICE_USD) };
 }
+
+export function quoteBlueCreditsFromUsd(amount: number): BlueCreditQuote {
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 1
+    || amount > MAX_CUSTOM_BLUE_CREDITS * BLUE_CREDIT_PRICE_USD || Math.abs(roundMoney(amount) - amount) > 1e-8) {
+    throw new RangeError('Enter a USD amount from $1 to $130, with up to two decimal places.');
+  }
+  const priceUSD = roundMoney(amount);
+  const credits = roundCredits(priceUSD / BLUE_CREDIT_PRICE_USD);
+  return { credits, priceUSD, priceINR: roundMoney(credits * BLUE_CREDIT_PRICE_INR) };
+}

@@ -1,4 +1,4 @@
-import { quoteBlueCredits, quoteBlueCreditsFromInr, BLUE_CREDIT_PRICE_INR, BLUE_CREDIT_PRICE_USD, roundMoney, type BlueCreditQuote } from '@/lib/blueCreditPricing';
+import { quoteBlueCredits, quoteBlueCreditsFromInr, quoteBlueCreditsFromUsd, BLUE_CREDIT_PRICE_INR, BLUE_CREDIT_PRICE_USD, roundMoney, type BlueCreditQuote } from '@/lib/blueCreditPricing';
 export interface CreditPackDisplay {
   id: 'starter' | 'standard' | 'custom'; name: string; description: string; credits: number;
   priceINR: number; priceUSD: number; basePriceINR: number; basePriceUSD: number;
@@ -27,6 +27,9 @@ export function customCreditPackDisplay(reference: CreditPackDisplay | undefined
 }
 export function customInrPackDisplay(reference: CreditPackDisplay | undefined, amount: number): CreditPackDisplay | null {
   return displayQuote(reference, () => quoteBlueCreditsFromInr(amount));
+}
+export function customUsdPackDisplay(reference: CreditPackDisplay | undefined, amount: number): CreditPackDisplay | null {
+  return displayQuote(reference, () => quoteBlueCreditsFromUsd(amount));
 }
 export function initialCreditCheckoutSelection(search: string): { packId: CreditPackDisplay['id']; customCredits: number } {
   const params = new URLSearchParams(search), requested = params.get('pack'), amount = Number(params.get('credits'));
