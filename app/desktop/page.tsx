@@ -44,7 +44,7 @@ export default function DesktopPage() {
           <DesktopDownloadLink className="btn btn-primary min-h-12 gap-2">Download Blue Desktop <Download size={17} aria-hidden="true" /></DesktopDownloadLink>
           <DesktopDownloadLink variant="store" className="btn btn-secondary min-h-12 gap-2">View on Microsoft Store <ArrowRight size={16} aria-hidden="true" /></DesktopDownloadLink>
         </div>
-        <p className="mt-4 text-sm leading-6 text-ink-muted">Windows desktop release. Internet access and a model connection are required.</p>
+        <p className="mt-4 text-sm leading-6 text-ink-muted">Windows desktop release. Internet access and a model connection are required. <Link href="/download" className={link}>Follow the installation guide</Link>, or <Link href="/hi/download" hrefLang="hi" lang="hi" className={link}>हिन्दी में पढ़ें</Link>.</p>
       </header>
 
       <section aria-labelledby="desktop-workflows" className="mt-16 border-t border-line pt-10 sm:mt-20">

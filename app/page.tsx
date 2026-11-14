@@ -9,6 +9,7 @@ import Footer from "./components/Footer";
 import ProductShowcase from "./components/ProductShowcase";
 import styles from "./components/PremiumLanding.module.css";
 import CodingAssistantFaq from "./components/CodingAssistantFaq";
+import GettingStartedLinks from "./components/GettingStartedLinks";
 import JsonLd from "./components/JsonLd";
 import { createPageMetadata, DESKTOP_APP_SCHEMA, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
 
@@ -26,6 +27,7 @@ export default function LandingPage() {
         <ModelsShowcase />
         <DemoVideo />
         <Testimonials />
+        <GettingStartedLinks />
         <CodingAssistantFaq />
         <CtaSection />
       </main>

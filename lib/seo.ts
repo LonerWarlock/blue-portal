@@ -4,14 +4,14 @@ import type { Metadata } from 'next';
 // the canonical origin, including when this module runs in a local build.
 export const SITE_URL = 'https://blue.imergene.in';
 export const SITE_NAME = 'Blue by Imergene';
-export const HOME_TITLE = 'Blue Desktop by Imergene | AI Coding Assistant & Agent Teams';
-export const HOME_DESCRIPTION = 'Blue Desktop by Imergene is an AI coding assistant and agent-team workspace for Windows. Build projects, coordinate specialists, or use Blue in VS Code.';
+export const HOME_TITLE = 'Blue Desktop by Imergene | AI Coding App & AI Teams';
+export const HOME_DESCRIPTION = 'Blue Desktop by Imergene is an AI coding assistant for Windows. Build and debug local projects, coordinate AI teams, or code with Blue in VS Code.';
 export const DESKTOP_DESCRIPTION = 'Download Blue Desktop for Windows. Code, debug, coordinate custom AI agents, and generate images with supported models in one workspace by Imergene.';
 export const STUDENT_GUIDE_PATH = '/guides/ai-coding-assistant-for-students';
 export const TEAM_GUIDE_PATH = '/guides/ai-agent-teams';
 
 export const INDEXABLE_PATHS = [
-  '/', '/desktop', '/pricing', '/teams', '/docs', '/product/agents', STUDENT_GUIDE_PATH, TEAM_GUIDE_PATH,
+  '/', '/desktop', '/pricing', '/teams', '/docs', '/download', '/hi/download', '/compare/emergent', '/compare/codex', '/product/agents', STUDENT_GUIDE_PATH, TEAM_GUIDE_PATH,
   '/community', '/about', '/contact', '/privacy', '/terms', '/refund',
 ] as const;
 
@@ -23,14 +23,14 @@ export function canonicalUrl(path = '/'): string {
   return new URL(path, SITE_URL).toString();
 }
 
-export function createPageMetadata(path: string, title: string, description: string): Metadata {
+export function createPageMetadata(path: string, title: string, description: string, locale: 'en_US' | 'hi_IN' = 'en_US'): Metadata {
   const url = canonicalUrl(path);
   const image = { url: canonicalUrl('/opengraph-image'), width: 1200, height: 630, alt: 'Blue by Imergene — AI coding assistant and agent teams for Windows' };
   return {
     title,
     description,
     alternates: { canonical: url },
-    openGraph: { type: 'website', locale: 'en_US', siteName: SITE_NAME, title, description, url, images: [image] },
+    openGraph: { type: 'website', locale, siteName: SITE_NAME, title, description, url, images: [image] },
     twitter: { card: 'summary_large_image', title, description, images: [image.url] },
   };
 }

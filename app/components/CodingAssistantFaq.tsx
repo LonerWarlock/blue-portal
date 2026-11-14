@@ -23,11 +23,11 @@ export default function CodingAssistantFaq() {
     },
     {
       question: "Can Blue Teams work while my computer is off?",
-      answer: <p>No. Team agents run through Blue on your computer, not as always-on cloud workers. Keep Blue open, your computer on and awake, and an internet connection available for model requests and online tasks. Closing Blue, sleep or a restart can interrupt work. Automatic execution still depends on your plan, selected engine, permissions and available services.</p>,
+      answer: <p>No. Team agents run through Blue on your computer, not as always-on cloud workers. Keep Blue open, your computer on and awake, and an internet connection available for model requests and online tasks. Closing Blue, sleep or a restart can interrupt work. Automatic execution still depends on your plan, selected model connection, permissions and available services.</p>,
     },
     {
       question: "What can team agents do in the browser?",
-      answer: <p>When a task and the selected engine support it, Desktop agents can use Blue&apos;s built-in browser for research and work on websites you authorize. You remain responsible for signing in, completing verification and approving actions when required. Site permissions, account limits and connection failures can prevent completion; Teams access does not bypass them or guarantee a task&apos;s outcome.</p>,
+      answer: <p>When a task and the selected model connection support it, Desktop agents can use Blue&apos;s built-in browser for research and work on websites you authorize. You remain responsible for signing in, completing verification and approving actions when required. Site permissions, account limits and connection failures can prevent completion; Teams access does not bypass them or guarantee a task&apos;s outcome.</p>,
     },
     {
       question: "How can Blue help with student projects?",
@@ -43,7 +43,7 @@ export default function CodingAssistantFaq() {
     },
     {
       question: "What does the Blue subscription cost?",
-      answer: <p>Blue costs ₹{monthly.priceInr} for {monthly.days} days, ₹{quarterly.priceInr} for {quarterly.days} days, or ₹{yearly.priceInr.toLocaleString("en-IN")} for {yearly.days} days. These are prepaid access periods with no auto-renewal. Team mode is activated by a purchase of at least 25 <Link href="/teams" className={link}>Blue Credits</Link> and uses Blue Models while your wallet has credits. Model usage depends on your selected engine and connection; Teams does not include unlimited AI requests. Compare eligible features and Blue Pro credits on the <Link href="/pricing" className={link}>pricing page</Link>.</p>,
+      answer: <p>Blue costs ₹{monthly.priceInr} for {monthly.days} days, ₹{quarterly.priceInr} for {quarterly.days} days, or ₹{yearly.priceInr.toLocaleString("en-IN")} for {yearly.days} days. These are prepaid access periods with no auto-renewal. Team mode is activated by a purchase of at least 25 <Link href="/teams" className={link}>Blue Credits</Link> and uses Blue Models while your wallet has credits. Model usage depends on your selected model and connection; Teams does not include unlimited AI requests. Compare eligible features and Blue Pro credits on the <Link href="/pricing" className={link}>pricing page</Link>.</p>,
     },
     {
       question: "Does every action use Blue Credits?",

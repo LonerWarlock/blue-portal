@@ -16,6 +16,10 @@ const footerLinks = {
   Resources: [
     { label: "Community", href: "/community" },
     { label: "Documentation", href: "/docs" },
+    { label: "Download and setup", href: "/download" },
+    { label: "हिन्दी डाउनलोड गाइड", href: "/hi/download" },
+    { label: "Blue vs Emergent", href: "/compare/emergent" },
+    { label: "Blue vs Codex", href: "/compare/codex" },
     { label: "Student coding guide", href: "/guides/ai-coding-assistant-for-students" },
     { label: "AI agent teams guide", href: "/guides/ai-agent-teams" },
   ],

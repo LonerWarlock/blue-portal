@@ -3,7 +3,7 @@ import DesktopDownloadLink from "@/app/components/DesktopDownloadLink";
 import Link from "next/link";
 import PageLayout from "@/app/components/PageLayout";
 
-export const metadata = createPageMetadata("/docs", "Blue Docs | Coding, Agent Teams & Model Setup", "Set up Blue Desktop for Windows or the VS Code coding assistant. Learn project tasks, Desktop Team mode, browser permissions, model connections and billing.");
+export const metadata = createPageMetadata("/docs", "Blue Docs | Installation, Model Setup & AI Teams", "Set up Blue Desktop for Windows or the VS Code coding assistant. Learn project tasks, Desktop Team mode, browser permissions, model connections and billing.");
 
 const sections = [
   { id: "get-started", label: "Get started" },
@@ -26,13 +26,19 @@ export default function DocsPage() {
         <div className="max-w-3xl">
           <p className="eyebrow text-brand">BLUE DOCUMENTATION</p>
           <h1 className="mt-4 text-4xl font-bold tracking-tight text-ink sm:text-5xl">
-            Use Blue with confidence
+            Blue docs: setup and first steps
           </h1>
           <p className="mt-5 text-lg leading-8 text-ink-muted">
             Set up a model connection, give Blue a project to work on, and follow
             its progress. This guide covers Blue Desktop and the VS Code
             extension as they work today.
           </p>
+        </div>
+
+        <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-brand">
+          <Link href="/download" className="min-h-11 py-3 hover:underline">Download and installation guide</Link>
+          <Link href="/hi/download" hrefLang="hi" lang="hi" className="min-h-11 py-3 hover:underline">Blue डाउनलोड कैसे करें?</Link>
+          <Link href="/pricing" className="min-h-11 py-3 hover:underline">App access and model costs</Link>
         </div>
 
         <div className="mt-12 grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -277,7 +283,7 @@ export default function DocsPage() {
                   <h3 className={heading}>Blue cannot continue a task</h3>
                   <p className={copy}>
                     Open the technical details to identify whether the problem
-                    is a model, connection, permission, or local runtime issue.
+                    is a model, connection, permission, or local setup issue.
                     Check any completed work before retrying the saved chat.
                     A failed step does not mean that all earlier file changes
                     were undone.
