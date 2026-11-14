@@ -26,12 +26,13 @@ for (const mode of ['legacy','required','auto']) test('compiled Worker streams a
         if(url.pathname.endsWith('/reserve_blue_proxy_call'))return Response.json({accepted:true,ceiling:.2,spent:0});
         if(url.pathname.endsWith('/dispatch_blue_proxy_call')||url.pathname.endsWith('/observe_blue_proxy_generation'))return Response.json(true);
         if(url.pathname.endsWith('/confirm_blue_proxy_redis_release'))return Response.json(null);
-        if(url.pathname.endsWith('/settle_blue_proxy_call')){settlements++;assert.equal((await request.json()).cost_param,.004);return Response.json({settled:true});}
+        if(url.pathname.endsWith('/settle_blue_proxy_call')){settlements++;assert.ok([.004,0].includes((await request.json()).cost_param));return Response.json({settled:true});}
       }
       if(url.origin==='https://openrouter.ai'){
         assert.equal(request.headers.get('authorization'),'Bearer '+env.OPENROUTER_API_KEY);
         if(url.pathname==='/api/v1/models/user')return Response.json({data:[{id:'vendor/model',context_length:131072,
           pricing:{prompt:'0.0000001',completion:'0.0000002',request:'0'}}]});
+        if(url.pathname==='/api/v1/responses'){generations++;return Response.json({error:{message:'private echoed content',metadata:{error_type:'invalid_request'}}},{status:400});}
         if(url.pathname==='/api/v1/chat/completions'){
           generations++;const body=await request.json(); assert.equal(body.model,'vendor/model'); if(mode==='required')assert.equal(body.max_tokens,100);
           if(redirectTest)return new Response(null,{status:302,headers:{Location:'https://never-contact.example.test/collect'}});
@@ -63,5 +64,14 @@ for (const mode of ['legacy','required','auto']) test('compiled Worker streams a
       body:JSON.stringify({model:'vendor/model',messages:[{role:'user',content:'Synthetic redirect test'}],stream:true})});
     assert.match(await redirected.text(),/provider declined/i);
     assert.equal(generations,2); assert.equal(settlements,1);
+    const beforeFailure=calls.length;
+    const rejection=await worker.dispatchFetch(base+'/responses',{method:'POST',headers:{Authorization:'Bearer '+ticket.token,'Content-Type':'application/json'},
+      body:JSON.stringify({model:'vendor/model',input:[{role:'user',content:'Synthetic rejection check'}],stream:true})});
+    const rejectionText=await rejection.text();
+    assert.match(rejectionText,/event: response.failed/);assert.match(rejectionText,/provider_request_validation/);assert.match(rejectionText,/HTTP 400/);
+    assert.doesNotMatch(rejectionText,/private echoed content|response.completed/);
+    assert.equal(generations,3);assert.equal(settlements,2);
+    assert.equal(calls.slice(beforeFailure).filter(path=>path==='/').length,mode==='required'?0:2);
+
   }finally{await worker.dispose();}
 });
