@@ -29,7 +29,7 @@ export default function TeamsClient() {
       <div className={styles.container}>
         <header className={styles.intro}>
           <p className={styles.eyebrow}><Sparkles size={14} aria-hidden="true" /> Blue Teams</p>
-          <h1>Your team.<br /><span>Working together.</span></h1>
+          <h1>Your AI agent team.<br /><span>Working together.</span></h1>
           <p className={styles.lede}>Give Blue a goal. It organizes the work, assigns specialists and keeps each project’s progress together—so you can focus on the outcome.</p>
           <Link href="#credits" className={styles.heroCta}>Use Teams with Blue Credits <ArrowRight size={16} aria-hidden="true" /></Link>
         </header>

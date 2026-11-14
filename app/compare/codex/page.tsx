@@ -1,3 +1,4 @@
+import EditorialMeta from "@/app/components/EditorialMeta";
 import Link from "next/link";
 import { ArrowRight, Download } from "lucide-react";
 import PageLayout from "@/app/components/PageLayout";
@@ -6,7 +7,7 @@ import ComparisonPricing from "@/app/components/ComparisonPricing";
 import JsonLd from "@/app/components/JsonLd";
 import { canonicalUrl, createPageMetadata } from "@/lib/seo";
 
-export const metadata = createPageMetadata("/compare/codex", "Blue Desktop vs Codex | Pricing, Coding & AI Team Workflows", "Looking for a Codex alternative for Windows? Compare Blue Desktop pricing, project coding and its dedicated AI Team workspace with OpenAI's coding tools.");
+export const metadata = createPageMetadata("/compare/codex", "Blue vs Codex: Pricing & AI Team Workflows | Imergene", "Looking for a Codex alternative for Windows? Compare Blue Desktop pricing, project coding and its dedicated AI Team workspace with OpenAI's coding tools.");
 
 const rows = [
   { area: "Focused coding", blue: "Open a project folder, ask for a change, inspect tool activity and review the result.", codex: "Codex CLI can inspect and edit local files and run development commands.", source: "cli" },
@@ -28,7 +29,8 @@ export default function CodexComparison() {
         <p className="mt-6 text-lg leading-8 text-ink-muted">Looking for a Codex alternative for Windows? Blue Desktop brings normal project coding and a dedicated multi-agent Team workspace into one app. This guide compares that experience, published pricing and OpenAI&apos;s documented coding tools.</p>
         <p className="mt-4 text-sm leading-7 text-ink-muted">Published by Imergene, the maker of Blue. Checked on <time dateTime="2026-11-14">14 November 2026</time>. Blue is an independent product and is not an official OpenAI product. This page contains no performance scores or competitor screenshots.</p>
         <div className="mt-7 flex flex-wrap gap-3"><DesktopDownloadLink className="btn btn-primary min-h-12 gap-2"><Download size={17} aria-hidden="true" />Try Blue for Windows</DesktopDownloadLink><Link href="/teams" className="btn btn-secondary min-h-12">Explore the Team workspace</Link></div>
-      </header>
+      <EditorialMeta pagePath="/compare/codex" headline="Blue Desktop vs Codex" showByline={false} />
+        </header>
 
       <section className="mt-12 rounded-xl border border-line bg-paper-alt p-6 sm:p-8" aria-labelledby="coding-to-team"><h2 id="coding-to-team" className="text-3xl font-semibold tracking-tight text-ink">One app for a coding task or a whole AI team.</h2><p className="mt-5 max-w-3xl text-base leading-8 text-ink-muted">Use Blue&apos;s project conversation for a focused change. When the goal needs separate responsibilities, open Team mode: the lead agent can coordinate specialists for implementation, review, research or authorized browser work. You can also create a specialist yourself, give it a role and choose a supported model.</p><p className="mt-4 max-w-3xl text-base leading-8 text-ink-muted">The dedicated Team view keeps project assignments, individual conversations and reported progress together. You can move between coding and team coordination inside Blue Desktop. Read the actual files, check results and specialist reports before accepting the work.</p><div className="mt-5 flex flex-wrap gap-x-6 gap-y-2"><Link href="/product/agents" className={`${link} min-h-11 py-2`}>Project coding in Blue</Link><Link href="/guides/ai-agent-teams" className={`${link} min-h-11 py-2`}>How Blue Teams works</Link></div></section>
 

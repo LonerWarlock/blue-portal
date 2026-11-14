@@ -1,3 +1,4 @@
+import EditorialMeta, { EditorialBreadcrumb } from "@/app/components/EditorialMeta";
 import Link from "next/link";
 import { ArrowRight, Download } from "lucide-react";
 import PageLayout from "@/app/components/PageLayout";
@@ -8,7 +9,7 @@ import { createPageMetadata } from "@/lib/seo";
 
 export const metadata = createPageMetadata(
   "/guides/ai-coding-assistant-for-students",
-  "Choosing the Best AI Coding Assistant for Students | Blue",
+  "AI Coding Assistant for Students | Blue by Imergene",
   "A practical guide to choosing an AI coding assistant for student projects: explanations, Windows and VS Code workflows, model costs, and reviewing results.",
 );
 
@@ -31,6 +32,7 @@ export default function StudentCodingAssistantGuide() {
   return (
     <PageLayout>
       <article className="site-container pb-24 pt-14 sm:pt-20" aria-labelledby="student-guide-title">
+        <EditorialBreadcrumb pagePath="/guides/ai-coding-assistant-for-students" label="Student coding guide" />
         <header className="max-w-3xl">
           <p className="eyebrow text-brand">A practical student guide</p>
           <h1 id="student-guide-title" className="mt-5 font-display text-4xl font-semibold leading-tight tracking-tight text-ink sm:text-5xl">
@@ -42,6 +44,7 @@ export default function StudentCodingAssistantGuide() {
             review. Start with a small, real task—not a promise of effortless code.
           </p>
           <p className="mt-4 text-sm text-ink-muted">By the Blue team at Imergene · Product and learning guide</p>
+        <EditorialMeta pagePath="/guides/ai-coding-assistant-for-students" headline="How to choose the best AI coding assistant for students" />
         </header>
 
         <div className="mt-12 grid gap-10 border-t border-line pt-10 lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-16">

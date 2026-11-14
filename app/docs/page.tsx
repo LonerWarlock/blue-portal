@@ -1,9 +1,10 @@
+import EditorialMeta, { EditorialBreadcrumb } from "@/app/components/EditorialMeta";
 import { createPageMetadata } from "@/lib/seo";
 import DesktopDownloadLink from "@/app/components/DesktopDownloadLink";
 import Link from "next/link";
 import PageLayout from "@/app/components/PageLayout";
 
-export const metadata = createPageMetadata("/docs", "Blue Docs | Installation, Model Setup & AI Teams", "Set up Blue Desktop for Windows or the VS Code coding assistant. Learn project tasks, Desktop Team mode, browser permissions, model connections and billing.");
+export const metadata = createPageMetadata("/docs", "Blue Docs: Setup, Models & AI Teams | Imergene", "Set up Blue Desktop for Windows or the VS Code coding assistant. Learn project tasks, Desktop Team mode, browser permissions, model connections and billing.");
 
 const sections = [
   { id: "get-started", label: "Get started" },
@@ -23,6 +24,7 @@ export default function DocsPage() {
   return (
     <PageLayout>
       <div className="mx-auto max-w-7xl px-6 pb-24 pt-16 lg:pt-20">
+        <EditorialBreadcrumb pagePath="/docs" label="Documentation" />
         <div className="max-w-3xl">
           <p className="eyebrow text-brand">BLUE DOCUMENTATION</p>
           <h1 className="mt-4 text-4xl font-bold tracking-tight text-ink sm:text-5xl">
@@ -35,6 +37,7 @@ export default function DocsPage() {
           </p>
         </div>
 
+        <EditorialMeta pagePath="/docs" headline="Blue docs: setup and first steps" />
         <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-brand">
           <Link href="/download" className="min-h-11 py-3 hover:underline">Download and installation guide</Link>
           <Link href="/hi/download" hrefLang="hi" lang="hi" className="min-h-11 py-3 hover:underline">Blue डाउनलोड कैसे करें?</Link>

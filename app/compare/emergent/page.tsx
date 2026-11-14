@@ -1,3 +1,4 @@
+import EditorialMeta from "@/app/components/EditorialMeta";
 import Link from "next/link";
 import { ArrowRight, Download } from "lucide-react";
 import PageLayout from "@/app/components/PageLayout";
@@ -8,7 +9,7 @@ import { canonicalUrl, createPageMetadata } from "@/lib/seo";
 
 export const metadata = createPageMetadata(
   "/compare/emergent",
-  "Blue Desktop vs Emergent | Pricing & Development Workflows",
+  "Blue vs Emergent: Pricing & Development Workflows | Imergene",
   "Explore Blue as an Emergent AI alternative for Windows: project coding, a dedicated AI Team workspace, model choice and pay-as-you-go Teams pricing."
 );
 
@@ -50,7 +51,8 @@ export default function EmergentComparison() {
         <p className="mt-4 text-base leading-8 text-ink-muted">Considering an Emergent AI alternative? Choose Blue when you want to work directly on your projects, select the models your specialists use and move between coding and team coordination inside the same app.</p>
         <div className="mt-7 flex flex-wrap gap-3"><DesktopDownloadLink className="btn btn-primary min-h-12 gap-2"><Download size={17} aria-hidden="true" />Get Blue for Windows</DesktopDownloadLink><Link href="/teams" className="btn btn-secondary min-h-12">Explore Blue Teams</Link></div>
         <p className="mt-5 text-xs leading-6 text-ink-muted">Published by Imergene, the maker of Blue. Comparison checked on <time dateTime="2026-11-14">14 November 2026</time>. Blue and Emergent are independent products.</p>
-      </header>
+      <EditorialMeta pagePath="/compare/emergent" headline="Blue Desktop vs Emergent" showByline={false} />
+        </header>
 
       <section aria-labelledby="blue-strengths" className="mt-12">
         <h2 id="blue-strengths" className="text-3xl font-semibold tracking-tight text-ink">More ways to move your project forward.</h2>

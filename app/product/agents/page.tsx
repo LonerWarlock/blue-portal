@@ -5,7 +5,7 @@ import { canonicalUrl, createPageMetadata } from "@/lib/seo";
 import DesktopDownloadLink from "@/app/components/DesktopDownloadLink";
 import JsonLd from "@/app/components/JsonLd";
 
-export const metadata = createPageMetadata("/product/agents", "Blue AI Coding Agent for Windows & VS Code | Imergene", "Understand code, debug and edit project files with Blue's AI coding agent. Compare coding chat, agent tasks and Desktop teams, with practical prompts and setup steps.");
+export const metadata = createPageMetadata("/product/agents", "Blue AI Coding Agent for Windows & VS Code | Imergene", "Understand code, debug and edit local projects with Blue by Imergene. Explore coding agents, Desktop AI teams, practical prompts and model setup.");
 
 const examples = [
   {

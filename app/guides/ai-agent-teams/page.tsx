@@ -1,3 +1,4 @@
+import EditorialMeta from "@/app/components/EditorialMeta";
 import Link from "next/link";
 import { ArrowRight, Download } from "lucide-react";
 import PageLayout from "@/app/components/PageLayout";
@@ -9,7 +10,7 @@ const guidePath = TEAM_GUIDE_PATH;
 
 export const metadata = createPageMetadata(
   TEAM_GUIDE_PATH,
-  "AI Agent Teams for Coding, Research and Browser Work on Windows | Blue",
+  "AI Agent Teams: Coding, Research & Browser Work | Blue by Imergene",
   "A practical guide to Blue Teams: delegate coding, research and browser tasks, understand parallel work, review results, and plan for local execution and model costs.",
 );
 
@@ -91,6 +92,7 @@ export default function AiAgentTeamsGuide() {
             <DesktopDownloadLink className="btn btn-primary min-h-11"><Download size={16} aria-hidden="true" className="mr-2" />Download Blue for Windows</DesktopDownloadLink>
             <Link href="/teams" className="btn btn-secondary min-h-11">View Blue Teams credit access</Link>
           </div>
+        <EditorialMeta pagePath="/guides/ai-agent-teams" headline="AI agent teams for coding, research and browser work on Windows" />
         </header>
 
         <div className="mt-12 grid gap-10 border-t border-line pt-10 lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-16">

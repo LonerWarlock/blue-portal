@@ -29,6 +29,12 @@ export default function AboutBluePage() {
         <p className={copy}>The official website is <a href="https://blue.imergene.in/" className={link}>blue.imergene.in</a>. Our Windows app is listed on <a href="https://apps.microsoft.com/detail/9NHV6GFJ64C8" target="_blank" rel="noopener noreferrer" className={link}>Microsoft Store</a>, and our extension is listed as <a href="https://marketplace.visualstudio.com/items?itemName=om-mali.blue-coding-assistant" target="_blank" rel="noopener noreferrer" className={link}>Blue Coding Assistant on Visual Studio Marketplace</a>.</p>
       </section>
 
+      <section id="founder" className="mt-12 scroll-mt-28 border-t border-line pt-8" aria-labelledby="founder-title">
+        <h2 id="founder-title" className="text-2xl font-semibold tracking-tight text-ink">The person behind Blue</h2>
+        <p className={copy}>Om is the CEO and co-founder of Imergene, the company behind Blue. He is building Blue to bring focused coding and coordinated AI teams into one workspace.</p>
+        <p className={copy}>For product questions, support or collaboration, <Link href="/contact" className={link}>contact Imergene</Link>.</p>
+      </section>
+
       <section id="billing" className="mt-12 scroll-mt-28 border-t border-line pt-8" aria-labelledby="billing-title">
         <h2 id="billing-title" className="text-2xl font-semibold tracking-tight text-ink">How Blue&apos;s billing works</h2>
         <p className={copy}>App-feature access and AI model usage are separate. Not every Blue user needs Blue Credits, and the subscription does not charge a fixed number of credits for each edit, test, or deployment.</p>
