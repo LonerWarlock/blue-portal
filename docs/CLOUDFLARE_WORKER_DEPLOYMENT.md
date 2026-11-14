@@ -1,5 +1,9 @@
 # Cloudflare primary inference proxy
 
+> Updated 2026-11-14: apply migration 044 for one atomic pre-dispatch RPC and
+> zero Redis commands on new model calls. See [atomic admission rollout](ATOMIC_PROXY_ADMISSION_2026-11-14.md).
+> Redis instructions below remain relevant to legacy calls and rollback.
+
 The website/account API stays on Vercel. Only prepaid inference streams move to
 Cloudflare. Supabase remains the permanent ledger; Upstash remains the hold gate.
 BYOK still calls the user's provider directly. Apply migrations 038, 039 and

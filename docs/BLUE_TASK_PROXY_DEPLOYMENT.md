@@ -1,5 +1,9 @@
 # Blue prepaid task proxy
 
+> Updated 2026-11-14: apply migration 044 for one atomic pre-dispatch RPC and
+> zero Redis commands on new model calls. See [atomic admission rollout](ATOMIC_PROXY_ADMISSION_2026-11-14.md).
+> Redis instructions below remain relevant to legacy calls and rollback.
+
 Prepaid Blue Credits now use protocol 2. Desktop and the extension receive a
 ten-minute signed Blue ticket, scoped to one user, device binding, task and exact
 model routes. OpenRouter inference credentials never leave the server. A ticket

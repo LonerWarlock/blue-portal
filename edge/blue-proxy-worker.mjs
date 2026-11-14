@@ -14,7 +14,7 @@ export default {
     if (request.method === 'GET' && url.pathname === '/v1/health' && !url.search) {
       const ready = requiredSecrets.every(name => Boolean(env[name])) && env.BLUE_TASK_TICKET_SECRET.length >= 32;
       return Response.json({ runtime_protocol_version: 2, inference_transport: 'blue-task-ticket',
-        proxy_stream_ready: ready, execution: 'cloudflare-worker' }, {
+        proxy_stream_ready: ready, execution: 'cloudflare-worker', admission_mode: env.BLUE_PROXY_ATOMIC_ADMISSION || 'auto', admission_protocol_version: 2 }, {
         status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' }
       });
     }
