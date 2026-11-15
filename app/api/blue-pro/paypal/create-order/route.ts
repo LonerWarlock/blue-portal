@@ -1,3 +1,4 @@
+import {organizationId,organizationPurchasePack} from '@/lib/organizations';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { createPaypalOrder } from '@/lib/paypal';
@@ -15,8 +16,9 @@ export async function POST(request: Request) {
     const { data, error } = await supabaseAdmin.auth.getUser(authorization.slice(7).trim());
     if (error || !data.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await request.json() as { returnUrl?: string; packId?: string; customCredits?: number; customInrAmount?: number; customUsdAmount?: number };
-    const pack = getCreditPurchasePack(body, 'USD');
+    const body = await request.json() as { returnUrl?: string; packId?: string; customCredits?: number; customInrAmount?: number; customUsdAmount?: number; organization_id?: string };
+    const org=organizationId(body.organization_id);
+    const pack = org ? await organizationPurchasePack(data.user.id,org,body.customCredits,'USD') : getCreditPurchasePack(body, 'USD');
 
     const { data: account } = await supabaseAdmin.auth.admin.getUserById(data.user.id);
     const email = account.user?.email || '';
@@ -42,6 +44,7 @@ export async function POST(request: Request) {
       .from('credit_payments')
       .insert({
         user_id: data.user.id,
+        ...(org ? {organization_id:org} : {}),
         amount_paid: pack.priceUSD,
         currency: 'USD',
         credits_purchased: pack.credits,
@@ -50,7 +53,7 @@ export async function POST(request: Request) {
         provider_txnid: txnid,
         status: 'pending',
         metadata: {
-          pricing_version: BLUE_CREDIT_PRICING_VERSION,
+          pricing_version: org ? 'organization-inr115-usd115-v1' : BLUE_CREDIT_PRICING_VERSION,
           credit_unit_price_inr: BLUE_CREDIT_PRICE_INR,
           model_usage_usd: pack.credits,
           base_price_usd: pack.basePriceUSD, base_price_inr: pack.basePriceINR,

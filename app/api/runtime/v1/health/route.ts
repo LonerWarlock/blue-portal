@@ -7,8 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const capacity = blueRuntimeCapacityConfig();
   const ready = Boolean(process.env.OPENROUTER_API_KEY && process.env.BLUE_RUNTIME_PROXY_BASE_URL
-    && (process.env.BLUE_TASK_TICKET_SECRET || '').length >= 32
-    && process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+    && (process.env.BLUE_TASK_TICKET_SECRET || '').length >= 32);
   return NextResponse.json({
     version: 'v1',
     runtime_protocol_version: BLUE_RUNTIME_PROTOCOL_VERSION,

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 /** Control-plane activity signal only: it never accepts task content. */
 export async function POST(request: Request, context: { params: { requestId: string } }) {
   try {
-    const account = await authenticateBlueKey(getBearerToken(request));
+    const account = await authenticateBlueKey(getBearerToken(request), {identityOnly:true});
     await heartbeatBlueRuntimeTask(
       account,
       decodeURIComponent(context.params.requestId),

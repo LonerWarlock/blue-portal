@@ -8,7 +8,7 @@ export const maxDuration = 60;
 
 export async function POST(request: Request, context: { params: { requestId: string } }) {
   try {
-    const account = await authenticateBlueKey(getBearerToken(request));
+    const account = await authenticateBlueKey(getBearerToken(request), {identityOnly:true});
     const body = await request.json().catch(() => ({})) as { extension_id?: unknown };
     const result = await extendBlueRuntimeTask(
       account,

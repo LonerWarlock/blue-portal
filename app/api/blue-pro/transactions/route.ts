@@ -26,6 +26,7 @@ export async function GET(request: Request) {
     const { data: payments, error: payError } = await supabaseAdmin
       .from('credit_payments')
       .select('*')
+      .is('organization_id',null)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);

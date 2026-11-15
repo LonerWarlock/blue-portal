@@ -5,8 +5,7 @@ import { configuredProxyBase, selectProxyBase } from './blueProxyEndpoints.mjs';
 
 export function assertProxyConfigured(): void {
   configuredProxyBase(process.env);
-  if (!process.env.OPENROUTER_API_KEY || (process.env.BLUE_TASK_TICKET_SECRET || '').length < 32
-    || !process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+  if (!process.env.OPENROUTER_API_KEY || (process.env.BLUE_TASK_TICKET_SECRET || '').length < 32) {
     throw Object.assign(new Error('Blue task proxy is not configured.'), { status: 503 });
   }
 }

@@ -1,3 +1,4 @@
+import {organizationId,organizationBillingAccount} from '@/lib/organizations';
 import { NextResponse } from 'next/server';
 import { unstable_cache } from 'next/cache';
 import { authenticateBlueKey, getBluePaygAccount, statusError } from '@/lib/bluePayg';
@@ -46,7 +47,8 @@ export async function GET(request: Request) {
     const token = authorization.slice(7).trim();
     if (!token) throw statusError(401, 'Unauthorized: Empty token');
 
-    const account = token.startsWith('blue_')
+    const org=organizationId(new URL(request.url).searchParams.get('organization_id'));
+    const account = org ? await organizationBillingAccount((await authenticateBlueKey(token,{identityOnly:true})).userId,org) : token.startsWith('blue_')
       ? await authenticateBlueKey(token)
       : await accountFromSession(token);
     const blocked = await blockedRuntimeModels();

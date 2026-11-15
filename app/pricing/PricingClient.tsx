@@ -3,7 +3,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowUpRight, Check, ChevronDown, GraduationCap, Loader2, Plus, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown, GraduationCap, Building2, Loader2, Plus, Sparkles } from 'lucide-react';
 import { MotionConfig, motion, useReducedMotion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import PageLayout from '@/app/components/PageLayout';
@@ -11,6 +11,7 @@ import ClaimCouponModal from '@/app/components/ClaimCouponModal';
 import SpotlightCard from '@/app/components/react-bits/SpotlightCard';
 import StarBorder from '@/app/components/react-bits/StarBorder';
 import BillingCycleSelector from './BillingCycleSelector';
+import OrganizationPricing from './OrganizationPricing';
 import { BLUE_SUBSCRIPTION_PLANS, isBlueBillingCycle, type BlueBillingCycle } from '@/lib/blueSubscriptionPlans';
 import styles from './pricing.module.css';
 
@@ -34,6 +35,7 @@ export default function PricingClient() {
   const { user, session, account, accountLoading, accountError, invalidateAccount } = useAuth();
   const router = useRouter();
   const reducedMotion = useReducedMotion();
+  const [audience,setAudience]=useState<'individual'|'organizations'>('individual');
   const [subscribing, setSubscribing] = useState(false);
   const [subscribeError, setSubscribeError] = useState('');
   const [billingCycle, setBillingCycle] = useState<BlueBillingCycle>('monthly');
@@ -50,9 +52,13 @@ export default function PricingClient() {
   const imrBalance = Number(account?.wallet.balance || 0);
 
   useEffect(() => {
-    const cycle = new URLSearchParams(window.location.search).get('billing_cycle');
+    const params=new URLSearchParams(window.location.search);
+    if(params.get('audience')==='organizations')setAudience('organizations');
+    const cycle = params.get('billing_cycle');
     if (isBlueBillingCycle(cycle)) setBillingCycle(cycle);
   }, []);
+
+  const chooseAudience=(value:'individual'|'organizations')=>{setAudience(value);const url=new URL(window.location.href);if(value==='organizations')url.searchParams.set('audience',value);else url.searchParams.delete('audience');window.history.replaceState(null,'',url);};
 
   const handleSubscribe = async () => {
     if (!user) {
@@ -84,11 +90,13 @@ export default function PricingClient() {
     <section className={styles.page} aria-labelledby="pricing-title">
       <div className={styles.container}>
         <header className={styles.intro}>
-          <div className={styles.kicker}><span>Pricing</span><span className={styles.kickerRule} /><GraduationCap size={15} aria-hidden="true" /> Made specifically for students</div>
+          <div className={styles.kicker}><span>Pricing</span><span className={styles.kickerRule} />{audience==='individual'?<GraduationCap size={15} aria-hidden="true"/>:<Building2 size={15} aria-hidden="true"/>} {audience==='individual'?'For your everyday work':'For teams and companies'}</div>
           <h1 id="pricing-title" className={styles.title}>Blue pricing. <span>Your way to build.</span></h1>
-          <p className={styles.introCopy}>From your first project to your next big launch. Choose your way to build. Subscriptions pay for app features and include no Blue Credits. Blue Credits pay for model usage; BYOK model charges are billed by your provider. <Link href="/teams" className="text-brand underline underline-offset-4">See Blue Teams credit access</Link>.</p>
+          <p className={styles.introCopy}>{audience==='organizations'?'Bring Blue to your company. Give everyone their own account, share one credit balance, and keep spending in view.':'Start on your own. Build with the plan that fits your work, and add model credits whenever you need them.'}</p>
         </header>
 
+        <div className={styles.audienceTabs} role="tablist" aria-label="Who is Blue for?">{(['individual','organizations'] as const).map(value=><button key={value} type="button" role="tab" id={'pricing-tab-'+value} aria-controls={'pricing-panel-'+value} aria-selected={audience===value} tabIndex={audience===value?0:-1} onClick={()=>chooseAudience(value)} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();const next=value==='individual'?'organizations':'individual';chooseAudience(next);document.getElementById('pricing-tab-'+next)?.focus();}}}>{value==='individual'?'Individual':'Organizations'}</button>)}</div>
+        <div role="tabpanel" id="pricing-panel-individual" aria-labelledby="pricing-tab-individual" className={styles.audiencePanel} hidden={audience!=='individual'}>
         {accountLoading && user && !account && <p role="status" className={styles.accountMessage}>Loading your plan…</p>}
         {accountError && <p role="alert" className={styles.error}>{accountError} <button type="button" onClick={() => void invalidateAccount()}>Retry</button></p>}
         {activeBlueAccess && <p role="status" className={styles.accountMessage}>
@@ -164,6 +172,8 @@ export default function PricingClient() {
             <tbody>{allFeatures.map((feature, index) => <tr key={feature}><th scope="row">{feature}</th>{plans.map(plan => <td key={plan.id}>{plan.features[index] ? <><Check size={15} aria-hidden="true" /><span className="sr-only">Included</span></> : <><span aria-hidden="true">—</span><span className="sr-only">Not included</span></>}</td>)}</tr>)}</tbody>
           </table></div>
         </details>
+        </div>
+        <div role="tabpanel" id="pricing-panel-organizations" aria-labelledby="pricing-tab-organizations" className={styles.audiencePanel} hidden={audience!=='organizations'}><OrganizationPricing/></div>
         <p className={styles.legal}>By purchasing, you agree to our <Link href="/terms">Terms</Link> and <Link href="/privacy">Privacy Policy</Link>.</p>
       </div>
     </section>

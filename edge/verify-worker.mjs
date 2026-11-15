@@ -3,7 +3,7 @@ const base = String(process.argv[2] || '').replace(/\/$/, '');
 if (!isCloudflareProxyBase(base)) throw new Error('Pass the deployed Worker URL with /v1, for example https://blue-inference-proxy.YOUR-SUBDOMAIN.workers.dev/v1');
 const result = await fetch(base + '/health', { signal: AbortSignal.timeout(15000), redirect: 'error' });
 const health = await result.json();
-if (!result.ok || health.proxy_stream_ready !== true || health.execution !== 'cloudflare-worker') throw new Error('Worker is not ready. Check all six secrets before changing Vercel.');
+if (!result.ok || health.proxy_stream_ready !== true || health.execution !== 'cloudflare-worker' || health.admission_mode !== 'required') throw new Error('Worker is not ready. Check the four required secrets and required atomic admission before changing Vercel.');
 const unauthenticated = await fetch(base + '/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
 if (unauthenticated.status !== 401) throw new Error('Worker did not reject a request without a Blue task ticket.');
 console.log('Worker configuration and unauthenticated-request rejection passed. No inference was submitted.');

@@ -1,3 +1,4 @@
+import {organizationId,organizationContext} from '@/lib/organizations';
 import { NextResponse } from 'next/server';
 import { unstable_cache } from 'next/cache.js';
 import { authenticateBlueKey, getBearerToken } from '@/lib/bluePayg';
@@ -11,7 +12,8 @@ export const dynamic = 'force-dynamic';
 const publicCatalogue = unstable_cache(() => imageCatalogue.loadPublicImageCatalogue(), ['blue-image-catalogue-prices-v1'], { revalidate: 300 });
 export async function GET(request: Request) {
   try {
-    await authenticateBlueKey(getBearerToken(request));
+    const org=organizationId(new URL(request.url).searchParams.get('organization_id'));
+    if(org)await organizationContext((await authenticateBlueKey(getBearerToken(request),{identityOnly:true})).userId,org);else await authenticateBlueKey(getBearerToken(request));
     const [catalogue, account, blocked] = await Promise.all([publicCatalogue(), getOpenRouterModels(), blockedRuntimeModels()]);
     const authorized = imageGenerationModels(account);
     const source = new Map<string, OpenRouterModel>((catalogue.models as OpenRouterModel[]).map(row => [row.id, row]));

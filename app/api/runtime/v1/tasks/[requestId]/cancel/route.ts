@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: Request, context: { params: { requestId: string } }) {
   try {
-    const account = await authenticateBlueKey(getBearerToken(request));
+    const account = await authenticateBlueKey(getBearerToken(request), {identityOnly:true});
     const result = await completeBlueRuntimeTask(
       account,
       decodeURIComponent(context.params.requestId),

@@ -6,5 +6,5 @@
   "preview_urls": false,
   "observability": { "enabled": false },
   "vars": { "BLUE_PROXY_MAX_TURN_MS": "900000",
-    "BLUE_PROXY_ATOMIC_ADMISSION": "auto" }
+    "BLUE_PROXY_ATOMIC_ADMISSION": "required" }
 }

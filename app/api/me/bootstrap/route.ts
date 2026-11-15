@@ -1,3 +1,4 @@
+import {organizationId,organizationEntitlements,organizationList} from '@/lib/organizations';
 import { NextResponse } from 'next/server';
 import { statusError } from '@/lib/bluePayg';
 import { verifiedSessionUser } from '@/lib/accountEntitlements';
@@ -23,6 +24,10 @@ export async function GET(request: Request) {
   try {
     if (!supabaseAdmin) throw statusError(503, 'Database is not configured');
     const userId = await verifiedSessionUser(request);
+    const org=organizationId(new URL(request.url).searchParams.get('organization_id'));
+    if(org){const selected=await organizationEntitlements(userId,org);return NextResponse.json({user_id:userId,wallet:{balance:0},organizations:await organizationList(userId),organization:selected.organization,billing_context:selected.billing_context,
+      subscription:{plan:selected.organization.funded?'blue_pro':'lite',is_pro:selected.organization.funded},teams:selected.teams,blue_pro:{wallet:selected.blue_pro}}, {headers:PRIVATE_NO_STORE_HEADERS});}
+
 
     const [walletResult, profileResult, subscriptionResult, teams, creditSummary] = await Promise.all([
       supabaseAdmin
@@ -90,6 +95,7 @@ export async function GET(request: Request) {
         supabaseAdmin
           .from('credit_payments')
           .select('*')
+          .is('organization_id',null)
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(50),
@@ -153,6 +159,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       user_id: userId,
+      organizations: await organizationList(userId),
       ...(creditSummary ? { credit_summary: creditSummary } : {}),
       wallet: { balance: Number(wallet?.balance || 0) },
       subscription: { ...effectivePlan, discount },

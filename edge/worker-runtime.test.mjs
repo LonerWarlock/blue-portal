@@ -18,7 +18,7 @@ for (const mode of ['legacy','required','auto']) test('compiled Worker streams a
       if(url.origin===env.NEXT_PUBLIC_SUPABASE_URL){
         assert.equal(request.headers.get('apikey'),env.SUPABASE_SERVICE_ROLE_KEY);
         if(url.pathname.endsWith('/admit_blue_proxy_call_v2')) {
-          if(mode==='auto') return Response.json({code:'PGRST202',message:'Could not find public.admit_blue_proxy_call_v2 in schema cache'},{status:404});
+          
           const args=await request.json(); assert.match(args.attempt_id_param,/^[a-f0-9-]{36}$/);
           return Response.json({accepted:true,purpose:'text',hold_cost:.02,output_limit:100});
         }
@@ -55,10 +55,9 @@ for (const mode of ['legacy','required','auto']) test('compiled Worker streams a
     assert.match(text,/Blue model request accepted/);assert.match(text,/\[DONE\]/);
     assert.equal(text.includes(env.OPENROUTER_API_KEY),false);
     assert.equal(generations,1);assert.equal(settlements,1);
-    assert.equal(calls.filter(path=>path==='/').length,mode==='required'?0:2,'Atomic path never contacts Redis');
+    assert.equal(calls.filter(path=>path==='/').length,0,'Atomic path never contacts Redis');
     const beforeDispatch=calls.slice(0,calls.indexOf('/api/v1/chat/completions')).filter(p=>p.includes('/rpc/'));
-    assert.deepEqual(beforeDispatch,mode==='required'?['/rest/v1/rpc/admit_blue_proxy_call_v2']:
-      [...(mode==='auto'?['/rest/v1/rpc/admit_blue_proxy_call_v2']:[]),'/rest/v1/rpc/authorize_blue_proxy_task','/rest/v1/rpc/reserve_blue_proxy_call','/rest/v1/rpc/dispatch_blue_proxy_call']);
+    assert.deepEqual(beforeDispatch,['/rest/v1/rpc/admit_blue_proxy_call_v2']);
     redirectTest=true;
     const redirected=await worker.dispatchFetch(base+'/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+ticket.token,'Content-Type':'application/json'},
       body:JSON.stringify({model:'vendor/model',messages:[{role:'user',content:'Synthetic redirect test'}],stream:true})});
@@ -71,7 +70,7 @@ for (const mode of ['legacy','required','auto']) test('compiled Worker streams a
     assert.match(rejectionText,/event: response.failed/);assert.match(rejectionText,/provider_request_validation/);assert.match(rejectionText,/HTTP 400/);
     assert.doesNotMatch(rejectionText,/private echoed content|response.completed/);
     assert.equal(generations,3);assert.equal(settlements,2);
-    assert.equal(calls.slice(beforeFailure).filter(path=>path==='/').length,mode==='required'?0:2);
+    assert.equal(calls.slice(beforeFailure).filter(path=>path==='/').length,0);
 
   }finally{await worker.dispose();}
 });

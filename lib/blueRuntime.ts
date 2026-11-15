@@ -1,5 +1,7 @@
+import {organizationTaskReplayAllowance} from '@/lib/organizationRuntimePolicy';
+import {organizationBillingAccount,organizationContext,requireOrganizationsEnabled} from '@/lib/organizations';
 import { createHash } from 'crypto';
-import { BluePaygAccount, settleUsage, statusError } from '@/lib/bluePayg';
+import { BluePaygAccount, getBluePaygAccount, settleUsage, statusError } from '@/lib/bluePayg';
 import { assertProxyConfigured, finishProxyTask, mintBlueTaskCredential, reconcileProxyCalls } from '@/lib/blueProxyRuntime';
 import {
   deleteManagedKey,
@@ -54,6 +56,7 @@ type RuntimeTaskState = 'queued' | 'provisioning' | 'active' | 'stopping'
   | 'completed' | 'cancelled' | 'failed' | 'expired';
 
 interface RuntimeTaskRow {
+  organization_id?: string | null;
   runtime_transport?: 'legacy' | 'ticket';
   feature?: 'project' | 'teams';
   credit_multiplier?: number | string;
@@ -116,6 +119,7 @@ interface RuntimeCredentialRow {
 }
 
 export interface BlueRuntimeAdmissionInput {
+  organizationId?: string;
   purpose?: 'image';
   feature?: 'project' | 'teams';
   requestId: string;
@@ -147,6 +151,7 @@ export interface BlueRuntimeAdmission {
   retry_after_ms?: number;
   queue_expires_at?: string;
   billing: {
+    organization_id?: string;
     reserved_blue_credits: number;
     remaining_blue_credits: number;
     provider_limit: number;
@@ -248,7 +253,9 @@ export async function admitBlueRuntimeTask(
 ): Promise<BlueRuntimeAdmission> {
   assertConfigured();
   validateAdmissionInput(input);
-  const refreshedAccount = await loadBillingAccount(account.userId, account.threshold);
+  const existingOrganizationTask=input.organizationId?await getTaskForUser(account.userId,input.requestId):undefined;
+  if(input.organizationId && !existingOrganizationTask) requireOrganizationsEnabled();
+  const refreshedAccount = input.organizationId ? await organizationBillingAccount(account.userId,input.organizationId) : await getBluePaygAccount(account.userId);
   const catalogue = await getOpenRouterModels();
   const reviewerModel = normalizeApprovalReviewer(input.approvalReviewerModel);
   if (reviewerModel) {
@@ -285,6 +292,7 @@ export async function admitBlueRuntimeTask(
   const deviceHash = sha256(input.deviceId);
   const payloadHash = sha256(stableJson({
     requestId: input.requestId,
+    ...(input.organizationId ? {organizationId:input.organizationId} : {}),
     ...(input.purpose === 'image' ? { purpose: 'image' } : {}),
     model: model.id,
     ...(input.feature === 'teams' ? {feature:'teams'} : {}),
@@ -295,6 +303,10 @@ export async function admitBlueRuntimeTask(
     runtimeProtocolVersion: input.runtimeProtocolVersion || BLUE_RUNTIME_PROTOCOL_VERSION,
     deviceHash
   }));
+  if(input.organizationId && existingOrganizationTask && billableTask && allowance<MIN_PAID_ALLOWANCE) {
+    try { allowance=organizationTaskReplayAllowance(existingOrganizationTask,{organizationId:input.organizationId,deviceHash,payloadHash}); }
+    catch(error) { throw statusError(409,safeMessage(error)); }
+  }
   if (reviewerModel && billableTask && allowance < MIN_PAID_ALLOWANCE) {
     const existing = await getTaskForUser(refreshedAccount.userId, input.requestId);
     if (existing) {
@@ -342,7 +354,8 @@ export async function admitBlueRuntimeTask(
   } catch {
     // Non-blocking fallback for pre-admission cleanup
   }
-  const { data, error } = await supabaseAdmin!.rpc('admit_blue_runtime_task_v5', {
+  const { data, error } = await supabaseAdmin!.rpc(input.organizationId ? 'admit_blue_organization_task' : 'admit_blue_runtime_task_v5', {
+    ...(input.organizationId ? {organization_id_param:input.organizationId} : {}),
     user_id_param: refreshedAccount.userId,
     request_id_param: input.requestId,
     device_hash_param: deviceHash,
@@ -374,7 +387,7 @@ export async function admitBlueRuntimeTask(
   if (task.state === 'queued') {
     task.queue_position = Number(data?.queue_position || 0) || await runtimeQueuePosition(task);
   }
-  const remaining = Number(data?.remaining ?? (await walletBalance(refreshedAccount.userId)));
+  const remaining = Number(data?.remaining ?? (await walletBalance(refreshedAccount.userId, input.organizationId)));
   if (isTerminal(task.state)) {
     return admissionPayload(task, undefined, remaining, model);
   }
@@ -422,7 +435,7 @@ export async function getBlueRuntimeTask(
   if (!task) throw statusError(404, 'Blue runtime task not found');
   if (task.device_hash !== sha256(deviceId)) throw statusError(403, 'This Blue runtime belongs to another device');
   if (task.unprovisioned_release_pending) task = await recoverUnprovisionedTask(task);
-  if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(account.userId));
+  if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(account.userId, task.organization_id));
   if (task.state === 'stopping') throw statusError(409, 'This Blue runtime task is being settled');
   if (task.runtime_transport === 'ticket' && Date.parse(task.expires_at) - Date.now() < 15 * 60_000) {
     await extendRuntimeExpiry(task.request_id);
@@ -432,12 +445,12 @@ export async function getBlueRuntimeTask(
   if (task.state === 'queued') {
     await promoteBlueRuntimeQueue();
     task = await requireTask(account.userId, requestId);
-    if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(account.userId));
+    if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(account.userId, task.organization_id));
     if (task.state === 'queued') {
       task.queue_position = await runtimeQueuePosition(task);
       const queuedModel = resolveModel(await getOpenRouterModels(), task.model, task.is_free);
       if (!queuedModel) throw statusError(503, 'The selected Blue model is no longer available');
-      return admissionPayload(task, undefined, await walletBalance(account.userId), queuedModel);
+      return admissionPayload(task, undefined, await walletBalance(account.userId, task.organization_id), queuedModel);
     }
   }
 
@@ -449,11 +462,11 @@ export async function getBlueRuntimeTask(
   // with an execution-slot error.
   const withoutExecutionSlot = async (current: RuntimeTaskRow): Promise<BlueRuntimeAdmission | BlueRuntimeSettlement | undefined> => {
     if (current.unprovisioned_release_pending) current = await recoverUnprovisionedTask(current);
-    if (isTerminal(current.state)) return existingSettlement(current, await walletBalance(account.userId));
+    if (isTerminal(current.state)) return existingSettlement(current, await walletBalance(account.userId, current.organization_id));
     if (current.state === 'stopping') throw statusError(409, 'This Blue runtime task is being settled');
     if (current.state === 'queued') {
       current.queue_position = await runtimeQueuePosition(current);
-      return admissionPayload(current, undefined, await walletBalance(account.userId), model);
+      return admissionPayload(current, undefined, await walletBalance(account.userId, current.organization_id), model);
     }
   };
   task = await requireTask(account.userId, requestId);
@@ -463,7 +476,7 @@ export async function getBlueRuntimeTask(
   task = await requireTask(account.userId, requestId);
   const afterProvision = await withoutExecutionSlot(task);
   if (afterProvision) return afterProvision;
-  return admissionPayload(task, credential, await walletBalance(account.userId), model);
+  return admissionPayload(task, credential, await walletBalance(account.userId, task.organization_id), model);
 }
 
 /**
@@ -523,19 +536,20 @@ export async function extendBlueRuntimeTask(
   if (!/^[A-Za-z0-9][A-Za-z0-9_.:-]{7,127}$/.test(extensionId)) {
     throw statusError(400, 'Invalid Blue runtime extension ID');
   }
-  if (task.feature === 'teams' && !runtimeTaskIsBillable(task)) {
+  if (task.feature === 'teams' && !task.organization_id && !runtimeTaskIsBillable(task)) {
     const access=await loadBlueTeamsCreditEntitlement(supabaseAdmin!,account.userId);
     if (!access.available) throw statusError(503,'Blue could not verify Teams credit access.');
     if (access.status !== 'active') throw statusError(403,'Blue Teams requires a purchase of at least 25 Blue Credits and remaining credits.');
   }
+  if (task.organization_id) await organizationContext(account.userId,task.organization_id);
   if (!runtimeTaskIsBillable(task)) {
     const model = resolveModel(await getOpenRouterModels(), task.model, task.is_free);
     if (!model) throw statusError(503, 'The selected Blue model is no longer available');
     const credential = await activeOrProvision(task);
-    return admissionPayload(task, credential, await walletBalance(account.userId), model);
+    return admissionPayload(task, credential, await walletBalance(account.userId, task.organization_id), model);
   }
 
-  const refreshed = await loadBillingAccount(account.userId, account.threshold);
+  const refreshed = task.organization_id ? await organizationBillingAccount(account.userId,task.organization_id) : await loadBillingAccount(account.userId,account.threshold);
   // Let the atomic RPC recognize an already-applied extension before checking
   // funds. A retry after an ambiguous provider timeout may have reserved the
   // wallet's last credits already. Distinct IDs still require sufficient funds
@@ -569,7 +583,7 @@ export async function completeBlueRuntimeTask(
   if (task.device_hash !== sha256(deviceId)) throw statusError(403, 'This Blue runtime belongs to another device');
   if (task.unprovisioned_release_pending) {
     task = await recoverUnprovisionedTask(task);
-    return existingSettlement(task, await walletBalance(account.userId));
+    return existingSettlement(task, await walletBalance(account.userId, task.organization_id));
   }
   const generationId = normalizeProviderGenerationId(providerGenerationId);
 
@@ -595,7 +609,7 @@ export async function completeBlueRuntimeTask(
       .select('*')
       .maybeSingle();
     if (error) throw statusError(500, `Could not cancel queued Blue runtime: ${error.message}`);
-    if (data) return existingSettlement(data as RuntimeTaskRow, await walletBalance(account.userId));
+    if (data) return existingSettlement(data as RuntimeTaskRow, await walletBalance(account.userId, task.organization_id));
     task = await requireTask(account.userId, requestId);
   }
 
@@ -704,18 +718,19 @@ async function settleRuntimeTask(
   assertConfigured();
   let task = await requireTask(initialTask.user_id, initialTask.request_id);
   if (task.unprovisioned_release_pending) task = await recoverUnprovisionedTask(task);
-  if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(task.user_id));
+  if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(task.user_id, task.organization_id));
 
   if (task.runtime_transport === 'ticket') {
     const pending = await finishProxyTask(task, outcome);
     task = await requireTask(task.user_id, task.request_id);
     if (!pending) {
       await promoteBlueRuntimeQueue();
-      return existingSettlement(task, await walletBalance(task.user_id));
+      return existingSettlement(task, await walletBalance(task.user_id, task.organization_id));
     }
     return { runtime_protocol_version: BLUE_RUNTIME_PROTOCOL_VERSION, request_id: task.request_id, state: 'stopping',
-      settlement_pending: true, reserved_blue_credits: Number(task.reserved_blue_credits),
-      remaining_blue_credits: await walletBalance(task.user_id), provisional_provider_cost: Number(task.provider_cost), retry_after_seconds: 5 };
+      settlement_pending: true, ...(task.organization_id ? {organization_id:task.organization_id} : {}),
+      reserved_blue_credits: Number(task.reserved_blue_credits),
+      remaining_blue_credits: await walletBalance(task.user_id, task.organization_id), provisional_provider_cost: Number(task.provider_cost), retry_after_seconds: 5 };
   }
 
   const now = new Date();
@@ -816,8 +831,9 @@ async function settleRuntimeTask(
       request_id: task.request_id,
       state: 'stopping',
       settlement_pending: true,
+      ...(task.organization_id ? {organization_id:task.organization_id} : {}),
       reserved_blue_credits: Number(task.reserved_blue_credits),
-      remaining_blue_credits: await walletBalance(task.user_id),
+      remaining_blue_credits: await walletBalance(task.user_id, task.organization_id),
       provisional_provider_cost: decision.providerCost,
       retry_after_seconds: decision.retryAfterSeconds
     };
@@ -870,7 +886,8 @@ async function settleRuntimeTask(
     runtime_protocol_version: BLUE_RUNTIME_PROTOCOL_VERSION,
     request_id: task.request_id,
     state: terminalState,
-    reserved_blue_credits: Number(task.reserved_blue_credits),
+    ...(task.organization_id ? {organization_id:task.organization_id} : {}),
+      reserved_blue_credits: Number(task.reserved_blue_credits),
     charged_blue_credits: settlement.charged,
     refunded_blue_credits: Math.max(0, roundCredits(Number(task.reserved_blue_credits) - settlement.charged)),
     provider_cost: providerCost,
@@ -1104,6 +1121,7 @@ async function admissionPayload(
       retry_after_ms: capacity.retryAfterMs
     } : {}),
     billing: {
+      ...(task.organization_id ? {organization_id:task.organization_id} : {}),
       reserved_blue_credits: Number(task.reserved_blue_credits),
       remaining_blue_credits: Math.max(0, Number(remaining || 0)),
       provider_limit: !runtimeTaskIsBillable(task) ? FREE_PROVIDER_CEILING : Number(task.reserved_blue_credits) / runtimeCreditMultiplier(task),
@@ -1147,7 +1165,8 @@ function existingSettlement(task: RuntimeTaskRow, remaining: number): BlueRuntim
       ? task.state
       : 'failed',
     ...publicTerminalReason(task),
-    reserved_blue_credits: Number(task.reserved_blue_credits),
+    ...(task.organization_id ? {organization_id:task.organization_id} : {}),
+      reserved_blue_credits: Number(task.reserved_blue_credits),
     charged_blue_credits: charged,
     refunded_blue_credits: Math.max(0, roundCredits(Number(task.reserved_blue_credits) - charged)),
     provider_cost: Number(task.provider_cost),
@@ -1173,7 +1192,8 @@ async function loadBillingAccount(userId: string, fallbackThreshold: number, all
   };
 }
 
-async function walletBalance(userId: string): Promise<number> {
+async function walletBalance(userId: string, organizationId?: string | null): Promise<number> {
+  if(organizationId) { const {data,error}=await supabaseAdmin!.from('blue_organization_wallets').select('available').eq('organization_id',organizationId).single(); if(error) throw statusError(503,'Organization balance unavailable');return Number(data.available); }
   const { data } = await supabaseAdmin!.from('wallets').select('blue_credits').eq('user_id', userId).maybeSingle();
   return Math.max(0, Number(data?.blue_credits || 0));
 }
@@ -1240,6 +1260,8 @@ export function publicBlueRuntimeError(error: unknown, fallback = 'Blue runtime 
 }
 
 function mapDatabaseError(message: string): Error & { status: number } {
+  if (/Organization access denied/i.test(message)) return statusError(403,'Your Organization membership is no longer active.');
+  if (/Organization member credit cap/i.test(message)) return statusError(402,'Your Organization spending cap has been reached.');
   if (/Blue Teams requires/.test(message)) return statusError(403,'Blue Teams requires a purchase of at least 25 Blue Credits and remaining credits.');
   if (/insufficient/i.test(message)) return statusError(402, 'Your Blue Credits are too low for this task');
   if (/queue is full/i.test(message)) return statusError(429, 'Blue runtime capacity is full; retry shortly');

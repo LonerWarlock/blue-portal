@@ -26,7 +26,7 @@ async function authenticatedEligibleUser(request: Request): Promise<string> {
   if (!token) throw statusError(401, 'Unauthorized: Missing token');
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data.user) throw statusError(401, 'Unauthorized: Invalid token');
-  await getBluePaygAccount(data.user.id);
+  try { await getBluePaygAccount(data.user.id); } catch(error) { const {data:member}=await supabaseAdmin.from('blue_organization_members').select('user_id').eq('user_id',data.user.id).eq('active',true).limit(1).maybeSingle();if(!member)throw error; }
   return data.user.id;
 }
 

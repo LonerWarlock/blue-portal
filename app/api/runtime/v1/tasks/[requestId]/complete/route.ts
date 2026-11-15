@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request, context: { params: { requestId: string } }) {
   try {
-    const account = await authenticateBlueKey(getBearerToken(request));
+    const account = await authenticateBlueKey(getBearerToken(request), {identityOnly:true});
     const body = await boundedJson(request);
     const rawOutcome = String(body.outcome || 'completed');
     if (!['completed', 'failed', 'stopped', 'expired'].includes(rawOutcome)) {

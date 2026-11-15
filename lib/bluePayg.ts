@@ -54,7 +54,7 @@ export interface BillingReservation {
   decisionExplicit: boolean;
 }
 
-export async function authenticateBlueKey(clientKey: string): Promise<BluePaygAccount> {
+export async function authenticateBlueKey(clientKey: string, options: { identityOnly?: boolean } = {}): Promise<BluePaygAccount> {
   if (!supabaseAdmin) throw statusError(500, 'Supabase admin is not configured');
   if (!clientKey || clientKey.length > 512) throw statusError(401, 'Unauthorized: Invalid Blue API Key or session token');
 
@@ -107,6 +107,7 @@ export async function authenticateBlueKey(clientKey: string): Promise<BluePaygAc
   }
 
   if (!userId) throw statusError(401, 'Unauthorized: Invalid Blue API Key or session token');
+  if (options.identityOnly) {const {data:profile}=await supabaseAdmin.from('blue_profiles').select('access_tier').eq('user_id',userId).maybeSingle();return {userId,balance:0,accessTier:profile?.access_tier==='full'?'full':'trial',lastTopUpCredits:0,threshold:.15};}
   return getBluePaygAccount(userId);
 }
 

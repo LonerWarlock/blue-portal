@@ -1,3 +1,4 @@
+import {organizationId,organizationPurchasePack} from '@/lib/organizations';
 import { createHash, randomBytes } from 'crypto';
 import { NextResponse } from 'next/server';
 import { APPROX_USD_TO_INR, getCreditPurchasePack } from '@/lib/exchangeRate';
@@ -13,9 +14,11 @@ export async function POST(request: Request) {
     const { data, error } = await supabaseAdmin.auth.getUser(authorization.slice(7).trim());
     if (error || !data.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const body = await request.json() as { returnUrl?: string; packId?: string; customCredits?: number; customInrAmount?: number; customUsdAmount?: number };
-    const pack = getCreditPurchasePack(body, 'INR');
+    const body = await request.json() as { returnUrl?: string; packId?: string; customCredits?: number; customInrAmount?: number; customUsdAmount?: number; organization_id?: string };
+    const org=organizationId(body.organization_id);
+    const pack = org ? await organizationPurchasePack(data.user.id,org,body.customCredits,'INR') : getCreditPurchasePack(body, 'INR');
     const amountINR = pack.priceINR;
+    const organizationTestCheckout = Boolean(org && 'testPayuCheckout' in pack && pack.testPayuCheckout === true);
     const merchantKey = process.env.PAYU_MERCHANT_KEY || '';
     const salt = process.env.PAYU_MERCHANT_SALT || '';
     if (!merchantKey || !salt) return NextResponse.json({ error: 'PayU credentials are not configured' }, { status: 500 });
@@ -37,6 +40,7 @@ export async function POST(request: Request) {
       .from('credit_payments')
       .insert({
         user_id: data.user.id,
+        ...(org ? {organization_id:org} : {}),
         amount_paid: amountINR,
         currency: 'INR',
         credits_purchased: pack.credits,
@@ -45,8 +49,9 @@ export async function POST(request: Request) {
         provider_txnid: txnid,
         status: 'pending',
         metadata: {
-          pricing_version: BLUE_CREDIT_PRICING_VERSION,
-          credit_unit_price_inr: BLUE_CREDIT_PRICE_INR,
+          pricing_version: org ? (organizationTestCheckout ? 'organization-payu-live-inr1-test-v1' : 'organization-inr115-usd115-v1') : BLUE_CREDIT_PRICING_VERSION,
+          credit_unit_price_inr: organizationTestCheckout ? amountINR / pack.credits : BLUE_CREDIT_PRICE_INR,
+          ...(organizationTestCheckout ? { live_payment_test: true, original_price_inr: pack.credits * 115 } : {}),
           model_usage_usd: pack.credits,
           base_price_usd: pack.basePriceUSD, base_price_inr: pack.basePriceINR,
           platform_fee_usd: pack.platformFeeUSD, platform_fee_inr: pack.platformFeeINR,

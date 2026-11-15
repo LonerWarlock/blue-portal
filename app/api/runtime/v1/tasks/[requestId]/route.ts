@@ -10,7 +10,7 @@ export const maxDuration = 60;
 
 export async function GET(request: Request, context: { params: { requestId: string } }) {
   try {
-    const account = await authenticateBlueKey(getBearerToken(request));
+    const account = await authenticateBlueKey(getBearerToken(request), {identityOnly:true});
     const pollingLimit = await checkBlueControlRateLimit(account.userId, 'status', context.params.requestId);
     if (!pollingLimit.allowed) {
       return NextResponse.json({
@@ -39,7 +39,7 @@ export async function GET(request: Request, context: { params: { requestId: stri
 
 export async function DELETE(request: Request, context: { params: { requestId: string } }) {
   try {
-    const account = await authenticateBlueKey(getBearerToken(request));
+    const account = await authenticateBlueKey(getBearerToken(request), {identityOnly:true});
     const result = await completeBlueRuntimeTask(
       account,
       decodeURIComponent(context.params.requestId),

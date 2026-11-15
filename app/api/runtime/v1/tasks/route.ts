@@ -1,3 +1,4 @@
+import {organizationId} from '@/lib/organizations';
 import { NextResponse } from 'next/server';
 import { authenticateBlueKey, getBearerToken, statusError } from '@/lib/bluePayg';
 import { admitBlueRuntimeTask, assertBlueRuntimeAdmissionEnabled, publicBlueRuntimeError } from '@/lib/blueRuntime';
@@ -15,9 +16,11 @@ export async function POST(request: Request) {
     if (String(process.env.DISABLE_AI_ADMISSION || '').toLowerCase() === 'true') {
       return NextResponse.json({ error: 'New Blue tasks are temporarily paused.' }, { status: 503 });
     }
-    const account = await authenticateBlueKey(getBearerToken(request));
+    const account = await authenticateBlueKey(getBearerToken(request), {identityOnly:true});
+    const body = await boundedJson(request);
+    const selectedOrganization=organizationId(body.organization_id);
     const admissionLimit = await checkBlueControlRateLimit(account.userId,
-      account.accessTier === 'trial' ? 'admit:trial' : 'admit:paid');
+      selectedOrganization ? 'admit:paid' : account.accessTier === 'trial' ? 'admit:trial' : 'admit:paid');
     if (!admissionLimit.allowed) {
       return NextResponse.json({
         error: admissionLimit.configured ? 'Too many Blue task requests. Retry shortly.' : 'Blue admission is temporarily unavailable.',
@@ -27,7 +30,6 @@ export async function POST(request: Request) {
         headers: rateLimitHeaders(admissionLimit)
       });
     }
-    const body = await boundedJson(request);
     for (const field of FORBIDDEN_CONTENT_FIELDS) {
       if (Object.prototype.hasOwnProperty.call(body, field)) {
         throw statusError(400, `Blue runtime admission never accepts '${field}' content`);
@@ -37,6 +39,7 @@ export async function POST(request: Request) {
     await assertBlueRuntimeAdmissionEnabled(account.userId, String(body.request_id || ''));
     const admission = await admitBlueRuntimeTask(account, {
       requestId: String(body.request_id || ''),
+      organizationId: selectedOrganization,
       model: String(body.model || ''),
       purpose: body.purpose as 'image' | undefined,
       feature: body.feature as 'project' | 'teams' | undefined,

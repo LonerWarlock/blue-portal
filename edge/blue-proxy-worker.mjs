@@ -2,7 +2,7 @@ import { handleBlueProxy } from '../lib/blueInferenceProxy.mjs';
 import { isCloudflareProxyBase } from '../lib/blueProxyEndpoints.mjs';
 
 export const requiredSecrets = ['BLUE_TASK_TICKET_SECRET', 'OPENROUTER_API_KEY', 'NEXT_PUBLIC_SUPABASE_URL',
-  'SUPABASE_SERVICE_ROLE_KEY', 'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'];
+  'SUPABASE_SERVICE_ROLE_KEY'];
 
 export default {
   fetch(request, env, context) {
@@ -14,7 +14,7 @@ export default {
     if (request.method === 'GET' && url.pathname === '/v1/health' && !url.search) {
       const ready = requiredSecrets.every(name => Boolean(env[name])) && env.BLUE_TASK_TICKET_SECRET.length >= 32;
       return Response.json({ runtime_protocol_version: 2, inference_transport: 'blue-task-ticket',
-        proxy_stream_ready: ready, execution: 'cloudflare-worker', admission_mode: env.BLUE_PROXY_ATOMIC_ADMISSION || 'auto', admission_protocol_version: 2 }, {
+        proxy_stream_ready: ready, execution: 'cloudflare-worker', admission_mode: 'required', admission_protocol_version: 2 }, {
         status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' }
       });
     }
