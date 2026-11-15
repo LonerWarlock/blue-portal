@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+import "./executive.css";
+import EditorialMotion from "./components/EditorialMotion";
 import LoadingOverlay from "./components/LoadingOverlay";
 import FloatingAssistant from "./components/FloatingAssistant";
 import MetaPixelPageView from "./components/MetaPixel";
@@ -84,7 +86,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {/* Meta Pixel and PostHog are now loaded conditionally via CookieConsentContext */}
       </head>
-      <body className="min-h-screen bg-paper text-ink flex flex-col antialiased relative font-sans">
+      <body className="blue-executive min-h-screen bg-paper text-ink flex flex-col antialiased relative font-sans">
         <JsonLd data={SITE_SCHEMA} />
         <Script id="blue-deferred-font-awesome" strategy="afterInteractive">
           {FONT_AWESOME_INIT_SCRIPT}
@@ -97,7 +99,7 @@ export default function RootLayout({
             <AuthProvider>
               <LoadingOverlay />
               {children}
-              <FloatingAssistant />
+              <EditorialMotion />
               <CookieConsentBanner />
             </AuthProvider>
           </ThemeProvider>

@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Monitor } from "lucide-react";
+import { Building2, Monitor, RefreshCw, ChevronDown } from "lucide-react";
 import DesktopDownloadLink from "../components/DesktopDownloadLink";
 import { supabase } from "@/lib/supabase";
 import VSCodeInstallSnippet from "../components/VSCodeInstallSnippet";
+import dashboardStyles from "../components/dashboard.module.css";
+import WorkspaceSwitcher from "../components/WorkspaceSwitcher";
 import Navbar from "../components/Navbar";
 import ClaimCouponModal from "../components/ClaimCouponModal";
 import { useAuth } from "../contexts/AuthContext";
@@ -417,10 +419,6 @@ export default function ConsolePage() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Link prefetch={false} href="/organizations" className="btn btn-secondary min-h-11 text-sm">
-                <Building2 aria-hidden="true" className="mr-2 h-4 w-4 shrink-0" />
-                Organization dashboard
-              </Link>
               <DesktopDownloadLink className="btn btn-secondary min-h-11 text-sm">
                 <Monitor aria-hidden="true" className="mr-2 h-4 w-4 shrink-0" />
                 Download Blue for Windows
@@ -436,7 +434,7 @@ export default function ConsolePage() {
         </div>
       )}
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8 sm:px-6 sm:py-12 flex flex-col justify-center items-center">
+      <main className={`${user ? dashboardStyles.personal : ""} flex-1 w-full max-w-7xl mx-auto px-4 py-8 sm:px-6 flex flex-col items-center`}>
         {supabase.isMock && (
           <div className="w-full max-w-md mb-8 p-4 bg-amber-950/40 border border-amber-800/80 rounded-lg text-amber-300 text-sm text-center flex flex-col items-center gap-2">
             <div className="flex items-center gap-2 font-bold text-amber-400">
@@ -492,7 +490,17 @@ export default function ConsolePage() {
         ) : (
           
           <div className="w-full space-y-10">
-            <VSCodeInstallSnippet />
+            <header className={dashboardStyles.personalHeader}>
+              <div><WorkspaceSwitcher activeId="personal" organizations={((auth.account as typeof auth.account & {organizations?:{id:string;name:string}[]})?.organizations||[])} onSelect={next=>{if(next==='new'){router.push('/organizations?new=1');return;}if(next!=='personal'){try{localStorage.setItem('blue.organization.last.'+user.id,next);}catch{}router.push('/organizations/'+next+'/admin');}}}/><h1 className="mt-5">Personal console</h1><p className={dashboardStyles.muted}>Your credits, account access and usage at a glance.</p></div>
+              <div className={dashboardStyles.actions}><Link href="/organizations" className={dashboardStyles.secondary}><Building2 size={16}/>Organization dashboard</Link><Link href="/blue-pro/checkout" className={dashboardStyles.primary}>Add Credits</Link><button className={dashboardStyles.iconButton} aria-label="Refresh personal console" title="Refresh personal console" disabled={accountLoading} onClick={()=>void auth.invalidateAccount()}><RefreshCw size={16}/></button></div>
+            </header>
+            <div className={dashboardStyles.metrics}>{[
+              ['Available balance',Number(proWallet?.blue_credits||0)],
+              ['Lifetime purchased',Number(proWallet?.total_purchased||0)],
+              ['Total spent',Number(proWallet?.total_used||0)],
+              ['Reserved in active tasks',auth.account?.credit_summary?.temporarily_held_blue_credits]
+            ].map(([label,value])=><div key={String(label)}><span>{label}</span><strong>{value===undefined?'—':Number(value).toLocaleString('en-IN',{maximumFractionDigits:4})}<small>cr</small></strong></div>)}</div>
+            <details className="text-sm text-ink-muted"><summary className="cursor-pointer py-2">Developer setup</summary><div className="mt-4"><VSCodeInstallSnippet/></div></details>
 
             {accountError && (
               <div role="alert" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-ink">
@@ -510,43 +518,7 @@ export default function ConsolePage() {
               </div>
             )}
             
-            <div className={`grid grid-cols-1 ${isProPayg ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-8`}>
-              
-              {isProPayg && (
-                <div className="lg:col-span-1 p-6 rounded-lg panel border border-line relative overflow-hidden flex flex-col justify-between min-h-[220px]">
-                  <div>
-                    <div className="flex justify-between items-start">
-                      <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block">Blue Credits</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-brand/10 border border-brand/30 text-brand">
-                        PAYG
-                      </span>
-                    </div>
-                    <span className="text-4xl font-extrabold tracking-tight mt-2 block bg-brand bg-clip-text text-transparent">
-                      {Number(proWallet?.blue_credits || 0).toFixed(4)}
-                    </span>
-                    <span className="text-xs text-ink-faint mt-1 block">Available credits</span>
-                    {hasBlueCredits && (
-                      <span className="text-[20px] text-ink-faint mt-2 block font-mono">
-                        {proWallet?.total_purchased?.toFixed(2) || "0"} lifetime purchased
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-6 flex space-x-3">
-                    <Link prefetch={false} href="/blue-pro/checkout"
-                      className="flex-1 py-2.5 px-4 rounded-lg bg-brand text-sm font-semibold text-white shadow-md transition inline-flex items-center justify-center gap-2">
-                      <i className="fa-solid fa-cart-plus text-xs"></i>
-                      Add Credits
-                    </Link>
-                  </div>
-                  {!hasBlueCredits && (
-                    <Link prefetch={false} href="/blue-pro" className="mt-2 inline-flex items-center gap-1.5 text-[10px] text-brand hover:text-brand transition">
-                      <i className="fa-solid fa-circle-info"></i>
-                      Learn about Blue Pro
-                    </Link>
-                  )}
-                </div>
-              )}
-
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className={`p-6 rounded-lg panel relative overflow-hidden flex flex-col justify-between min-h-[220px] ${isProPayg ? 'lg:col-span-1' : 'lg:col-span-1'}`}>
                 <div>
                   <div className="flex justify-between items-start">
@@ -686,23 +658,7 @@ export default function ConsolePage() {
                 </Link>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="p-4 rounded-lg panel border border-line">
-                  <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Blue Credits</span>
-                  <p className="text-2xl font-extrabold text-ink mt-1">{Number(proWallet.blue_credits || 0).toFixed(4)}</p>
-                  <p className="text-[10px] text-ink-faint mt-0.5">Available balance</p>
-                </div>
-                <div className="p-4 rounded-lg panel border border-line">
-                  <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Total Purchased</span>
-                  <p className="text-2xl font-extrabold text-ink mt-1">{Number(proWallet.total_purchased || 0).toFixed(2)}</p>
-                  <p className="text-[10px] text-ink-faint mt-0.5">All time</p>
-                </div>
-                <div className="p-4 rounded-lg panel border border-line">
-                  <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">30-Day Usage</span>
-                  <p className="text-2xl font-extrabold text-ink mt-1">{proUsage?.summary?.total_blue_credits_used?.toFixed(4) || "0.0000"}</p>
-                  <p className="text-[10px] text-ink-faint mt-0.5">{proUsage?.summary?.total_requests || 0} requests</p>
-                </div>
-              </div>
+              <p className="mb-6 text-xs text-ink-muted">Last 30 days: {Number(proUsage?.summary?.total_blue_credits_used||0).toLocaleString('en-IN',{maximumFractionDigits:4})} credits · {proUsage?.summary?.total_requests||0} requests</p>
 
               <div className="flex gap-1.5 p-1 bg-paper border border-line rounded-lg mb-6 max-w-sm">
                 {(["overview", "purchases", "usage"] as const).map((tab) => (

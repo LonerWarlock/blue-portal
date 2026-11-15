@@ -1,3 +1,4 @@
+import type {BlueCreditSummary} from './blueCreditSummary';
 export const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
 export const WALLET_CACHE_TTL_MS = 45 * 1000;
 
@@ -27,6 +28,7 @@ export interface AccountBootstrap {
   };
   blue_pro: any;
   pack_config?: any;
+  credit_summary?: BlueCreditSummary;
 }
 
 /** Per-provider, in-memory only: never persist API keys or tokens to browser storage. */

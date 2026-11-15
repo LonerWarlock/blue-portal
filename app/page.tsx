@@ -1,5 +1,5 @@
 import Navbar from "./components/Navbar";
-import Hero from "./components/Hero";
+import ExecutiveHome, {ExecutiveClosing} from "./components/ExecutiveHome";
 import Features from "./components/Features";
 import Testimonials from "./components/Testimonials";
 import ModelsShowcase from "./components/ModelsShowcase";
@@ -21,15 +21,12 @@ export default function LandingPage() {
       <Navbar />
       <main id="main-content" className={`flex-1 ${styles.landing}`}>
         <JsonLd data={DESKTOP_APP_SCHEMA} />
-        <Hero />
-        <ProductShowcase />
-        <Features />
+        <ExecutiveHome />
         <ModelsShowcase />
-        <DemoVideo />
-        <Testimonials />
+        <Testimonials presentation="editorial"/>
         <GettingStartedLinks />
         <CodingAssistantFaq />
-        <CtaSection />
+        <ExecutiveClosing />
       </main>
       <Footer />
     </>

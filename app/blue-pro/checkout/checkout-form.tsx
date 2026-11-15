@@ -70,6 +70,7 @@ export function CheckoutForm() {
 
   useEffect(() => {
     const selected = initialCreditCheckoutSelection(window.location.search);
+    setCurrency(new URLSearchParams(window.location.search).get('currency')==='USD'?'USD':'INR');
     setSelectedPackId(selected.packId); setCustomCredits(String(selected.customCredits));
     supabase.auth.getSession().then(({ data: { session } }: any) => {
       if (!session) {

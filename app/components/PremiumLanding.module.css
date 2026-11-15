@@ -32,7 +32,7 @@
 .coreOrbit { position: absolute; width: 92%; height: 70%; left: 4%; top: 15%; border: 1px solid rgb(var(--brand-rgb) / .12); border-radius: 50%; transform: rotate(-24deg); }
 .coreOrbit::before, .coreOrbit::after { content: ''; position: absolute; height: 1px; width: 32px; background: rgb(var(--brand-rgb) / .35); }
 .coreOrbit::before { top: 0; left: 50%; } .coreOrbit::after { bottom: 0; right: 50%; }
-.coreGround { position: absolute; left: 24%; right: 24%; bottom: 4%; height: 30px; background: radial-gradient(ellipse, rgb(var(--brand-rgb) / .16), transparent 70%); filter: blur(10px); }
+.coreGround { position: absolute; left: 24%; right: 24%; bottom: 4%; height: 30px; background:var(--surface); filter: blur(10px); }
 .coreFooter { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid var(--line); padding: 12px 0; font: 500 10px/1.5 var(--font-plex-mono), monospace; color: var(--ink-muted); letter-spacing: .08em; }
 .coreFooter > span { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .coreFootnote { color: var(--ink-muted); opacity: .7; font-size: 9px; letter-spacing: 0; }

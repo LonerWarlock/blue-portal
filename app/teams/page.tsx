@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import TeamsClient from './TeamsClient';
+import TeamsPromoVideo from '@/app/components/TeamsPromoVideo';
 import { createPageMetadata } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
@@ -10,5 +11,5 @@ export const metadata: Metadata = createPageMetadata(
 );
 
 export default function TeamsPage() {
-  return <TeamsClient />;
+  return <TeamsClient showcase={<TeamsPromoVideo src="/videos/blue-teams-promo.mp4" poster="/videos/blue-teams-promo-poster.jpg" label="Blue Teams product demonstration"/>}/>;
 }

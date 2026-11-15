@@ -5,7 +5,7 @@
 .community section[id], .community article[id] { scroll-margin-top: 108px; }
 .hero { padding-top: 62px; text-align: center; overflow: clip; }
 .communityBadge { display: inline-flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 9px; font-size: 11px; font-weight: 500; letter-spacing: .015em; color: var(--ink-muted); }
-.communityBadge > span:first-child { height: 6px; width: 6px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 4px rgb(var(--brand-rgb) / .08); margin-right: 3px; }
+.communityBadge > span:first-child { height: 6px; width: 6px; border-radius: 50%; background: var(--brand); box-shadow:none; margin-right: 3px; }
 .badgeDivider { color: var(--line-strong); margin-inline: 4px; }
 .hero h1 { margin: 27px auto 0; font-size: clamp(44px, 5.2vw, 72px); font-weight: 500; letter-spacing: -.055em; line-height: 1.06; }
 .hero h1 > span { color: var(--brand); }
@@ -20,7 +20,7 @@
 .textLink:hover { color: var(--brand); }
 .stackArea { max-width: 640px; margin: 57px auto 0; position: relative; }
 .photoStack { position: relative; width: min(490px, 82%); aspect-ratio: 1.15; margin-inline: auto; }
-.polaroid { position: absolute; inset: 0; padding: 10px 10px 0; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 8px 32px rgb(var(--terminal-rgb) / .08), 0 2px 5px rgb(var(--terminal-rgb) / .04); transform-origin: 50% 90%; }
+.polaroid { position: absolute; inset: 0; padding: 10px 10px 0; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); box-shadow:none; transform-origin: 50% 90%; }
 .polaroid[data-depth="0"] { z-index: 3; transform: rotate(-3deg); }
 .polaroid[data-depth="1"] { z-index: 2; transform: translate(20px, 8px) rotate(5deg); }
 .polaroid[data-depth="2"] { z-index: 1; transform: translate(-20px, 12px) rotate(-9deg); }
@@ -120,7 +120,7 @@
 .updateCard > p { font-size: 12px; line-height: 1.85; color: var(--ink-muted); margin-top: 12px; margin-bottom: 35px; }
 .updateCard .cardAction { border-top: 1px solid var(--line); padding-top: 18px; }
 .lastSection { margin-bottom: 94px; }
-.photoDialog { position: fixed; width: min(1100px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line-strong); border-radius: 19px; background: var(--surface); color: var(--ink); overflow: auto; box-shadow: 0 24px 100px rgb(0 0 0 / .25); }
+.photoDialog { position: fixed; width: min(1100px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line-strong); border-radius: 19px; background: var(--surface); color: var(--ink); overflow: auto; box-shadow:none; }
 .photoDialog::backdrop { background: rgb(4 9 21 / .82); backdrop-filter: blur(7px); }
 .dialogContent { padding: 20px; }
 .dialogHeader { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 16px; }

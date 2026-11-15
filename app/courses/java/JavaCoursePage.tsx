@@ -53,7 +53,7 @@ const initialForm: RegistrationForm = {
 };
 
 const inputClass =
-  "mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-[15px] text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-[#d74b2a] focus:ring-4 focus:ring-[#d74b2a]/10";
+  "mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-[15px] text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-line focus:ring-4 focus:ring-[#d74b2a]/10";
 
 const faqs = [
   {
@@ -85,7 +85,7 @@ const formatCurrency = (amount: number) =>
 function FieldLabel({ children, required = true }: { children: React.ReactNode; required?: boolean }) {
   return (
     <span className="text-sm font-semibold text-stone-800">
-      {children} {required && <span className="text-[#d74b2a]">*</span>}
+      {children} {required && <span className="text-ink">*</span>}
     </span>
   );
 }
@@ -228,7 +228,7 @@ export default function JavaCoursePage() {
       <header className="sticky top-0 z-50 border-b border-line bg-paper-alt/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5" aria-label="Imergene home">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#20201e] text-[#ffb59f]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-ink-muted">
               <Coffee size={19} strokeWidth={2.2} />
             </span>
             <span className="font-semibold tracking-tight">Imergene Learning</span>
@@ -238,7 +238,7 @@ export default function JavaCoursePage() {
             <a href="#curriculum" className="text-sm font-medium text-stone-600 transition hover:text-stone-950">Curriculum</a>
             <a href="#outcomes" className="text-sm font-medium text-stone-600 transition hover:text-stone-950">Outcomes</a>
             <a href="#faq" className="text-sm font-medium text-stone-600 transition hover:text-stone-950">FAQ</a>
-            <button onClick={scrollToForm} className="rounded-full bg-[#20201e] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#d74b2a]">
+            <button onClick={scrollToForm} className="rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand">
               Register now
             </button>
           </nav>
@@ -260,7 +260,7 @@ export default function JavaCoursePage() {
               <a href="#curriculum" onClick={() => setMobileMenuOpen(false)} className="py-2 text-sm font-medium">Curriculum</a>
               <a href="#outcomes" onClick={() => setMobileMenuOpen(false)} className="py-2 text-sm font-medium">Outcomes</a>
               <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="py-2 text-sm font-medium">FAQ</a>
-              <button onClick={scrollToForm} className="mt-1 rounded-xl bg-[#20201e] px-5 py-3 text-sm font-semibold text-white">Register now</button>
+              <button onClick={scrollToForm} className="mt-1 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white">Register now</button>
             </div>
           </div>
         )}
@@ -271,7 +271,7 @@ export default function JavaCoursePage() {
         <div className="mx-auto grid max-w-7xl gap-14 px-5 py-16 lg:grid-cols-[1.15fr_0.85fr] lg:px-8 lg:py-24">
           <div className="relative z-10 flex flex-col justify-center">
             <div className="mb-6 flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#d74b2a]/25 bg-[#d74b2a]/8 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-[#b83a1d]">
+              <span className="inline-flex items-center gap-2 rounded-full border border-line/25 bg-brand/8 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-ink">
                 <Sparkles size={14} /> Registration open
               </span>
               <span className="text-sm font-medium text-stone-500">{JAVA_COURSE.cohort}</span>
@@ -280,14 +280,14 @@ export default function JavaCoursePage() {
             <h1 className="max-w-3xl text-5xl font-semibold leading-[0.96] tracking-[-0.055em] text-ink sm:text-6xl lg:text-[78px]">
               Learn Java.
               <br />
-              <span className="text-[#d74b2a]">Build for real.</span>
+              <span className="text-ink">Build for real.</span>
             </h1>
             <p className="mt-7 max-w-xl text-lg leading-8 text-stone-600 sm:text-xl">
               Go from Java fundamentals to a production-ready Spring Boot backend—through live classes, practical builds, and thoughtful mentor feedback.
             </p>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <button onClick={scrollToForm} className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#d74b2a] px-7 py-3.5 font-semibold text-white shadow-[0_12px_30px_rgba(215,75,42,0.22)] transition hover:-translate-y-0.5 hover:bg-[#bd3d20]">
+              <button onClick={scrollToForm} className="group inline-flex items-center justify-center gap-2 rounded-full bg-brand px-7 py-3.5 font-semibold text-white shadow-[0_12px_30px_rgba(215,75,42,0.22)] transition hover:-translate-y-0.5 hover:bg-brand-hover">
                 Reserve your seat <ArrowRight size={18} className="transition group-hover:translate-x-1" />
               </button>
               <a href="#curriculum" className="inline-flex items-center justify-center gap-2 rounded-full border border-stone-300 bg-white/60 px-7 py-3.5 font-semibold text-stone-800 transition hover:border-stone-500">
@@ -296,24 +296,24 @@ export default function JavaCoursePage() {
             </div>
 
             <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-sm text-stone-600">
-              <span className="inline-flex items-center gap-2"><CheckCircle2 size={17} className="text-[#d74b2a]" /> Beginner friendly</span>
-              <span className="inline-flex items-center gap-2"><CheckCircle2 size={17} className="text-[#d74b2a]" /> Live mentor support</span>
-              <span className="inline-flex items-center gap-2"><CheckCircle2 size={17} className="text-[#d74b2a]" /> Capstone certificate</span>
+              <span className="inline-flex items-center gap-2"><CheckCircle2 size={17} className="text-ink" /> Beginner friendly</span>
+              <span className="inline-flex items-center gap-2"><CheckCircle2 size={17} className="text-ink" /> Live mentor support</span>
+              <span className="inline-flex items-center gap-2"><CheckCircle2 size={17} className="text-ink" /> Capstone certificate</span>
             </div>
           </div>
 
           <div className="relative z-10 lg:pl-8">
-            <div className="relative overflow-hidden rounded-[2rem] bg-[#20201e] p-7 text-white shadow-2xl shadow-stone-900/15 sm:p-9">
-              <div className="absolute right-0 top-0 h-40 w-40 rounded-bl-[8rem] bg-[#d74b2a] opacity-90" />
+            <div className="relative overflow-hidden rounded-[2rem] bg-brand p-7 text-white shadow-2xl shadow-stone-900/15 sm:p-9">
+              <div className="absolute right-0 top-0 h-40 w-40 rounded-bl-[8rem] bg-brand opacity-90" />
               <div className="relative">
                 <div className="mb-12 flex items-center justify-between">
                   <span className="font-mono text-xs uppercase tracking-[0.2em] text-stone-400">Course brief</span>
                   <Code2 size={25} />
                 </div>
-                <p className="font-mono text-sm text-[#ffb59f]">public class YourCareer &#123;</p>
+                <p className="font-mono text-sm text-ink-muted">public class YourCareer &#123;</p>
                 <h2 className="mt-3 max-w-sm text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">{JAVA_COURSE.title}</h2>
                 <p className="mt-3 text-sm leading-6 text-stone-400">{JAVA_COURSE.subtitle}</p>
-                <p className="mt-7 font-mono text-sm text-[#ffb59f]">&#125;</p>
+                <p className="mt-7 font-mono text-sm text-ink-muted">&#125;</p>
 
                 <div className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-white/10">
                   {[
@@ -325,7 +325,7 @@ export default function JavaCoursePage() {
                     const DetailIcon = Icon as typeof Clock3;
                     return (
                       <div key={String(label)} className="bg-[#2a2927] p-4">
-                        <DetailIcon size={17} className="mb-3 text-[#ff8e70]" />
+                        <DetailIcon size={17} className="mb-3 text-ink" />
                         <p className="text-sm font-semibold">{String(value)}</p>
                         <p className="mt-0.5 text-xs text-stone-500">{String(label)}</p>
                       </div>
@@ -346,7 +346,7 @@ export default function JavaCoursePage() {
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <div className="grid gap-12 lg:grid-cols-[0.7fr_1.3fr]">
             <div>
-              <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#d74b2a]">What you will learn</span>
+              <span className="text-xs font-bold uppercase tracking-[0.18em] text-ink">What you will learn</span>
               <h2 className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-ink sm:text-5xl">A clear path from syntax to shipping.</h2>
               <p className="mt-5 max-w-md leading-7 text-stone-600">Every module compounds into a real backend application, so theory never stays abstract for long.</p>
             </div>
@@ -354,7 +354,7 @@ export default function JavaCoursePage() {
             <div className="border-t border-stone-200">
               {JAVA_COURSE_TRACKS.map((track) => (
                 <div key={track.number} className="grid gap-3 border-b border-stone-200 py-7 sm:grid-cols-[70px_1fr] sm:py-8">
-                  <span className="font-mono text-sm font-bold text-[#d74b2a]">/{track.number}</span>
+                  <span className="font-mono text-sm font-bold text-ink">/{track.number}</span>
                   <div>
                     <h3 className="text-xl font-semibold tracking-tight text-stone-900">{track.title}</h3>
                     <p className="mt-2 max-w-2xl leading-7 text-stone-600">{track.description}</p>
@@ -366,10 +366,10 @@ export default function JavaCoursePage() {
         </div>
       </section>
 
-      <section id="outcomes" className="scroll-mt-20 bg-[#20201e] py-20 text-white lg:py-28">
+      <section id="outcomes" className="scroll-mt-20 bg-brand py-20 text-white lg:py-28">
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <div className="mb-12 max-w-2xl">
-            <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#ff8e70]">Built around outcomes</span>
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-ink">Built around outcomes</span>
             <h2 className="mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">Leave with proof, not just notes.</h2>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
@@ -381,7 +381,7 @@ export default function JavaCoursePage() {
               const OutcomeIcon = Icon as typeof BookOpen;
               return (
                 <article key={String(title)} className="rounded-3xl border border-white/10 bg-white/[0.045] p-7 sm:p-8">
-                  <div className="mb-10 flex items-start justify-between"><OutcomeIcon className="text-[#ff8e70]" size={27} /><span className="font-mono text-xs text-stone-600">0{index + 1}</span></div>
+                  <div className="mb-10 flex items-start justify-between"><OutcomeIcon className="text-ink" size={27} /><span className="font-mono text-xs text-stone-600">0{index + 1}</span></div>
                   <h3 className="text-xl font-semibold">{String(title)}</h3>
                   <p className="mt-3 leading-7 text-stone-400">{String(copy)}</p>
                 </article>
@@ -394,20 +394,20 @@ export default function JavaCoursePage() {
       <section ref={formRef} id="register" className="scroll-mt-20 bg-paper-alt py-20 lg:py-28">
         <div className="mx-auto grid max-w-7xl gap-12 px-5 lg:grid-cols-[0.75fr_1.25fr] lg:px-8">
           <div>
-            <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#d74b2a]">Registration</span>
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-ink">Registration</span>
             <h2 className="mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">Your next build starts here.</h2>
             <p className="mt-5 max-w-md leading-7 text-stone-600">Complete your details and pay the one-time course fee to confirm your place. A payment receipt and enrollment confirmation will be emailed to you.</p>
             <div className="mt-8 space-y-4 text-sm text-stone-700">
-              <p className="flex items-start gap-3"><Check className="mt-0.5 shrink-0 text-[#d74b2a]" size={18} /> One-time course fee of {JAVA_COURSE.feeLabel}</p>
-              <p className="flex items-start gap-3"><Check className="mt-0.5 shrink-0 text-[#d74b2a]" size={18} /> Total {JAVA_COURSE.totalPayableLabel}, including processing charges</p>
-              <p className="flex items-start gap-3"><Check className="mt-0.5 shrink-0 text-[#d74b2a]" size={18} /> Your details are used only for this course</p>
+              <p className="flex items-start gap-3"><Check className="mt-0.5 shrink-0 text-ink" size={18} /> One-time course fee of {JAVA_COURSE.feeLabel}</p>
+              <p className="flex items-start gap-3"><Check className="mt-0.5 shrink-0 text-ink" size={18} /> Total {JAVA_COURSE.totalPayableLabel}, including processing charges</p>
+              <p className="flex items-start gap-3"><Check className="mt-0.5 shrink-0 text-ink" size={18} /> Your details are used only for this course</p>
             </div>
           </div>
 
           <div className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-xl shadow-stone-900/[0.06] sm:p-9">
             {checkingPayment ? (
               <div className="flex min-h-[540px] flex-col items-center justify-center text-center" aria-live="polite">
-                <Loader2 size={38} className="animate-spin text-[#d74b2a]" />
+                <Loader2 size={38} className="animate-spin text-ink" />
                 <h3 className="mt-6 text-2xl font-semibold tracking-tight">Verifying your payment</h3>
                 <p className="mt-3 text-sm text-stone-500">Please keep this page open for a moment.</p>
               </div>
@@ -437,7 +437,7 @@ export default function JavaCoursePage() {
                 <div className="mb-7 rounded-2xl border border-stone-200 bg-stone-50 p-4" aria-label="Payment amount breakdown">
                   <div className="flex items-center justify-between text-sm text-stone-600"><span>Course fee</span><span>{JAVA_COURSE.feeLabel}</span></div>
                   <div className="mt-2 flex items-center justify-between text-sm text-stone-600"><span>Payment processing <span className="text-xs text-stone-400">(2% + GST)</span></span><span>{JAVA_COURSE.gatewayFeeLabel}</span></div>
-                  <div className="mt-3 flex items-center justify-between border-t border-stone-200 pt-3 font-bold text-stone-950"><span>Total payable</span><span className="text-lg text-[#d74b2a]">{JAVA_COURSE.totalPayableLabel}</span></div>
+                  <div className="mt-3 flex items-center justify-between border-t border-stone-200 pt-3 font-bold text-stone-950"><span>Total payable</span><span className="text-lg text-ink">{JAVA_COURSE.totalPayableLabel}</span></div>
                 </div>
 
                 <div className="grid gap-5 sm:grid-cols-2">
@@ -457,7 +457,7 @@ export default function JavaCoursePage() {
 
                 {error && <div role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-                <button disabled={submitting} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#d74b2a] px-6 py-3.5 font-semibold text-white transition hover:bg-[#bd3d20] disabled:cursor-not-allowed disabled:opacity-60">
+                <button disabled={submitting} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3.5 font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60">
                   {submitting ? <><Loader2 size={18} className="animate-spin" /> Opening secure payment...</> : <>Pay {JAVA_COURSE.totalPayableLabel} &amp; enroll <ArrowRight size={18} /></>}
                 </button>
                 <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-stone-400"><ShieldCheck size={14} /> Payment processed securely by PayU. Card details never touch our server.</p>
@@ -469,7 +469,7 @@ export default function JavaCoursePage() {
 
       <section id="faq" className="scroll-mt-20 border-t border-line bg-paper-alt pb-24 pt-20">
         <div className="mx-auto grid max-w-5xl gap-10 px-5 lg:grid-cols-[0.65fr_1.35fr] lg:px-8">
-          <div><span className="text-xs font-bold uppercase tracking-[0.18em] text-[#d74b2a]">FAQ</span><h2 className="mt-4 text-3xl font-semibold tracking-[-0.035em]">Good questions, clearly answered.</h2></div>
+          <div><span className="text-xs font-bold uppercase tracking-[0.18em] text-ink">FAQ</span><h2 className="mt-4 text-3xl font-semibold tracking-[-0.035em]">Good questions, clearly answered.</h2></div>
           <div className="border-t border-stone-300">
             {faqs.map((faq, index) => (
               <div key={faq.question} className="border-b border-stone-300">
@@ -485,7 +485,7 @@ export default function JavaCoursePage() {
 
       <footer className="bg-[#161614] px-5 py-10 text-stone-400">
         <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 sm:flex-row sm:items-center lg:px-3">
-          <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-[#ff8e70]"><Coffee size={18} /></span><div><p className="text-sm font-semibold text-white">Imergene Learning</p><p className="text-xs">Learn by building.</p></div></div>
+          <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-ink"><Coffee size={18} /></span><div><p className="text-sm font-semibold text-white">Imergene Learning</p><p className="text-xs">Learn by building.</p></div></div>
           <div className="flex flex-wrap items-center gap-5 text-xs"><Link href="/privacy" className="hover:text-white">Privacy</Link><Link href="/terms" className="hover:text-white">Terms</Link><Link href="/contact" className="inline-flex items-center gap-1.5 hover:text-white"><MessageCircle size={14} /> Contact</Link></div>
           <p className="text-xs">© 2026 Imergene</p>
         </div>

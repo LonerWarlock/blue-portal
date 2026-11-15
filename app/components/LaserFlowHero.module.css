@@ -16,7 +16,7 @@
 .staticLight {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 100%, #315a7a45, transparent 65%);
+  background:var(--surface);
 }
 .staticLight::before {
   content: "";
@@ -25,8 +25,8 @@
   top: 0;
   bottom: 0;
   width: 2px;
-  background: linear-gradient(transparent, #89c9ed);
-  box-shadow: 0 0 30px 7px #5b9bd525;
+  background:var(--surface);
+  box-shadow:none;
 }
 .laser { position: absolute; inset: 0; pointer-events: none; }
 .launchGhost, .spotlight { position: absolute; inset: 0; pointer-events: none; }
@@ -62,8 +62,8 @@
   max-width: 1140px;
   height: 1px;
   z-index: 1;
-  background: linear-gradient(90deg, #5b9bd545, #94d6ff, #5b9bd545);
-  box-shadow: 0 0 14px #74bdef45;
+  background:var(--surface);
+  box-shadow:none;
   pointer-events: none;
 }
 .preview {

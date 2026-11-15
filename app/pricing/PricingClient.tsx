@@ -11,7 +11,7 @@ import ClaimCouponModal from '@/app/components/ClaimCouponModal';
 import SpotlightCard from '@/app/components/react-bits/SpotlightCard';
 import StarBorder from '@/app/components/react-bits/StarBorder';
 import BillingCycleSelector from './BillingCycleSelector';
-import OrganizationPricing from './OrganizationPricing';
+
 import { BLUE_SUBSCRIPTION_PLANS, isBlueBillingCycle, type BlueBillingCycle } from '@/lib/blueSubscriptionPlans';
 import styles from './pricing.module.css';
 
@@ -35,7 +35,11 @@ export default function PricingClient() {
   const { user, session, account, accountLoading, accountError, invalidateAccount } = useAuth();
   const router = useRouter();
   const reducedMotion = useReducedMotion();
-  const [audience,setAudience]=useState<'individual'|'organizations'>('individual');
+  const [displayCurrency,setDisplayCurrency]=useState<'INR'|'USD'>('INR');
+  const [personalQuantity,setPersonalQuantity]=useState('25'),[organizationQuantity,setOrganizationQuantity]=useState('50');
+  const validPersonal=Number.isSafeInteger(Number(personalQuantity))&&Number(personalQuantity)>=1&&Number(personalQuantity)<=100;
+  const validOrganization=Number.isSafeInteger(Number(organizationQuantity))&&Number(organizationQuantity)>=50&&Number(organizationQuantity)<=1000;
+  const money=(amount:number)=>displayCurrency==='INR'?'₹'+amount.toLocaleString('en-IN',{maximumFractionDigits:2}):'$'+amount.toFixed(2);
   const [subscribing, setSubscribing] = useState(false);
   const [subscribeError, setSubscribeError] = useState('');
   const [billingCycle, setBillingCycle] = useState<BlueBillingCycle>('monthly');
@@ -53,12 +57,11 @@ export default function PricingClient() {
 
   useEffect(() => {
     const params=new URLSearchParams(window.location.search);
-    if(params.get('audience')==='organizations')setAudience('organizations');
+    if(params.get('audience')==='organizations')document.getElementById('organization-plan')?.scrollIntoView({block:'center'});
     const cycle = params.get('billing_cycle');
     if (isBlueBillingCycle(cycle)) setBillingCycle(cycle);
   }, []);
 
-  const chooseAudience=(value:'individual'|'organizations')=>{setAudience(value);const url=new URL(window.location.href);if(value==='organizations')url.searchParams.set('audience',value);else url.searchParams.delete('audience');window.history.replaceState(null,'',url);};
 
   const handleSubscribe = async () => {
     if (!user) {
@@ -90,13 +93,11 @@ export default function PricingClient() {
     <section className={styles.page} aria-labelledby="pricing-title">
       <div className={styles.container}>
         <header className={styles.intro}>
-          <div className={styles.kicker}><span>Pricing</span><span className={styles.kickerRule} />{audience==='individual'?<GraduationCap size={15} aria-hidden="true"/>:<Building2 size={15} aria-hidden="true"/>} {audience==='individual'?'For your everyday work':'For teams and companies'}</div>
-          <h1 id="pricing-title" className={styles.title}>Blue pricing. <span>Your way to build.</span></h1>
-          <p className={styles.introCopy}>{audience==='organizations'?'Bring Blue to your company. Give everyone their own account, share one credit balance, and keep spending in view.':'Start on your own. Build with the plan that fits your work, and add model credits whenever you need them.'}</p>
+          <div className={styles.kicker}><span>PRICING</span><span className={styles.kickerRule}/>A clear way to build.</div>
+          <h1 id="pricing-title" className={styles.title}>Your work. Your models.<br/><span>Your way to pay.</span></h1>
+          <p className={styles.introCopy}>Personal access, on-demand compute, or a shared Organization balance. Choose what works for you.</p>
         </header>
 
-        <div className={styles.audienceTabs} role="tablist" aria-label="Who is Blue for?">{(['individual','organizations'] as const).map(value=><button key={value} type="button" role="tab" id={'pricing-tab-'+value} aria-controls={'pricing-panel-'+value} aria-selected={audience===value} tabIndex={audience===value?0:-1} onClick={()=>chooseAudience(value)} onKeyDown={e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();const next=value==='individual'?'organizations':'individual';chooseAudience(next);document.getElementById('pricing-tab-'+next)?.focus();}}}>{value==='individual'?'Individual':'Organizations'}</button>)}</div>
-        <div role="tabpanel" id="pricing-panel-individual" aria-labelledby="pricing-tab-individual" className={styles.audiencePanel} hidden={audience!=='individual'}>
         {accountLoading && user && !account && <p role="status" className={styles.accountMessage}>Loading your plan…</p>}
         {accountError && <p role="alert" className={styles.error}>{accountError} <button type="button" onClick={() => void invalidateAccount()}>Retry</button></p>}
         {activeBlueAccess && <p role="status" className={styles.accountMessage}>
@@ -104,54 +105,40 @@ export default function PricingClient() {
           {activeCycleLabel && ` Last access purchase: ${activeCycleLabel}.`} Buying another duration adds time after your existing access; it does not replace or shorten it.
         </p>}
 
+        <div className={styles.currencySwitch} role="group" aria-label="Pricing currency"><button aria-pressed={displayCurrency==='INR'} onClick={()=>setDisplayCurrency('INR')}>INR ₹</button><button aria-pressed={displayCurrency==='USD'} onClick={()=>setDisplayCurrency('USD')}>USD $</button></div>
         <div className={styles.grid}>
-          {plans.map((plan, index) => {
-            const featured = plan.id === 'blue';
-            const current = Boolean(user && account && (plan.id === 'blue' ? activeBlueAccess : activePlan === plan.id));
-            const card = <SpotlightCard className={`${styles.card} ${featured ? styles.featuredCard : styles.secondaryCard}`}
-              spotlightColor={featured ? 'rgba(114, 179, 255, 0.2)' : 'rgba(94, 137, 245, 0.1)'}>
-              <div className={styles.planName}><h2>{plan.name}</h2>
-                {featured ? <span className={styles.popular}>{current ? <Check size={11} aria-hidden="true" /> : <Sparkles size={11} aria-hidden="true" />}{current ? 'Active app access' : 'Popular choice'}</span>
-                  : current && <span className={styles.current}><Check size={11} aria-hidden="true" /> Current Plan</span>}
-              </div>
-              <p className={styles.description}>{plan.description}</p>
-
-              <div className={styles.priceBlock}>
-                {featured ? <div aria-live="polite" aria-atomic="true">
-                  <div className={styles.priceLine}>
-                    <motion.span key={billingCycle} className={styles.price} initial={reducedMotion ? false : { opacity: .4, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .2 }}>
-                      <span className={styles.currency}>₹</span>{bluePlan.priceInr.toLocaleString('en-IN')}
-                    </motion.span><span className={styles.period}>/{bluePlan.period}</span>
-                  </div>
-                  <p className={styles.priceContext}>{billingCycle === 'monthly' ? '30 days of access · paid upfront' : `₹${(bluePlan.priceInr / bluePlan.months).toLocaleString('en-IN', { maximumFractionDigits: 2 })}/month equivalent · ${bluePlan.days} days`}</p>
-                </div> : <>
-                  <div className={styles.priceLine}><span className={styles.price}><span className={styles.currency}>₹</span>{plan.id === 'lite' ? '0' : '115'}</span><span className={styles.period}>{plan.id === 'lite' ? '/forever' : '/Credit'}</span></div>
-                  <p className={styles.priceContext}>{plan.id === 'lite' ? 'No payment needed' : 'Pay as you go · no expiry'}</p>
-                </>}
-              </div>
-
-              {featured && <BillingCycleSelector value={billingCycle} onChange={setBillingCycle} disabled={subscribing} />}
-
-              {featured ? <button type="button" className={`${styles.action} ${styles.primaryAction}`} onClick={handleSubscribe} disabled={subscribing}
-                aria-label={subscribing ? 'Opening checkout' : `${current ? 'Extend' : 'Get'} Blue ${bluePlan.label} access for ₹${bluePlan.priceInr}`}>
-                <span>{subscribing ? 'Opening checkout…' : current ? 'Extend access' : 'Get Blue'}</span>
-                {subscribing ? <Loader2 size={18} aria-hidden="true" className={styles.spinner} /> : <ArrowUpRight size={18} aria-hidden="true" />}
-              </button> : <Link className={`${styles.action} ${styles.secondaryAction}`} href={plan.id === 'blue_pro' ? '/blue-pro/checkout?pack=starter' : '/console'}>
-                <span>{plan.id === 'blue_pro' ? 'Try Blue Pro' : user ? 'Open console' : 'Start for free'}</span><ArrowUpRight size={18} aria-hidden="true" />
-              </Link>}
-              {featured && subscribeError && <p role="alert" className={styles.checkoutError}>{subscribeError}</p>}
-
-              <div className={styles.benefits}>
-                <p className={styles.benefitsTitle}>{plan.benefitsTitle}</p>
-                <ul>{plan.benefits.map(benefit => <li key={benefit}><Check size={15} aria-hidden="true" /><span>{benefit}</span></li>)}</ul>
-              </div>
-            </SpotlightCard>;
-            return <article id={featured ? 'blue-plan' : undefined} aria-label={plan.name} key={plan.id} className={`${styles.plan} ${featured ? styles.featuredPlan : ''}`}
-              style={{ '--entrance-delay': `${index * 70}ms` } as CSSProperties}>
-              {featured ? <StarBorder className={styles.featuredFrame} speed="12s" color="#6da8ff">{card}</StarBorder> : card}
-            </article>;
-          })}
+          <article className={styles.matrixCard} id="blue-plan" data-reveal>
+            <span className={styles.planKicker}>APP ACCESS</span><h2>BYOK pass</h2><p className={styles.description}>Your provider. Your keys. Your workflow.</p>
+            <div className={styles.matrixPrice}><motion.span key={billingCycle+displayCurrency} initial={reducedMotion?false:{opacity:.6,y:4}} animate={{opacity:1,y:0}} transition={{duration:.18,ease:[.16,1,.3,1]}}>{money(displayCurrency==='INR'?bluePlan.priceInr:bluePlan.priceUsd)}</motion.span><small>/{bluePlan.period}</small></div>
+            <p className={styles.priceContext}>{bluePlan.days} days of personal app access · 0 Blue Credits included</p>
+            <BillingCycleSelector value={billingCycle} onChange={setBillingCycle} disabled={subscribing}/>
+            <button type="button" className={styles.matrixPrimary} onClick={handleSubscribe} disabled={subscribing} aria-label={subscribing?'Opening checkout':`${activeBlueAccess?'Extend':'Get'} Blue ${bluePlan.label} access for ₹${bluePlan.priceInr}`}>{subscribing?'Opening checkout…':activeBlueAccess?'Extend access':'Get Blue'}<ArrowUpRight size={15}/></button>
+            {activeBlueAccess&&<span className={styles.matrixBadge}>Active app access</span>}{subscribeError&&<p role="alert" className={styles.error}>{subscribeError}</p>}
+            <ul className={styles.matrixBenefits}>{['Your own provider API keys','Normal coding workspace in Desktop and VS Code','Supported tools and connectors','Provider usage billed by your provider','No automatic renewal'].map(s=><li key={s}><Check size={14}/>{s}</li>)}</ul>
+            <p className={styles.cardNote}>A personal access pass. Blue Teams credit eligibility is separate.</p>
+          </article>
+          <article className={styles.matrixCard} data-reveal>
+            <span className={styles.planKicker}>PERSONAL COMPUTE</span><h2>Personal Credits</h2><p className={styles.description}>Pay as you go. Build at your own pace.</p>
+            <div className={styles.matrixPrice}><span>{money(displayCurrency==='INR'?115:1.30)}</span><small>/ credit</small></div><p className={styles.priceContext}>1 Blue Credit = US$1 of model usage</p>
+            <label className={styles.creditLabel}>Blue Credits<input aria-label="Personal credit quantity" type="number" min="1" max="100" step="1" value={personalQuantity} onChange={e=>setPersonalQuantity(e.target.value)} onBlur={()=>{if(!validPersonal)setPersonalQuantity('25');}}/></label>
+            <div className={styles.quoteLine}><span>Total</span><motion.span key={personalQuantity+displayCurrency} initial={reducedMotion?false:{opacity:.5,y:3}} animate={{opacity:1,y:0}} transition={{duration:.18}}>{validPersonal?money(Number(personalQuantity)*(displayCurrency==='INR'?115:1.30)):'—'}</motion.span></div>
+            <Link aria-disabled={!validPersonal} onClick={e=>{if(!validPersonal)e.preventDefault();}} className={styles.matrixPrimary} href={`/blue-pro/checkout?pack=custom&credits=${personalQuantity}&currency=${displayCurrency}`}>Add personal credits<ArrowUpRight size={15}/></Link>
+            <ul className={styles.matrixBenefits}>{['A balance that never expires','Choose from supported Blue Models','Usage charged at actual model cost','Purchase 25+ credits to unlock Teams','Keep personal and Organization balances separate'].map(s=><li key={s}><Check size={14}/>{s}</li>)}</ul>
+            <p className={styles.cardNote}>No separate platform fee added at checkout.</p>
+          </article>
+          <article className={styles.matrixCard} id="organization-plan" data-reveal>
+            <span className={styles.planKicker}>SHARED COMPUTE</span><h2>Organization</h2><p className={styles.description}>One shared balance. Your whole company.</p>
+            <div className={styles.matrixPrice}><span>{money(displayCurrency==='INR'?115:1.15)}</span><small>/ credit</small></div><p className={styles.priceContext}>Minimum 50 credits · no monthly seat fee</p>
+            <label className={styles.creditLabel}>Organization credits<input aria-label="Organization credit quantity" type="number" min="50" max="1000" step="1" value={organizationQuantity} onChange={e=>setOrganizationQuantity(e.target.value)} onBlur={()=>{if(!validOrganization)setOrganizationQuantity('50');}}/></label>
+            <input className={styles.creditRange} aria-label="Adjust Organization credits" type="range" min="50" max="1000" step="1" value={validOrganization?organizationQuantity:50} aria-valuetext={`${organizationQuantity} credits, ${Math.floor(Number(organizationQuantity)/10)} member seats`} onChange={e=>setOrganizationQuantity(e.target.value)}/>
+            <div className={styles.quoteLine} aria-live="polite"><span>Total</span><motion.span key={organizationQuantity+displayCurrency} initial={reducedMotion?false:{opacity:.5,y:3}} animate={{opacity:1,y:0}} transition={{duration:.18}}>{validOrganization?money(Number(organizationQuantity)*(displayCurrency==='INR'?115:1.15)):'—'}</motion.span></div>
+            <p className={styles.seatCount}><strong>{validOrganization?Math.floor(Number(organizationQuantity)/10):'—'} permanent seats</strong> unlocked by this purchase. Owner included.</p>
+            <Link aria-disabled={!validOrganization} onClick={e=>{if(!validOrganization)e.preventDefault();}} href={`/organizations?credits=${organizationQuantity}&currency=${displayCurrency}`} className={styles.matrixPrimary}>Get Organization<ArrowUpRight size={15}/></Link>
+            <ul className={styles.matrixBenefits}>{['Blue Desktop, Teams and VS Code access','Separate owner admin console','Optional lifetime caps per member','Shared credits and individual accounts','Permanent seats: 1 per 10 credits purchased'].map(s=><li key={s}><Check size={14}/>{s}</li>)}</ul>
+            <Link href="/contact?topic=organization" className={styles.matrixSales}>1,000+ credits? Contact sales <ArrowUpRight size={13}/></Link>
+          </article>
         </div>
+        <div className={styles.freeStrip}><div><strong>Blue Lite. Free to start.</strong><p>Explore AI chat, core coding tools and supported local models.</p></div><Link href="/console">{user?'Open console':'Start for free'} <ArrowUpRight size={14}/></Link></div>
 
         <div className={styles.bottomBar}>
           <p>One-time payments. No auto-renewal. Taxes included.</p>
@@ -172,8 +159,7 @@ export default function PricingClient() {
             <tbody>{allFeatures.map((feature, index) => <tr key={feature}><th scope="row">{feature}</th>{plans.map(plan => <td key={plan.id}>{plan.features[index] ? <><Check size={15} aria-hidden="true" /><span className="sr-only">Included</span></> : <><span aria-hidden="true">—</span><span className="sr-only">Not included</span></>}</td>)}</tr>)}</tbody>
           </table></div>
         </details>
-        </div>
-        <div role="tabpanel" id="pricing-panel-organizations" aria-labelledby="pricing-tab-organizations" className={styles.audiencePanel} hidden={audience!=='organizations'}><OrganizationPricing/></div>
+
         <p className={styles.legal}>By purchasing, you agree to our <Link href="/terms">Terms</Link> and <Link href="/privacy">Privacy Policy</Link>.</p>
       </div>
     </section>

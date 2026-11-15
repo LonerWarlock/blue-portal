@@ -9,7 +9,7 @@ import styles from './teams.module.css';
 
 const activationCheckout = '/blue-pro/checkout?pack=custom&credits=25';
 
-export default function TeamsClient() {
+export default function TeamsClient({showcase}:{showcase?:React.ReactNode}={}) {
   const { user, loading, account, accountLoading, accountError, invalidateAccount } = useAuth();
   // A payment return or the visible wallet amount never grants access. Only
   // the current authenticated account's verified Teams entitlement does.
@@ -34,6 +34,7 @@ export default function TeamsClient() {
           <Link href="#credits" className={styles.heroCta}>Use Teams with Blue Credits <ArrowRight size={16} aria-hidden="true" /></Link>
         </header>
 
+        <div className="mb-16" data-reveal>{showcase}</div>
         <section className={styles.previewSection} aria-labelledby="preview-title">
           <div className={styles.previewCopy}>
             <p className={styles.eyebrow}>One organized workspace</p>

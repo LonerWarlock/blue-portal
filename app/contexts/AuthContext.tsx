@@ -103,34 +103,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [authEnabled]);
 
   useEffect(() => {
-    if (enabled && session?.user?.id) void refreshAccount();
-  }, [enabled, pathname, session, refreshAccount]);
+    if (enabled && !pathname.startsWith("/organizations") && session?.user?.id) void refreshAccount();
+  }, [enabled, pathname, session?.user?.id, refreshAccount]);
 
   useEffect(() => {
     if (!enabled || !session?.user?.id) return;
     const revalidate = () => {
       if (document.visibilityState !== "hidden") void refreshAccount();
     };
-    const interval = window.setInterval(revalidate, WALLET_CACHE_TTL_MS);
-    window.addEventListener("focus", revalidate);
-    document.addEventListener("visibilitychange", revalidate);
+    // Dashboards update only on explicit mutations, navigation or manual refresh.
+    // Supabase still renews authentication silently without reloading dashboard data.
+    const automatic = pathname !== "/console" && !pathname.startsWith("/organizations");
+    const interval = automatic ? window.setInterval(revalidate, WALLET_CACHE_TTL_MS) : null;
+    if (automatic) {
+      window.addEventListener("focus", revalidate);
+      document.addEventListener("visibilitychange", revalidate);
+    }
     if (typeof BroadcastChannel !== "undefined") {
       channel.current = new BroadcastChannel("blue.account-cache.v1");
       channel.current.onmessage = event => {
         if (event.data?.type === "account-invalidated" && event.data.userId === sessionRef.current?.user?.id) {
           cache.current.invalidate();
-          void refreshAccount(true);
+          if (!pathname.startsWith("/organizations")) void refreshAccount(true);
         }
       };
     }
     return () => {
-      window.clearInterval(interval);
+      if (interval !== null) window.clearInterval(interval);
       window.removeEventListener("focus", revalidate);
       document.removeEventListener("visibilitychange", revalidate);
       channel.current?.close();
       channel.current = null;
     };
-  }, [enabled, session?.user?.id, refreshAccount]);
+  }, [enabled, pathname, session?.user?.id, refreshAccount]);
 
   const signOut = async () => {
     // Clear private cached data before network work; old requests cannot repopulate it.

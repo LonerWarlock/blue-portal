@@ -4,7 +4,7 @@
 .frame[data-enhanced="true"][data-image-state="error"] .image { opacity: 0; }
 .skeleton { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; flex-direction: column; gap: 12px; background: var(--paper-alt); color: var(--ink-muted); font-size: 11px; pointer-events: none; }
 .frame[data-enhanced="true"][data-image-state="loading"] .skeleton { display: flex; }
-.skeleton::before { content: ''; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 25%, rgb(var(--brand-rgb) / .045) 48%, transparent 72%); transform: translateX(-100%); animation: shimmer 1.7s ease-in-out infinite; }
+.skeleton::before { content: ''; position: absolute; inset: 0; background:var(--surface); transform: translateX(-100%); animation: shimmer 1.7s ease-in-out infinite; }
 .spinner { width: 19px; height: 19px; border: 1.5px solid var(--line-strong); border-top-color: var(--brand); border-radius: 50%; animation: spin 900ms linear infinite; }
 .compact .spinner { width: 14px; height: 14px; }
 .error { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; position: absolute; inset: 0; background: var(--paper-alt); color: var(--ink-muted); font-size: 11px; padding: 9px; }

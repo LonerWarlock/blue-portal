@@ -13,7 +13,7 @@ export default function BillingCycleSelector({ value, onChange, disabled }: {
           <input type="radio" name="blue-billing-cycle" value={cycle} checked={value === cycle}
             onChange={() => onChange(cycle)} className={styles.input} />
           <span className={`${styles.choice} ${value === cycle ? styles.choiceSelected : ''}`}>
-            {value === cycle && <motion.span aria-hidden="true" className={styles.pill} layoutId="blue-pricing-cycle" transition={{ type: 'spring', stiffness: 450, damping: 35 }} />}
+            {value === cycle && <motion.span aria-hidden="true" className={styles.pill} layoutId="blue-pricing-cycle" transition={{duration:.18,ease:[.16,1,.3,1]}} />}
             <span>{BLUE_SUBSCRIPTION_PLANS[cycle].label}</span>
             {cycle !== 'monthly' && <span className={styles.saving}>{`Save ${bluePlanSavings(cycle)}%`}</span>}
           </span>

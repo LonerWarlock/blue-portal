@@ -114,9 +114,13 @@ test('failed verification cannot display active access even if stale fields say 
   const record=paidAccount('buyer');record.teams.available=false;
   const h=harness({user:{id:'buyer'},account:record});assert.doesNotMatch(h.text(),/Blue Teams is active/);assert.match(h.text(),/could not be verified/);
 });
-test('Teams keeps its workspace preview and clearly explains model billing, fees, top-ups and zero-balance pause', () => {
+test('Teams keeps its workspace preview and clearly explains flat credit pricing, model billing, top-ups and zero-balance pause', () => {
   const h=harness();assert.ok(h.find(node=>node.type==='preview' && node.props.variant==='pricing'));
-  assert.match(h.text(),/25 Blue Credits in one payment/);assert.match(h.text(),/30% platform fee/);assert.match(h.text(),/32.50 USD/);
+  assert.match(h.text(),/25 Blue Credits in one payment/);
+  assert.match(h.text(),/₹2,875 for 25 credits\. ₹115 per credit\./);
+  assert.match(h.text(),/Flat ₹115 per credit; usage charged at actual model cost/);
+  assert.match(h.text(),/1 Blue Credit covers \$1 of actual OpenRouter model usage/);
+  assert.doesNotMatch(h.text(),/30% platform fee|32\.50 USD/);
   assert.match(h.text(),/Main agent and specialists use Blue Models/);assert.match(h.text(),/Your agents, tasks and conversations remain saved/);
   assert.match(h.text(),/balance becomes 40 Blue Credits/);assert.equal(h.requests.length,0);
 });

@@ -1,5 +1,5 @@
 .spotlight { position: relative; isolation: isolate; overflow: hidden; --mouse-x: 50%; --mouse-y: 20%; }
-.spotlight::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), var(--spotlight-color), transparent 75%); opacity: 0; transition: opacity .45s ease; }
+.spotlight::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background:var(--surface); opacity: 0; transition: opacity .45s ease; }
 @media (hover: hover) and (pointer: fine) { .spotlight:hover::before { opacity: .85; } }
 .spotlight:focus-within::before { opacity: .5; }
 .starBorder { position: relative; isolation: isolate; overflow: hidden; border-radius: 22px; background: color-mix(in srgb, var(--edge-color) 45%, transparent); }

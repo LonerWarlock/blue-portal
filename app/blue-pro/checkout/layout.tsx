@@ -1,7 +1,8 @@
+import Navbar from "@/app/components/Navbar";
 import { privatePageMetadata } from '@/lib/seo';
 
 export const metadata = privatePageMetadata("Blue Pro Checkout");
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <div className="executive-checkout-shell"><Navbar/>{children}</div>;
 }

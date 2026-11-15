@@ -42,3 +42,10 @@ Set `BLUE_ORGANIZATIONS_ENABLED=false` to stop new Organization purchases/task a
 Set Vercel `BLUE_ORGANIZATION_PAYU_TEST_ENABLED=true` before deploying the Portal. Organization rollout must also be enabled. Sign in as verified `omnileshkarande@gmail.com`, open an Organization you own, select exactly 50 credits and INR. The admin checkout displays `Buy ₹1` and PayU receives INR 1.00. Other accounts, other quantities, personal purchases and USD/PayPal keep their normal prices. The signed, stored payment quote is marked as a live payment test and still settles exactly once into the Organization. No new SQL migration or Worker/Desktop update is required.
 
 After the check, set `BLUE_ORGANIZATION_PAYU_TEST_ENABLED=false` and redeploy. Already created signed orders settle using their saved prices even after the flag is turned off. This flag alone does not change PayU sandbox/live credentials. No real payment has been submitted by Codex.
+
+## Dashboard UX update
+Organization and personal dashboards retain their current data during browser focus changes and silent authentication renewal. Organization snapshots update on entry, explicit mutations, payment return and manual Refresh. Billing records load on the first explicit visit to Billing & Ledger and refresh only when requested or after a related mutation.
+
+`/organizations` resolves the most recently used valid membership directly to its admin dashboard. Only the Organization ID is remembered in browser storage, under an account-specific key; financial snapshots stay in memory and are cleared on account changes. The header switcher supports other memberships and New Organization. Owners see member/cap editing, invitation revocation and a bounded owner-only ledger endpoint. Personal account controls use the same restrained dashboard styling and a manual refresh action.
+
+No additional migration, environment setting, Worker deployment or Desktop restart is required. Push/deploy the Portal changes normally. Screenshots were captured from the actual components with isolated sample data, not live account balances.

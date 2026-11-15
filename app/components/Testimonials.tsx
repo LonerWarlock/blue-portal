@@ -24,7 +24,7 @@ function ReviewCard({ review }: { review: MarketplaceTestimonial }) {
   );
 }
 
-export default function Testimonials() {
+export default function Testimonials({presentation='stack'}:{presentation?:'stack'|'editorial'}={}) {
   const [activeIndex, setActiveIndex] = useState(0);
   const reviews = marketplaceTestimonials;
   const cards = useMemo(() => reviews.map(review => <ReviewCard key={review.id} review={review} />), [reviews]);
@@ -50,9 +50,11 @@ export default function Testimonials() {
 
           <div className={styles.carousel}>
             <div className={styles.stackFrame}>
+              {presentation==='editorial'?<div className={styles.editorialReview} role="region" aria-roledescription="carousel" aria-label="Blue Marketplace reviews" tabIndex={0} onKeyDown={e=>{if(e.key==='ArrowRight'){e.preventDefault();change(1);}else if(e.key==='ArrowLeft'){e.preventDefault();change(-1);}}}><div key={current.id} className="editorial-enter">{cards[activeIndex]}</div></div>:(
               <Stack cards={cards} activeIndex={activeIndex} onActiveIndexChange={setActiveIndex} randomRotation sensitivity={180} sendToBackOnClick mobileClickOnly autoplay={false} animationConfig={{ stiffness: 260, damping: 20 }} ariaLabel="Blue Marketplace reviews" describedBy="reviews-instructions" />
+              )}
             </div>
-            <p id="reviews-instructions" className={styles.instructions}>Click a card or use the arrows to read the next review.<span className={styles.desktopHint}> You can drag, too.</span><span className="sr-only">When the stack has focus, use left and right arrow keys.</span></p>
+            <p id="reviews-instructions" className={styles.instructions}>{presentation==='editorial'?'Use the arrows to read the next review.':'Click a card or use the arrows to read the next review.'}{presentation==='stack'&&<span className={styles.desktopHint}> You can drag, too.</span>}<span className="sr-only">When the stack has focus, use left and right arrow keys.</span></p>
             <div className={styles.controls}>
               <button type="button" className={styles.arrow} onClick={() => change(-1)} aria-label="Previous review"><ArrowLeft size={18} aria-hidden="true" /></button>
               <div className={styles.dots} aria-label="Choose a review">{reviews.map((review, index) => <button type="button" key={review.id} aria-label={`Show review by ${review.name}`} aria-current={index === activeIndex ? "true" : undefined} onClick={() => setActiveIndex(index)}><span /></button>)}</div>
