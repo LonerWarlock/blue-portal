@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Monitor } from "lucide-react";
+import { Building2, Monitor } from "lucide-react";
 import DesktopDownloadLink from "../components/DesktopDownloadLink";
 import { supabase } from "@/lib/supabase";
 import VSCodeInstallSnippet from "../components/VSCodeInstallSnippet";
@@ -417,6 +417,10 @@ export default function ConsolePage() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <Link prefetch={false} href="/organizations" className="btn btn-secondary min-h-11 text-sm">
+                <Building2 aria-hidden="true" className="mr-2 h-4 w-4 shrink-0" />
+                Organization dashboard
+              </Link>
               <DesktopDownloadLink className="btn btn-secondary min-h-11 text-sm">
                 <Monitor aria-hidden="true" className="mr-2 h-4 w-4 shrink-0" />
                 Download Blue for Windows

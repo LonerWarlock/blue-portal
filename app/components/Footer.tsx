@@ -12,6 +12,7 @@ const footerLinks = {
     { label: "AI coding agent", href: "/product/agents" },
     { label: "Pricing", href: "/pricing" },
     { label: "Blue Teams", href: "/teams" },
+    { label: "Organization Plan", href: "/pricing?audience=organizations" },
   ],
   Resources: [
     { label: "Community", href: "/community" },
