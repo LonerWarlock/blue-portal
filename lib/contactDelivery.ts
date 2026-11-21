@@ -3,10 +3,28 @@ import type { EmailJob } from '@/lib/jobOutbox';
 
 /** Send contact messages immediately so the form only succeeds after a provider accepts them. */
 export async function deliverContactEmail(email: EmailJob): Promise<void> {
+  await deliverSmtpEmail(email);
+}
+
+export function deliverOrganizationInvitation(email: EmailJob): Promise<string> {
+  return deliverSmtpEmail(email, "team.imergene@gmail.com");
+}
+
+export function smtpTemporarilyRejected(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("responseCode" in error)) return false;
+  const code = error.responseCode;
+  return typeof code === "number" && code >= 400 && code < 500;
+}
+
+async function deliverSmtpEmail(email: EmailJob, requiredSender?: string): Promise<string> {
   const smtpUser = String(process.env.SMTP_USER || '').trim();
   const smtpPass = String(process.env.SMTP_PASS || '');
   if (!smtpUser || !smtpPass) {
     throw new Error('Contact email transport is not configured');
+  }
+
+  if (requiredSender && smtpUser.toLowerCase() !== requiredSender) {
+    throw new Error("Organization invitation sender is not configured");
   }
 
   const host = String(process.env.SMTP_HOST || 'smtp.gmail.com').trim();
@@ -29,12 +47,14 @@ export async function deliverContactEmail(email: EmailJob): Promise<void> {
     to: email.to,
     replyTo: email.replyTo,
     subject: email.subject,
-    html: email.html
+    html: email.html,
+    text: email.text
   });
   if (!result.accepted?.some(address => {
     const acceptedAddress = typeof address === 'string' ? address : address.address;
     return acceptedAddress.toLowerCase() === email.to.toLowerCase();
   })) {
-    throw new Error('SMTP provider did not accept the contact recipient');
+    throw new Error('SMTP provider did not accept the recipient');
   }
+  return result.messageId;
 }

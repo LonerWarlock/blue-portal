@@ -3,7 +3,8 @@ import {randomBytes,createHash} from 'crypto';
 import {verifiedSessionUser,ACCOUNT_NO_STORE_HEADERS} from '@/lib/accountEntitlements';
 import {organizationId,organizationRpc,organizationPayuTestAccount} from '@/lib/organizations';
 import {checkRateLimit} from '@/lib/trafficControl';
-import {enqueueEmailJob,emailJobIdempotencyKey,sendEmailViaResend} from '@/lib/jobOutbox';
+import {enqueueEmailJob,emailJobIdempotencyKey} from '@/lib/jobOutbox';
+import {deliverOrganizationInvitation,smtpTemporarilyRejected} from '@/lib/contactDelivery';
 import {canonicalUrl} from '@/lib/seo';
 export const dynamic='force-dynamic';
 type Context={params:{id:string}};
@@ -27,17 +28,16 @@ export async function POST(request:Request,{params}:Context){try{
     subject: 'You’re invited to join an organization in Blue',
     html: '<p>You have been invited to join an organization in Blue.</p><p><a href="' + link + '">Accept invitation</a></p><p>Sign in with the email address that received this invitation. The link expires in seven days.</p>',
     text: 'Accept your Blue Organization invitation: ' + link + '\n\nSign in with the email address that received this invitation. The link expires in seven days.',
-    organizationInvitationId: String(invitationId),
-    // Resend remembers the same delivery key for 24 hours. Stay inside that window.
-    organizationInvitationRetryBefore: new Date(Date.now() + 23.95 * 3600_000).toISOString()
+    organizationInvitationId: String(invitationId)
   };
   const key = emailJobIdempotencyKey('organization-invite', [message.organizationInvitationId]);
   const reply = (notice: string, shareLink = false) => NextResponse.json({ id: invitationId, notice, ...(shareLink ? { invite_url: link } : {}) }, { headers: ACCOUNT_NO_STORE_HEADERS });
   try {
-    await sendEmailViaResend(message, key);
+    await deliverOrganizationInvitation(message);
     return reply('Invitation emailed to ' + email + '.');
-  } catch {
-    if (process.env.RESEND_API_KEY?.trim() && process.env.RESEND_FROM_EMAIL?.trim()) {
+  } catch (error) {
+    // Queue an explicit temporary rejection. A lost acknowledgement may mean Gmail accepted the message.
+    if (smtpTemporarilyRejected(error)) {
       try {
         await enqueueEmailJob(message, key);
         return reply('Invitation created. Email delivery will be retried. You can share the link now.', true);

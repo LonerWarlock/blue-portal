@@ -1,8 +1,10 @@
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { authorizeCron } from '@/lib/cronAuth';
 import { EmailJob, sendEmailViaResend } from '@/lib/jobOutbox';
+import { deliverOrganizationInvitation, smtpTemporarilyRejected } from '@/lib/contactDelivery';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { canonicalUrl } from '@/lib/seo';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,20 +39,34 @@ async function processJobs(request: Request) {
 
   const jobs = Array.isArray(data) ? data : [];
   const results = await mapWithConcurrency(jobs, 10, async job => {
+    const email = job.payload as EmailJob;
+    const invitation = Boolean(email?.organizationInvitationId) || String(job.idempotency_key || '').startsWith('organization-invite:');
+    let smtpAttempted = false;
     try {
       if (job.job_type !== 'transactional_email') {
         throw new Error('Unsupported job type: ' + job.job_type);
       }
-      const email = job.payload as EmailJob;
-      let send = !email.organizationInvitationId || Date.parse(email.organizationInvitationRetryBefore || '') > Date.now();
-      if (send && email.organizationInvitationId) {
-        const { data: pending, error: lookupError } = await supabaseAdmin!
-          .from('blue_organization_invitations').select('id').eq('id', email.organizationInvitationId)
-          .eq('status', 'pending').gt('expires_at', new Date().toISOString()).maybeSingle();
-        if (lookupError) throw new Error('Could not check invitation status');
-        send = Boolean(pending);
+      let providerId: string | null = null;
+      if (invitation) {
+        // Older queue entries contain the link instead of the invitation ID.
+        const prefix = '<a href="' + canonicalUrl('/organizations/invite') + '#';
+        const legacyToken = email.html.split(prefix)[1]?.match(/^([A-Za-z0-9_-]{43})"/)?.[1];
+        // Entries with a Resend retry deadline may already have been accepted there.
+        if (!email.organizationInvitationRetryBefore && (email.organizationInvitationId || legacyToken)) {
+          const lookup = supabaseAdmin!.from('blue_organization_invitations').select('id')
+            .eq('status', 'pending').gt('expires_at', new Date().toISOString());
+          const { data: pending, error: lookupError } = await (email.organizationInvitationId
+            ? lookup.eq('id', email.organizationInvitationId)
+            : lookup.eq('token_hash', createHash('sha256').update(legacyToken!).digest('hex'))).maybeSingle();
+          if (lookupError) throw new Error('Could not check invitation status');
+          if (pending) {
+            smtpAttempted = true;
+            providerId = await deliverOrganizationInvitation(email);
+          }
+        }
+      } else {
+        providerId = await sendEmailViaResend(email);
       }
-      const providerId = send ? await sendEmailViaResend(email, email.organizationInvitationId ? job.idempotency_key : undefined) : null;
       await supabaseAdmin!
         .from('job_outbox')
         .update({
@@ -59,7 +75,7 @@ async function processJobs(request: Request) {
           locked_at: null,
           locked_by: null,
           last_error: null,
-          payload: email.organizationInvitationId ? { organizationInvitationId: email.organizationInvitationId, provider_id: providerId } : { ...(job.payload || {}), provider_id: providerId },
+          payload: invitation ? { organizationInvitationId: email.organizationInvitationId, provider_id: providerId } : { ...(job.payload || {}), provider_id: providerId },
           updated_at: new Date().toISOString()
         })
         .eq('id', job.id)
@@ -67,17 +83,17 @@ async function processJobs(request: Request) {
       return true;
     } catch (jobError) {
       const attempts = Number(job.attempts || 1);
-      const dead = attempts >= 5;
+      const dead = attempts >= 5 || (smtpAttempted && !smtpTemporarilyRejected(jobError));
       const delayMinutes = Math.min(60, Math.pow(2, Math.max(0, attempts - 1)));
       await supabaseAdmin!
         .from('job_outbox')
         .update({
           status: dead ? 'dead' : 'retry',
-          ...(dead && job.payload?.organizationInvitationId ? { payload: { organizationInvitationId: job.payload.organizationInvitationId } } : {}),
+          ...(dead && invitation ? { payload: { organizationInvitationId: email?.organizationInvitationId } } : {}),
           available_at: new Date(Date.now() + delayMinutes * 60_000).toISOString(),
           locked_at: null,
           locked_by: null,
-          last_error: jobError instanceof Error ? jobError.message.slice(0, 500) : 'Job failed',
+          last_error: invitation ? 'Organization invitation delivery failed' : jobError instanceof Error ? jobError.message.slice(0, 500) : 'Job failed',
           updated_at: new Date().toISOString()
         })
         .eq('id', job.id)
