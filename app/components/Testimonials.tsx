@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, ExternalLink, Quote, Star } from "lucide-react";
 import Stack from "./react-bits/Stack";
-import { MARKETPLACE_REVIEW_URL, marketplaceTestimonials, type MarketplaceTestimonial } from "@/lib/marketplaceTestimonials";
+import { MARKETPLACE_REVIEW_URL, featuredMarketplaceTestimonials, type MarketplaceTestimonial } from "@/lib/marketplaceTestimonials";
 import styles from "./Testimonials.module.css";
 
 function ReviewCard({ review }: { review: MarketplaceTestimonial }) {
@@ -26,7 +26,7 @@ function ReviewCard({ review }: { review: MarketplaceTestimonial }) {
 
 export default function Testimonials({presentation='stack'}:{presentation?:'stack'|'editorial'}={}) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const reviews = marketplaceTestimonials;
+  const reviews = featuredMarketplaceTestimonials;
   const cards = useMemo(() => reviews.map(review => <ReviewCard key={review.id} review={review} />), [reviews]);
   const average = (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1);
   const current = reviews[activeIndex];
@@ -37,15 +37,15 @@ export default function Testimonials({presentation='stack'}:{presentation?:'stac
       <div className={styles.container}>
         <div className={styles.layout}>
           <div className={styles.intro}>
-            <span className="eyebrow">05 / Real experiences</span>
-            <h2 id="testimonials-heading">Built with Blue.<br />Shared by you.</h2>
-            <p className={styles.description}>Real feedback from developers on the Visual Studio Marketplace.</p>
+            <span className="eyebrow">EXTENSION REVIEWS</span>
+            <h2 id="testimonials-heading">What VS Code users say.</h2>
+            <p className={styles.description}>Selected reviews from the Visual Studio Marketplace.</p>
             <div className={styles.summary}>
               <strong>{average}<span> / 5</span></strong>
-              <div><span className={styles.stars} aria-hidden="true">{Array.from({ length: 5 }, (_, i) => <Star key={i} size={15} fill="currentColor" />)}</span><p>{reviews.length} public Marketplace reviews</p></div>
+              <div><span className={styles.stars} aria-hidden="true">{Array.from({ length: 5 }, (_, i) => <Star key={i} size={15} fill="currentColor" />)}</span><p>{reviews.length} selected extension reviews</p></div>
             </div>
             <a className={styles.source} href={MARKETPLACE_REVIEW_URL} target="_blank" rel="noopener noreferrer">Read the original reviews <ExternalLink size={14} aria-hidden="true" /></a>
-            <p className={styles.checked}>Checked September 29, 2026. Longer reviews are shown as excerpts.</p>
+            <p className={styles.checked}>Snapshot checked September 29, 2026. The average is for the reviews shown. Longer reviews are excerpts.</p>
           </div>
 
           <div className={styles.carousel}>
@@ -64,7 +64,7 @@ export default function Testimonials({presentation='stack'}:{presentation?:'stac
           </div>
         </div>
         <details className={styles.allReviews}>
-          <summary>Read all {reviews.length} reviews</summary>
+          <summary>Read the {reviews.length} selected reviews</summary>
           <div className={styles.reviewList}>{reviews.map(review => <ReviewCard key={review.id} review={review} />)}</div>
         </details>
       </div>

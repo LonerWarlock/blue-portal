@@ -14,4 +14,8 @@ export const marketplaceTestimonials = [
   { id: 340114, name: "Soham Phatak", date: "July 20, 2026", dateISO: "2026-07-20", rating: 5, excerpt: false, quote: "A very nice and affordable alternative to all the AI agents out there. Very nice product for students and startup developers." },
   { id: 339963, name: "Om Mali", date: "July 17, 2026", dateISO: "2026-07-17", rating: 5, excerpt: false, quote: "In the era of claude and codex, i prefer blue. It is cheap and very powerful. Worth using." },
 ] as const;
+// Editorial selection: do not present founder/team-associated endorsements
+// as independent customer evidence. Preserve the original sourced snapshot.
+export const featuredMarketplaceTestimonials = marketplaceTestimonials.filter(review =>
+  ![337847, 340114, 339963].includes(review.id));
 export type MarketplaceTestimonial = (typeof marketplaceTestimonials)[number];

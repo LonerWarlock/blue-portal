@@ -59,7 +59,7 @@ export async function DELETE(request: Request, context: { params: { requestId: s
 function runtimeError(error: unknown, action: string) {
   const status = Math.max(400, Math.min(599, Number((error as { status?: number })?.status || 500)));
   const message = publicBlueRuntimeError(error, `Blue runtime ${action} failed`);
-  if (status >= 500) console.error(`[Blue Runtime] ${action} failed:`, message);
+  if (status >= 500) console.error(`[Blue Runtime] ${action} failed:`, { status });
   return NextResponse.json({ error: message }, { status, headers: noStoreHeaders() });
 }
 

@@ -721,7 +721,11 @@ async function settleRuntimeTask(
   if (isTerminal(task.state)) return existingSettlement(task, await walletBalance(task.user_id, task.organization_id));
 
   if (task.runtime_transport === 'ticket') {
-    const pending = await finishProxyTask(task, outcome);
+    let pending = await finishProxyTask(task, outcome);
+    if (pending && task.state === 'stopping' && Date.now() - Date.parse(task.settlement_requested_at || '') >= 30_000) {
+      const attempted = await reconcileProxyCalls(8, { userId: task.user_id, requestId: task.request_id }).catch(() => 0);
+      if (attempted) pending = await finishProxyTask(task, outcome);
+    }
     task = await requireTask(task.user_id, task.request_id);
     if (!pending) {
       await promoteBlueRuntimeQueue();

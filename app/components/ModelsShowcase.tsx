@@ -15,8 +15,8 @@ export default function ModelsShowcase() {
     <section id="models" className={`${styles.section} ${styles.models}`} aria-labelledby="models-title">
       <div className={styles.wrap}>
         <div className={styles.sectionHeading}>
-          <div><span className={styles.eyebrow}>03 / Intelligence</span><h2 id="models-title" className={styles.sectionTitle}>One workspace.<br /><span>Your choice of model.</span></h2></div>
-          <p className={styles.sectionDescription}>Different projects call for different tools. Choose from supported model routes in Blue, with options for both experimentation and demanding work.</p>
+          <div><span className={styles.eyebrow}>MODEL CHOICE</span><h2 id="models-title" className={styles.sectionTitle}>Choose the model.</h2></div>
+          <p className={styles.sectionDescription}>Pick a supported model. In Teams, choose a different model for each agent.</p>
         </div>
         <div className={styles.modelRail}>{families.map(family => <div key={family.name} className={styles.modelFamily}><small>{family.lab}</small><h3>{family.name}</h3><p>{family.description}</p></div>)}</div>
         <div className={styles.modelFootnote}><p>Model availability, capabilities, pricing, and rate limits vary by provider and plan. Blue is not affiliated with these model providers.</p><Link href="/pricing" className={styles.textLink}>Compare plans <ArrowRight size={14} aria-hidden="true" /></Link></div>

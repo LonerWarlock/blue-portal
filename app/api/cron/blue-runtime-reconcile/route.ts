@@ -24,7 +24,7 @@ async function run(request: Request) {
   } catch (error) {
     const status = Math.max(400, Math.min(599, Number((error as { status?: number })?.status || 500)));
     const message = publicBlueRuntimeError(error, 'Blue runtime reconciliation failed');
-    if (status >= 500) console.error('[Blue Runtime] Reconciliation failed:', message);
+    if (status >= 500) console.error('[Blue Runtime] Reconciliation failed:', { status });
     return NextResponse.json({ error: message }, { status });
   }
 }

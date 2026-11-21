@@ -15,21 +15,14 @@ import BillingCycleSelector from './BillingCycleSelector';
 import { BLUE_SUBSCRIPTION_PLANS, isBlueBillingCycle, type BlueBillingCycle } from '@/lib/blueSubscriptionPlans';
 import styles from './pricing.module.css';
 
-const allFeatures = ['AI Chat', 'Code Autocomplete', 'Codebase Search', 'Syntax Checking', 'Cloud Models', 'Local Models',
-  'Multi-Agent Teams', 'Figma-to-Code', 'GitHub Integration', 'Vercel Integration', 'Canva Integration', 'Web Search',
-  'Premium UI Creation', 'Premium Models'];
-
-const plans = [
-  { id: 'lite', name: 'Blue Lite', description: 'Start your next idea. For free.',
-    benefitsTitle: 'Your everyday coding tools', benefits: ['AI chat & code autocomplete', 'Codebase search & syntax checks', 'Cloud & local models'],
-    features: [true, true, true, true, true, true, false, false, false, false, false, false, false, false] },
-  { id: 'blue', name: 'Blue', description: 'More power for the way you build.',
-    benefitsTitle: 'Everything in Lite, plus', benefits: ['Multi-agent teams & Figma-to-Code', 'GitHub, Vercel & Canva integrations', 'Web search & premium UI creation'],
-    features: [true, true, true, true, true, true, true, true, true, true, true, true, true, false] },
-  { id: 'blue_pro', name: 'Blue Pro', description: 'Premium models. On your terms.',
-    benefitsTitle: 'Everything in Blue, plus', benefits: ['Selected Premium Models', 'Credits that never expire', '25-credit purchase unlocks Teams'],
-    features: [true, true, true, true, true, true, true, true, true, true, true, true, true, true] },
-] as const;
+const comparisonPlans = ['BYOK pass', 'Personal Credits', 'Organization'];
+const comparisonRows = [
+  { feature: 'Coding in Desktop and VS Code', values: ['Included', 'Included', 'Included'] },
+  { feature: 'AI usage billed to', values: ['Your model provider', 'Your personal credits', 'Your Organization credits'] },
+  { feature: 'Desktop Team mode', values: ['Requires separate Teams credit access', 'Unlock with a purchase of 25+ personal credits', 'Use your Organization’s shared credits'] },
+  { feature: 'Shared employee credit pool', values: ['Not included', 'Not included', 'Included'] },
+  { feature: 'Member spending caps and usage', values: ['Not included', 'Not included', 'Included'] },
+];
 
 export default function PricingClient() {
   const { user, session, account, accountLoading, accountError, invalidateAccount } = useAuth();
@@ -95,7 +88,7 @@ export default function PricingClient() {
         <header className={styles.intro}>
           <div className={styles.kicker}><span>PRICING</span><span className={styles.kickerRule}/>A clear way to build.</div>
           <h1 id="pricing-title" className={styles.title}>Your work. Your models.<br/><span>Your way to pay.</span></h1>
-          <p className={styles.introCopy}>Personal access, on-demand compute, or a shared Organization balance. Choose what works for you.</p>
+          <p className={styles.introCopy}>Use your own API key. Buy personal credits. Or share credits with your company.</p>
         </header>
 
         {accountLoading && user && !account && <p role="status" className={styles.accountMessage}>Loading your plan…</p>}
@@ -135,7 +128,8 @@ export default function PricingClient() {
             <p className={styles.seatCount}><strong>{validOrganization?Math.floor(Number(organizationQuantity)/10):'—'} permanent seats</strong> unlocked by this purchase. Owner included.</p>
             <Link aria-disabled={!validOrganization} onClick={e=>{if(!validOrganization)e.preventDefault();}} href={`/organizations?credits=${organizationQuantity}&currency=${displayCurrency}`} className={styles.matrixPrimary}>Get Organization<ArrowUpRight size={15}/></Link>
             <ul className={styles.matrixBenefits}>{['Blue Desktop, Teams and VS Code access','Separate owner admin console','Optional lifetime caps per member','Shared credits and individual accounts','Permanent seats: 1 per 10 credits purchased'].map(s=><li key={s}><Check size={14}/>{s}</li>)}</ul>
-            <Link href="/contact?topic=organization" className={styles.matrixSales}>1,000+ credits? Contact sales <ArrowUpRight size={13}/></Link>
+            <Link href="/contact?topic=organization" className={styles.matrixSales}>Over 1,000 credits? Contact sales <ArrowUpRight size={13}/></Link>
+            <Link href="/for-companies" className={styles.matrixSales}>How the Organization Plan works <ArrowUpRight size={13}/></Link>
           </article>
         </div>
         <div className={styles.freeStrip}><div><strong>Blue Lite. Free to start.</strong><p>Explore AI chat, core coding tools and supported local models.</p></div><Link href="/console">{user?'Open console':'Start for free'} <ArrowUpRight size={14}/></Link></div>
@@ -154,9 +148,9 @@ export default function PricingClient() {
         <details className={styles.comparison}>
           <summary><span>Compare all features</span><ChevronDown size={17} aria-hidden="true" /></summary>
           <div className={styles.tableWrap}><table>
-            <caption className="sr-only">Complete Blue feature comparison. Every Blue subscription duration includes the same features.</caption>
-            <thead><tr><th scope="col">Features</th>{plans.map(plan => <th scope="col" key={plan.id}>{plan.name}</th>)}</tr></thead>
-            <tbody>{allFeatures.map((feature, index) => <tr key={feature}><th scope="row">{feature}</th>{plans.map(plan => <td key={plan.id}>{plan.features[index] ? <><Check size={15} aria-hidden="true" /><span className="sr-only">Included</span></> : <><span aria-hidden="true">—</span><span className="sr-only">Not included</span></>}</td>)}</tr>)}</tbody>
+            <caption className="sr-only">Compare app access, personal credits and Organization credits. Desktop Team mode has separate credit requirements.</caption>
+            <thead><tr><th scope="col">Features</th>{comparisonPlans.map(plan => <th scope="col" key={plan}>{plan}</th>)}</tr></thead>
+            <tbody>{comparisonRows.map(row => <tr key={row.feature}><th scope="row">{row.feature}</th>{row.values.map((value, index) => <td key={comparisonPlans[index]}>{value}</td>)}</tr>)}</tbody>
           </table></div>
         </details>
 

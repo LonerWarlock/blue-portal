@@ -74,7 +74,7 @@ async function boundedJson(request: Request): Promise<Record<string, unknown>> {
 function runtimeError(error: unknown) {
   const status = Math.max(400, Math.min(599, Number((error as { status?: number })?.status || 500)));
   const message = publicBlueRuntimeError(error, 'Blue runtime admission failed');
-  if (status >= 500) console.error('[Blue Runtime] Admission failed:', message);
+  if (status >= 500) console.error('[Blue Runtime] Admission failed:', { status });
   const queueFull = status === 429 && /queue is full|capacity/i.test(message);
   return NextResponse.json({
     error: message,

@@ -1,10 +1,10 @@
 import {NextResponse} from 'next/server';
 import {randomBytes,createHash} from 'crypto';
 import {verifiedSessionUser,ACCOUNT_NO_STORE_HEADERS} from '@/lib/accountEntitlements';
-import {organizationContext,organizationId,organizationRpc,organizationPayuTestAccount} from '@/lib/organizations';
-import {supabaseAdmin} from '@/lib/supabaseAdmin';
+import {organizationId,organizationRpc,organizationPayuTestAccount} from '@/lib/organizations';
 import {checkRateLimit} from '@/lib/trafficControl';
-import {enqueueEmailJob,emailJobIdempotencyKey} from '@/lib/jobOutbox';
+import {enqueueEmailJob,emailJobIdempotencyKey,sendEmailViaResend} from '@/lib/jobOutbox';
+import {canonicalUrl} from '@/lib/seo';
 export const dynamic='force-dynamic';
 type Context={params:{id:string}};
 export async function GET(request:Request,{params}:Context){try{
@@ -17,12 +17,34 @@ export async function POST(request:Request,{params}:Context){try{
  const limit=await checkRateLimit('organization:manage',actor,{limit:60,windowSeconds:3600});if(!limit.allowed)return NextResponse.json({error:'Too many updates. Try again later.'},{status:429});
  const body=await request.json();let value;
  if(body.action==='invite') {
-  const token=randomBytes(32).toString('base64url'),hash=createHash('sha256').update(token).digest('hex');
-  value=await organizationRpc('blue_organization_invite',{actor,org:id,invite_email:body.email,hash_param:hash});
-  const link='https://blue.imergene.in/organizations/invite#'+token;
-  try{await enqueueEmailJob({to:String(body.email).trim().toLowerCase(),subject:'Invitation to your Blue Organization',html:'<p>You have been invited to a Blue Organization.</p><p><a href="'+link+'">Sign in and accept the invitation</a></p><p>This invitation expires in seven days.</p>'},emailJobIdempotencyKey('organization-invite',[String(value)]));}
-  catch{return NextResponse.json({id:value,invite_url:link,notice:'Invitation created. Email delivery is unavailable; share this invitation link with the intended person.'},{headers:ACCOUNT_NO_STORE_HEADERS});}
-  return NextResponse.json({id:value,invite_url:link},{headers:ACCOUNT_NO_STORE_HEADERS});
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const token = randomBytes(32).toString('base64url');
+  const hash = createHash('sha256').update(token).digest('hex');
+  const invitationId = await organizationRpc('blue_organization_invite', { actor, org: id, invite_email: email, hash_param: hash });
+  const link = canonicalUrl('/organizations/invite') + '#' + token;
+  const message = {
+    to: email,
+    subject: 'You’re invited to join an organization in Blue',
+    html: '<p>You have been invited to join an organization in Blue.</p><p><a href="' + link + '">Accept invitation</a></p><p>Sign in with the email address that received this invitation. The link expires in seven days.</p>',
+    text: 'Accept your Blue Organization invitation: ' + link + '\n\nSign in with the email address that received this invitation. The link expires in seven days.',
+    organizationInvitationId: String(invitationId),
+    // Resend remembers the same delivery key for 24 hours. Stay inside that window.
+    organizationInvitationRetryBefore: new Date(Date.now() + 23.95 * 3600_000).toISOString()
+  };
+  const key = emailJobIdempotencyKey('organization-invite', [message.organizationInvitationId]);
+  const reply = (notice: string, shareLink = false) => NextResponse.json({ id: invitationId, notice, ...(shareLink ? { invite_url: link } : {}) }, { headers: ACCOUNT_NO_STORE_HEADERS });
+  try {
+    await sendEmailViaResend(message, key);
+    return reply('Invitation emailed to ' + email + '.');
+  } catch {
+    if (process.env.RESEND_API_KEY?.trim() && process.env.RESEND_FROM_EMAIL?.trim()) {
+      try {
+        await enqueueEmailJob(message, key);
+        return reply('Invitation created. Email delivery will be retried. You can share the link now.', true);
+      } catch { /* The invitation remains valid and can be shared directly. */ }
+    }
+    return reply('Invitation created. Email could not be sent. Share the link with the intended recipient.', true);
+  }
  } else if(body.action==='revoke')value=await organizationRpc('blue_organization_revoke_invite',{actor,org:id,invitation:organizationId(body.invitation_id)});
  else if(body.action==='cap'||body.action==='remove') {
   if(body.action==='cap'&&body.cap!==null&&(typeof body.cap!=='number'||!Number.isFinite(body.cap)||body.cap<0||body.cap>100000000))return NextResponse.json({error:'Enter a non-negative spending cap, or No limit.'},{status:400});

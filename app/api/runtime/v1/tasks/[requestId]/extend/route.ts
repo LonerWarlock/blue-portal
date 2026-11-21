@@ -23,7 +23,7 @@ export async function POST(request: Request, context: { params: { requestId: str
   } catch (error) {
     const status = Math.max(400, Math.min(599, Number((error as { status?: number })?.status || 500)));
     const message = publicBlueRuntimeError(error, 'Blue runtime extension failed');
-    if (status >= 500) console.error('[Blue Runtime] Extension failed:', message);
+    if (status >= 500) console.error('[Blue Runtime] Extension failed:', { status });
     return NextResponse.json({ error: message }, { status, headers: noStoreHeaders() });
   }
 }

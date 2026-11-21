@@ -9,13 +9,11 @@ export const maxDuration = 300;
 
 export async function POST(request: Request) {
   return handleBlueProxy(request, { env: {
-    // Separate audience: a Worker ticket cannot be replayed on this fallback.
+    // A task ticket minted for another audience cannot be used here.
     BLUE_RUNTIME_PROXY_BASE_URL: VERCEL_PROXY_BASE_URL,
     BLUE_TASK_TICKET_SECRET: process.env.BLUE_TASK_TICKET_SECRET,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
-    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN
-  } });
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY
+  }, maxRequestBytes: 4_000_000 });
 }

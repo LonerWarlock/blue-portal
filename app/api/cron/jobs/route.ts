@@ -41,7 +41,16 @@ async function processJobs(request: Request) {
       if (job.job_type !== 'transactional_email') {
         throw new Error('Unsupported job type: ' + job.job_type);
       }
-      const providerId = await sendEmailViaResend(job.payload as EmailJob);
+      const email = job.payload as EmailJob;
+      let send = !email.organizationInvitationId || Date.parse(email.organizationInvitationRetryBefore || '') > Date.now();
+      if (send && email.organizationInvitationId) {
+        const { data: pending, error: lookupError } = await supabaseAdmin!
+          .from('blue_organization_invitations').select('id').eq('id', email.organizationInvitationId)
+          .eq('status', 'pending').gt('expires_at', new Date().toISOString()).maybeSingle();
+        if (lookupError) throw new Error('Could not check invitation status');
+        send = Boolean(pending);
+      }
+      const providerId = send ? await sendEmailViaResend(email, email.organizationInvitationId ? job.idempotency_key : undefined) : null;
       await supabaseAdmin!
         .from('job_outbox')
         .update({
@@ -50,7 +59,7 @@ async function processJobs(request: Request) {
           locked_at: null,
           locked_by: null,
           last_error: null,
-          payload: { ...(job.payload || {}), provider_id: providerId },
+          payload: email.organizationInvitationId ? { organizationInvitationId: email.organizationInvitationId, provider_id: providerId } : { ...(job.payload || {}), provider_id: providerId },
           updated_at: new Date().toISOString()
         })
         .eq('id', job.id)
@@ -64,6 +73,7 @@ async function processJobs(request: Request) {
         .from('job_outbox')
         .update({
           status: dead ? 'dead' : 'retry',
+          ...(dead && job.payload?.organizationInvitationId ? { payload: { organizationInvitationId: job.payload.organizationInvitationId } } : {}),
           available_at: new Date(Date.now() + delayMinutes * 60_000).toISOString(),
           locked_at: null,
           locked_by: null,

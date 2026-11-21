@@ -6,6 +6,9 @@ export interface EmailJob {
   subject: string;
   html: string;
   replyTo?: string;
+  text?: string;
+  organizationInvitationId?: string;
+  organizationInvitationRetryBefore?: string;
 }
 
 export function emailJobIdempotencyKey(scope: string, parts: string[]): string {
@@ -32,7 +35,7 @@ export async function enqueueEmailJob(
   if (error) throw new Error('Failed to enqueue email: ' + error.message);
 }
 
-export async function sendEmailViaResend(email: EmailJob): Promise<string | null> {
+export async function sendEmailViaResend(email: EmailJob, idempotencyKey?: string): Promise<string | null> {
   const apiKey = String(process.env.RESEND_API_KEY || '');
   const from = String(process.env.RESEND_FROM_EMAIL || '');
   if (!apiKey || !from) throw new Error('Resend is not configured');
@@ -41,13 +44,15 @@ export async function sendEmailViaResend(email: EmailJob): Promise<string | null
     method: 'POST',
     headers: {
       Authorization: 'Bearer ' + apiKey,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {})
     },
     body: JSON.stringify({
       from,
       to: [email.to],
       subject: email.subject,
       html: email.html,
+      ...(email.text ? { text: email.text } : {}),
       ...(email.replyTo ? { reply_to: email.replyTo } : {})
     }),
     cache: 'no-store',

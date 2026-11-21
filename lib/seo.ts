@@ -5,14 +5,14 @@ import type { Metadata } from 'next';
 export const SITE_URL = 'https://blue.imergene.in';
 export const SITE_NAME = 'Blue by Imergene';
 export const HOME_TITLE = 'Blue Desktop by Imergene | AI Coding App & AI Teams';
-export const HOME_DESCRIPTION = 'Blue Desktop by Imergene is an AI coding assistant for Windows. Build and debug local projects, coordinate AI teams, or code with Blue in VS Code.';
+export const HOME_DESCRIPTION = 'Blue Desktop by Imergene is an AI coding assistant for Windows. Edit code and delegate tasks to AI specialists. Blue is also available for VS Code.';
 export const DESKTOP_DESCRIPTION = 'Download Blue Desktop for Windows. Code, debug, coordinate custom AI agents, and generate images with supported models in one workspace by Imergene.';
 export const STUDENT_GUIDE_PATH = '/guides/ai-coding-assistant-for-students';
 export const TEAM_GUIDE_PATH = '/guides/ai-agent-teams';
 
 export const INDEXABLE_PATHS = [
   '/', '/desktop', '/pricing', '/teams', '/docs', '/download', '/hi/download', '/compare/emergent', '/compare/codex', '/product/agents', STUDENT_GUIDE_PATH, TEAM_GUIDE_PATH,
-  '/community', '/about', '/contact', '/privacy', '/terms', '/refund',
+  '/for-companies', '/community', '/about', '/contact', '/privacy', '/terms', '/refund',
 ] as const;
 
 export function canonicalUrl(path = '/'): string {
