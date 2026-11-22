@@ -19,7 +19,7 @@ const comparisonPlans = ['BYOK pass', 'Personal Credits', 'Organization'];
 const comparisonRows = [
   { feature: 'Coding in Desktop and VS Code', values: ['Included', 'Included', 'Included'] },
   { feature: 'AI usage billed to', values: ['Your model provider', 'Your personal credits', 'Your Organization credits'] },
-  { feature: 'Desktop Team mode', values: ['Requires separate Teams credit access', 'Unlock with a purchase of 25+ personal credits', 'Use your Organization’s shared credits'] },
+  { feature: 'Desktop Team mode', values: ['Requires separate Teams credit access', 'Unlock with a purchase of 25+ personal credits', 'Available with a funded Organization wallet'] },
   { feature: 'Shared employee credit pool', values: ['Not included', 'Not included', 'Included'] },
   { feature: 'Member spending caps and usage', values: ['Not included', 'Not included', 'Included'] },
 ];
@@ -120,7 +120,7 @@ export default function PricingClient() {
             <p className={styles.cardNote}>No separate platform fee added at checkout.</p>
           </article>
           <article className={styles.matrixCard} id="organization-plan" data-reveal>
-            <span className={styles.planKicker}>SHARED COMPUTE</span><h2>Organization</h2><p className={styles.description}>One shared balance. Your whole company.</p>
+            <span className={styles.planKicker}>SHARED COMPUTE</span><h2>Organization Plan</h2><p className={styles.description}>One shared balance. Your whole company.</p>
             <div className={styles.matrixPrice}><span>{money(displayCurrency==='INR'?115:1.15)}</span><small>/ credit</small></div><p className={styles.priceContext}>Minimum 50 credits · no monthly seat fee</p>
             <label className={styles.creditLabel}>Organization credits<input aria-label="Organization credit quantity" type="number" min="50" max="1000" step="1" value={organizationQuantity} onChange={e=>setOrganizationQuantity(e.target.value)} onBlur={()=>{if(!validOrganization)setOrganizationQuantity('50');}}/></label>
             <input className={styles.creditRange} aria-label="Adjust Organization credits" type="range" min="50" max="1000" step="1" value={validOrganization?organizationQuantity:50} aria-valuetext={`${organizationQuantity} credits, ${Math.floor(Number(organizationQuantity)/10)} member seats`} onChange={e=>setOrganizationQuantity(e.target.value)}/>
@@ -129,7 +129,7 @@ export default function PricingClient() {
             <Link aria-disabled={!validOrganization} onClick={e=>{if(!validOrganization)e.preventDefault();}} href={`/organizations?credits=${organizationQuantity}&currency=${displayCurrency}`} className={styles.matrixPrimary}>Get Organization<ArrowUpRight size={15}/></Link>
             <ul className={styles.matrixBenefits}>{['Blue Desktop, Teams and VS Code access','Separate owner admin console','Optional lifetime caps per member','Shared credits and individual accounts','Permanent seats: 1 per 10 credits purchased'].map(s=><li key={s}><Check size={14}/>{s}</li>)}</ul>
             <Link href="/contact?topic=organization" className={styles.matrixSales}>Over 1,000 credits? Contact sales <ArrowUpRight size={13}/></Link>
-            <Link href="/for-companies" className={styles.matrixSales}>How the Organization Plan works <ArrowUpRight size={13}/></Link>
+            <Link href="/organization-plan" className={styles.matrixSales}>How the Organization Plan works <ArrowUpRight size={13}/></Link>
           </article>
         </div>
         <div className={styles.freeStrip}><div><strong>Blue Lite. Free to start.</strong><p>Explore AI chat, core coding tools and supported local models.</p></div><Link href="/console">{user?'Open console':'Start for free'} <ArrowUpRight size={14}/></Link></div>

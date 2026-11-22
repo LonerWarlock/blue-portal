@@ -11,7 +11,10 @@ module.exports = phase => ({
     return config;
   },
   async redirects() {
-    return publicMarketingRedirects();
+    return [
+      { source: '/for-companies', destination: '/organization-plan', permanent: true },
+      ...publicMarketingRedirects(),
+    ];
   },
   async headers() {
     return [{

@@ -12,7 +12,7 @@ export const TEAM_GUIDE_PATH = '/guides/ai-agent-teams';
 
 export const INDEXABLE_PATHS = [
   '/', '/desktop', '/pricing', '/teams', '/docs', '/download', '/hi/download', '/compare/emergent', '/compare/codex', '/product/agents', STUDENT_GUIDE_PATH, TEAM_GUIDE_PATH,
-  '/for-companies', '/community', '/about', '/contact', '/privacy', '/terms', '/refund',
+  '/organization-plan', '/community', '/about', '/contact', '/privacy', '/terms', '/refund',
 ] as const;
 
 export function canonicalUrl(path = '/'): string {

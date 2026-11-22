@@ -37,9 +37,9 @@ export default function Testimonials({presentation='stack'}:{presentation?:'stac
       <div className={styles.container}>
         <div className={styles.layout}>
           <div className={styles.intro}>
-            <span className="eyebrow">EXTENSION REVIEWS</span>
+            <span className="eyebrow">VS CODE EXTENSION REVIEWS</span>
             <h2 id="testimonials-heading">What VS Code users say.</h2>
-            <p className={styles.description}>Selected reviews from the Visual Studio Marketplace.</p>
+            <p className={styles.description}>Selected reviews of the Blue VS Code extension from the Visual Studio Marketplace.</p>
             <div className={styles.summary}>
               <strong>{average}<span> / 5</span></strong>
               <div><span className={styles.stars} aria-hidden="true">{Array.from({ length: 5 }, (_, i) => <Star key={i} size={15} fill="currentColor" />)}</span><p>{reviews.length} selected extension reviews</p></div>
