@@ -1,7 +1,7 @@
 import { issueTaskTicket } from './blueTaskTicket.mjs';
 import { releaseProxyHold } from './blueProxyRedis.mjs';
 import { supabaseAdmin } from './supabaseAdmin';
-import { VERCEL_PROXY_BASE_URL } from './blueProxyEndpoints.mjs';
+import { selectProxyBase } from './blueProxyEndpoints.mjs';
 
 export function assertProxyConfigured(): void {
   if (!process.env.OPENROUTER_API_KEY || (process.env.BLUE_TASK_TICKET_SECRET || '').length < 32) {
@@ -12,11 +12,11 @@ export function assertProxyConfigured(): void {
 export async function mintBlueTaskCredential(task: { user_id: string; request_id: string; device_hash: string; runtime_transport?: string }, models: string[]) {
   assertProxyConfigured();
   if (task.runtime_transport !== 'ticket') throw Object.assign(new Error('This saved task uses the retired connection protocol. Finish it and start a new task.'), { status: 426 });
+  const baseUrl = await selectProxyBase(process.env);
   const { error } = await supabaseAdmin!.rpc('activate_blue_proxy_task', {
     user_id_param: task.user_id, request_id_param: task.request_id, models_param: models
   });
   if (error) throw Object.assign(new Error('Blue could not authorize this saved task.'), { status: 409 });
-  const baseUrl = VERCEL_PROXY_BASE_URL;
   const ticket = await issueTaskTicket({ userId: task.user_id, taskId: task.request_id, deviceHash: task.device_hash, models, baseUrl }, process.env.BLUE_TASK_TICKET_SECRET);
   return { ...ticket, kind: 'blue-task-ticket' as const, base_url: baseUrl, model: models[0],
     ...(models[1] ? { approval_reviewer_model: models[1] } : {}) };
